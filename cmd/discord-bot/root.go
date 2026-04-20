@@ -7,6 +7,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
+
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
 )
 
 func newRootCommand() (*cobra.Command, error) {
@@ -54,5 +56,6 @@ func newRootCommand() (*cobra.Command, error) {
 	}
 
 	rootCmd.AddCommand(runCobraCmd, validateCobraCmd, syncCobraCmd)
+	rootCmd.AddCommand(botcli.NewCommand())
 	return rootCmd, nil
 }
