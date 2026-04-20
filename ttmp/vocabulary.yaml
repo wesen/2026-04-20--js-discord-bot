@@ -5,6 +5,10 @@ topics:
       description: Backend services
     - slug: websocket
       description: WebSocket lifecycle & events
+    - slug: javascript
+      description: JavaScript runtime, APIs, and script-hosting work
+    - slug: goja
+      description: goja runtime integration and embedding work
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
