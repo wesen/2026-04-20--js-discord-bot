@@ -227,8 +227,74 @@ THen work through the tasks, commit at appropriate intervals, keep a detailed di
 - Development scope: `DISCORD_GUILD_ID`.
 - Smoke-test commands: `go test ./...`, `go run ./cmd/discord-bot validate-config`, `go run ./cmd/discord-bot sync-commands`, `go run ./cmd/discord-bot run`.
 
+## Step 4: Capture the Glazed documentation gap for maintainers
+
+I wrote a maintainer-facing analysis that explains the exact documentation gap I ran into and which Glazed docs are best positioned to absorb the fix. The point is not to add Discord-specific details, but to make the middleware/env-loading behavior clearer for any CLI built on Glazed.
+
+The main recommendation is to document the override semantics of `MiddlewaresFunc` much more explicitly, and to give one complete example that shows the safe env-aware path. That would have prevented the mistake I made and will likely help anyone building a Glazed command tree with shell-exported configuration.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Writeup all this information and the way you struggled in a document in the ticket, so that we can pass it off to the glazed maintainers later on to improve their documentation.
+
+which doucment in ~/code/wesen/corporate-headquarters/glazed do you think should be updated / which ones did you read? glazed doc should not necessarily have discord specific information."
+
+**Assistant interpretation:** Add a ticket document that explains the Glazed documentation gap and the env-loading mistake, then identify the most relevant Glazed docs and source files to improve upstream.
+
+**Inferred user intent:** Turn the debugging experience into actionable feedback for the Glazed maintainers and call out the exact docs that should be clarified.
+
+### What I did
+- Added a maintainer-facing analysis document to the ticket.
+- Reviewed the most relevant Glazed docs and the Cobra parser implementation to identify where the wording could be sharper.
+- Pointed the analysis at the docs that should be updated first.
+
+### Why
+- The same misunderstanding could easily affect other Glazed CLI authors.
+- The issue is a documentation sharp edge, not a bot-specific problem.
+- A focused writeup makes it easier to open an upstream docs improvement later.
+
+### What worked
+- The analysis doc captures the mistake in a generic, reusable way.
+- The writeup separates the “what happened” from the app-specific details.
+- The recommended docs list is narrow enough to act on.
+
+### What didn't work
+- The docs did not clearly say that `MiddlewaresFunc` overrides the default middleware chain.
+- The quick-start tutorial showed the customization hook without a matching warning about env loading.
+
+### What I learned
+- The issue was not with environment variables themselves; it was with how the parser chain was assembled.
+- The most useful upstream fix is a warning plus one canonical example of the safe env-aware pattern.
+- Config-file discovery and env loading need to be explained separately because they are easy to conflate.
+
+### What was tricky to build
+- The confusing part was that the app looked correct from the outside: flags existed, env vars were set, and the command compiled.
+- The failure only surfaced at runtime, which made it look like a secret-management problem until I inspected the Glazed parser code.
+- The documentation gap was subtle because the relevant info was present in pieces, but not in one place with the override warning spelled out.
+
+### What warrants a second pair of eyes
+- Whether the analysis doc is generic enough for upstream maintainers to use directly.
+- Whether the recommended doc set is the right first pass, or if one of the tutorial pages should be prioritized differently.
+- Whether the docs should include a compact precedence table in addition to a warning callout.
+
+### What should be done in the future
+- Turn this analysis into an upstream Glazed issue or doc PR.
+- Consider adding a short “gotchas” section to the ticket’s own implementation guide so future CLI work avoids the same mistake.
+- If Glazed changes its parser defaults later, re-check the analysis against the new behavior.
+
+### Code review instructions
+- Start with `analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md`.
+- Compare it against the Glazed docs listed there, especially `pkg/cli/cobra-parser.go` and `pkg/doc/topics/21-cmds-middlewares.md`.
+- The key review question is whether the documentation clearly explains default parser behavior versus a custom middleware override.
+
+### Technical details
+- The most important upstream clarification is: `MiddlewaresFunc` replaces the default chain; it does not append to it.
+- The recommended docs to update first are `pkg/doc/topics/21-cmds-middlewares.md`, `pkg/doc/tutorials/05-build-first-command.md`, and `pkg/cli/cobra-parser.go`.
+- The analysis intentionally avoids Discord-specific examples so it can be reused for any Glazed CLI.
+
 ## Related
 
 - `design-doc/01-implementation-and-architecture-guide.md`
 - `reference/02-discord-credentials-and-setup.md`
 - `playbook/01-local-validation-and-smoke-test-checklist.md`
+- `analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md`

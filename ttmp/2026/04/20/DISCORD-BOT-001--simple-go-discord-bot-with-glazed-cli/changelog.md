@@ -20,3 +20,12 @@ Implemented the Go module, Glazed CLI root and subcommands, Discord config/sessi
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/config/config.go — Shared config parsing and validation
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/playbook/01-local-validation-and-smoke-test-checklist.md — Repeatable local smoke-test commands
 
+
+## 2026-04-20
+
+Added a maintainer-facing analysis of the Glazed env-loading gotcha and listed the docs that should be clarified upstream.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md — Documentation feedback writeup for Glazed maintainers
+

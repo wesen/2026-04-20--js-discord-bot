@@ -9,6 +9,8 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md
+      Note: Maintainer-facing writeup of the Glazed documentation gap and env-loading gotcha
     - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/design-doc/01-implementation-and-architecture-guide.md
       Note: Primary architecture and implementation guide for the Discord bot
     - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/playbook/01-local-validation-and-smoke-test-checklist.md
@@ -26,6 +28,7 @@ WhenToUse: Use as the landing page for the ticket workspace.
 
 
 
+
 # Simple Go Discord Bot with Glazed CLI
 
 ## Overview
@@ -38,6 +41,7 @@ This ticket captures the first-pass plan for a simple Discord bot written in Go.
 - [Discord Credentials and Setup](./reference/02-discord-credentials-and-setup.md)
 - [Diary](./reference/01-diary.md)
 - [Local Validation and Smoke Test Checklist](./playbook/01-local-validation-and-smoke-test-checklist.md)
+- [Glazed Documentation Feedback and Env-Loading Gotcha](./analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md)
 
 ## Status
 
