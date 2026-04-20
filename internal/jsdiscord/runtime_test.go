@@ -660,13 +660,16 @@ func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 				await ctx.discord.members.removeRole("guild-1", "user-1", "role-2")
 				await ctx.discord.members.timeout("guild-1", "user-1", { durationSeconds: 600 })
 				await ctx.discord.members.timeout("guild-1", "user-1", { clear: true })
+				await ctx.discord.members.kick("guild-1", "user-2", { reason: "spam" })
+				await ctx.discord.members.ban("guild-1", "user-3", { reason: "raid", deleteMessageDays: 2 })
+				await ctx.discord.members.unban("guild-1", "user-3")
 				return { content: "ok" }
 			})
 		})
 	`)
 
 	handle := loadTestBot(t, scriptPath)
-	var adds, removes, timeouts int
+	var adds, removes, timeouts, kicks, bans, unbans int
 	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name: "moderate",
 		Discord: &DiscordOps{
@@ -699,6 +702,35 @@ func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 				}
 				return nil
 			},
+			MemberKick: func(_ context.Context, guildID, userID string, payload any) error {
+				kicks++
+				mapping, _ := payload.(map[string]any)
+				if guildID != "guild-1" || userID != "user-2" || fmt.Sprint(mapping["reason"]) != "spam" {
+					t.Fatalf("kick = %s/%s %#v", guildID, userID, payload)
+				}
+				return nil
+			},
+			MemberBan: func(_ context.Context, guildID, userID string, payload any) error {
+				bans++
+				mapping, _ := payload.(map[string]any)
+				if guildID != "guild-1" || userID != "user-3" {
+					t.Fatalf("ban target = %s/%s %#v", guildID, userID, payload)
+				}
+				if fmt.Sprint(mapping["reason"]) != "raid" {
+					t.Fatalf("ban reason = %#v", payload)
+				}
+				if mapping["deleteMessageDays"] != int64(2) && mapping["deleteMessageDays"] != 2 && mapping["deleteMessageDays"] != float64(2) {
+					t.Fatalf("ban days = %#v", payload)
+				}
+				return nil
+			},
+			MemberUnban: func(_ context.Context, guildID, userID string) error {
+				unbans++
+				if guildID != "guild-1" || userID != "user-3" {
+					t.Fatalf("unban target = %s/%s", guildID, userID)
+				}
+				return nil
+			},
 		},
 	})
 	if err != nil {
@@ -707,8 +739,8 @@ func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 	if fmt.Sprint(result) != "map[content:ok]" {
 		t.Fatalf("result = %#v", result)
 	}
-	if adds != 1 || removes != 1 || timeouts != 2 {
-		t.Fatalf("counts = add:%d remove:%d timeout:%d", adds, removes, timeouts)
+	if adds != 1 || removes != 1 || timeouts != 2 || kicks != 1 || bans != 1 || unbans != 1 {
+		t.Fatalf("counts = add:%d remove:%d timeout:%d kick:%d ban:%d unban:%d", adds, removes, timeouts, kicks, bans, unbans)
 	}
 }
 

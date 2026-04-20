@@ -657,6 +657,41 @@ func timeoutFromDurationSeconds(seconds int64) (*time.Time, error) {
 	return &until, nil
 }
 
+func normalizeModerationReason(payload any) string {
+	switch v := payload.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(v)
+	case map[string]any:
+		return strings.TrimSpace(fmt.Sprint(v["reason"]))
+	default:
+		return strings.TrimSpace(fmt.Sprint(payload))
+	}
+}
+
+func normalizeBanOptions(payload any) (string, int, error) {
+	reason := ""
+	deleteMessageDays := 0
+	switch v := payload.(type) {
+	case nil:
+		return reason, deleteMessageDays, nil
+	case string:
+		return strings.TrimSpace(v), deleteMessageDays, nil
+	case map[string]any:
+		reason = strings.TrimSpace(fmt.Sprint(v["reason"]))
+		if days, ok := int64Value(v["deleteMessageDays"]); ok {
+			deleteMessageDays = int(days)
+		}
+		if deleteMessageDays < 0 {
+			return "", 0, fmt.Errorf("ban deleteMessageDays must be >= 0")
+		}
+		return reason, deleteMessageDays, nil
+	default:
+		return "", 0, fmt.Errorf("unsupported member ban payload type %T", payload)
+	}
+}
+
 func int64Value(value any) (int64, bool) {
 	switch v := value.(type) {
 	case int:
@@ -1020,6 +1055,58 @@ func buildDiscordOps(scriptPath string, session *discordgo.Session) *DiscordOps 
 					fields["until"] = until.Format(time.RFC3339)
 				}
 				logLifecycleDebug("updated discord guild member timeout from javascript", fields)
+			}
+			return err
+		},
+		MemberKick: func(ctx context.Context, guildID, userID string, payload any) error {
+			_ = ctx
+			guildID = strings.TrimSpace(guildID)
+			userID = strings.TrimSpace(userID)
+			if guildID == "" || userID == "" {
+				return fmt.Errorf("member kick requires guild ID and user ID")
+			}
+			reason := normalizeModerationReason(payload)
+			err := session.GuildMemberDeleteWithReason(guildID, userID, reason)
+			if err == nil {
+				fields := mergeLogFields(map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "action": "discord.members.kick"}, payloadLogFields(payload))
+				if reason != "" {
+					fields["reason"] = reason
+				}
+				logLifecycleDebug("kicked discord guild member from javascript", fields)
+			}
+			return err
+		},
+		MemberBan: func(ctx context.Context, guildID, userID string, payload any) error {
+			_ = ctx
+			guildID = strings.TrimSpace(guildID)
+			userID = strings.TrimSpace(userID)
+			if guildID == "" || userID == "" {
+				return fmt.Errorf("member ban requires guild ID and user ID")
+			}
+			reason, deleteMessageDays, err := normalizeBanOptions(payload)
+			if err != nil {
+				return err
+			}
+			err = session.GuildBanCreateWithReason(guildID, userID, reason, deleteMessageDays)
+			if err == nil {
+				fields := mergeLogFields(map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "action": "discord.members.ban", "deleteMessageDays": deleteMessageDays}, payloadLogFields(payload))
+				if reason != "" {
+					fields["reason"] = reason
+				}
+				logLifecycleDebug("banned discord guild member from javascript", fields)
+			}
+			return err
+		},
+		MemberUnban: func(ctx context.Context, guildID, userID string) error {
+			_ = ctx
+			guildID = strings.TrimSpace(guildID)
+			userID = strings.TrimSpace(userID)
+			if guildID == "" || userID == "" {
+				return fmt.Errorf("member unban requires guild ID and user ID")
+			}
+			err := session.GuildBanDelete(guildID, userID)
+			if err == nil {
+				logLifecycleDebug("unbanned discord guild member from javascript", map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "action": "discord.members.unban"})
 			}
 			return err
 		},

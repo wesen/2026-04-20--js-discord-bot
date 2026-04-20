@@ -60,6 +60,9 @@ type DiscordOps struct {
 	MemberAddRole    func(context.Context, string, string, string) error
 	MemberRemoveRole func(context.Context, string, string, string) error
 	MemberSetTimeout func(context.Context, string, string, any) error
+	MemberKick       func(context.Context, string, string, any) error
+	MemberBan        func(context.Context, string, string, any) error
+	MemberUnban      func(context.Context, string, string) error
 }
 
 type DispatchRequest struct {
@@ -876,6 +879,9 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 		_ = members.Set("addRole", func(string, string, string) error { return nil })
 		_ = members.Set("removeRole", func(string, string, string) error { return nil })
 		_ = members.Set("timeout", func(string, string, any) error { return nil })
+		_ = members.Set("kick", func(string, string, any) error { return nil })
+		_ = members.Set("ban", func(string, string, any) error { return nil })
+		_ = members.Set("unban", func(string, string) error { return nil })
 	} else {
 		_ = channels.Set("send", func(channelID string, payload any) error {
 			if ops.ChannelSend == nil {
@@ -918,6 +924,24 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return nil
 			}
 			return ops.MemberSetTimeout(ctx, guildID, userID, payload)
+		})
+		_ = members.Set("kick", func(guildID, userID string, payload any) error {
+			if ops.MemberKick == nil {
+				return nil
+			}
+			return ops.MemberKick(ctx, guildID, userID, payload)
+		})
+		_ = members.Set("ban", func(guildID, userID string, payload any) error {
+			if ops.MemberBan == nil {
+				return nil
+			}
+			return ops.MemberBan(ctx, guildID, userID, payload)
+		})
+		_ = members.Set("unban", func(guildID, userID string) error {
+			if ops.MemberUnban == nil {
+				return nil
+			}
+			return ops.MemberUnban(ctx, guildID, userID)
 		})
 	}
 	_ = root.Set("channels", channels)

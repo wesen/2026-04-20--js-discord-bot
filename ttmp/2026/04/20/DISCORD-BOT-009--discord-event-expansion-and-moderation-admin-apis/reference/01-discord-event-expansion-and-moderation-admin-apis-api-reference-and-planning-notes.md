@@ -60,6 +60,14 @@ await ctx.discord.members.timeout(guildID, userID, {
 await ctx.discord.members.timeout(guildID, userID, {
   clear: true,
 })
+await ctx.discord.members.kick(guildID, userID, {
+  reason: "spam",
+})
+await ctx.discord.members.ban(guildID, userID, {
+  reason: "raid",
+  deleteMessageDays: 2,
+})
+await ctx.discord.members.unban(guildID, userID)
 ```
 
 ## Current payload notes
@@ -131,10 +139,13 @@ Without the relevant intents, some event families simply will not arrive.
 
 ### Permission expectations for host moderation APIs
 
-The first moderation/admin host methods require Discord permissions roughly equivalent to:
+The current moderation/admin host methods require Discord permissions roughly equivalent to:
 
 - add/remove role operations → role-management permission and valid role hierarchy
 - member timeout operations → timeout/moderation permission and valid role hierarchy
+- kick operations → kick-member permission and valid role hierarchy
+- ban operations → ban-member permission and valid role hierarchy
+- unban operations → unban/ban-management permission in the guild
 
 Common failure mode categories include:
 
@@ -145,10 +156,21 @@ Common failure mode categories include:
 
 ### Current limitation
 
-The first `timeout(...)` slice supports:
+The current `timeout(...)` slice supports:
 
 - `durationSeconds`
 - `until` (RFC3339 timestamp)
 - `clear: true`
 
 It does **not** yet carry an audit-log reason parameter through to Discord.
+
+The current `kick(...)` slice supports:
+
+- string payloads treated as a reason
+- object payloads with `reason`
+
+The current `ban(...)` slice supports:
+
+- string payloads treated as a reason
+- object payloads with `reason`
+- object payloads with `deleteMessageDays`

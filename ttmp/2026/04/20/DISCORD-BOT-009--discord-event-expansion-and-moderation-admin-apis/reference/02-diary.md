@@ -332,3 +332,54 @@ The last small planned documentation task for the current implementation scope w
 
 ### What should be done next
 - Decide whether the next code slice should add `kick`, `ban`, and `unban`, or whether DISCORD-BOT-009 should pause here with the current safer moderation surface.
+
+## Step 8: Add kick/ban/unban member moderation APIs
+
+After the safer moderation slice and the documentation/playbook work were in place, I continued with the more destructive member operations: kick, ban, and unban. At this point the architecture and operational guidance were stable enough that widening the moderation surface made sense.
+
+I kept the API shape consistent with the earlier member methods by extending `ctx.discord.members.*`. The payload model stays intentionally small:
+
+- `kick(guildID, userID, payload?)` where payload can carry `reason`
+- `ban(guildID, userID, payload?)` where payload can carry `reason` and `deleteMessageDays`
+- `unban(guildID, userID)`
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` to expose:
+  - `ctx.discord.members.kick(...)`
+  - `ctx.discord.members.ban(...)`
+  - `ctx.discord.members.unban(...)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to implement:
+  - `MemberKick`
+  - `MemberBan`
+  - `MemberUnban`
+  - `normalizeModerationReason(...)`
+  - `normalizeBanOptions(...)`
+- Extended `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` so the outbound moderation-ops test now covers:
+  - kick
+  - ban
+  - unban
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` to add:
+  - `mod-kick`
+  - `mod-ban`
+  - `mod-unban`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md`, the ticket reference doc, and the playbook to describe the expanded moderation surface.
+- Ran:
+  - `gofmt -w internal/jsdiscord/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### What worked
+- `bots help moderation` now shows:
+  - `mod-kick`
+  - `mod-ban`
+  - `mod-unban`
+- The runtime test suite still passes after widening the member operations surface.
+- The moderation example now demonstrates the full currently implemented `ctx.discord.members.*` namespace.
+
+### Why
+- With intents, event coverage, role management, timeout support, and docs already in place, kick/ban/unban were the natural next step.
+- Keeping them in the same `members` namespace preserves a coherent JavaScript API for moderation actions.
+
+### What should be done next
+- Decide whether DISCORD-BOT-009 should stop here as a solid first moderation milestone or continue into richer admin APIs beyond member management.

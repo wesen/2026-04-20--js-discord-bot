@@ -7,7 +7,7 @@ This repository exercises the named bot runner model.
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
 - `knowledge-base/` — relative `require()` helper, search/article commands, message event
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event
-- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, and first moderation host APIs
+- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, and member moderation host APIs
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
@@ -32,7 +32,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
-- `moderation` also now includes host-backed `mod-add-role` and `mod-timeout` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
+- `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
 
 ## Moderation / event prerequisites
 
@@ -42,5 +42,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
   - `GuildMembers`
   - `MessageContent`
 - Moderation commands must be run in a guild context.
-- `mod-add-role` and `mod-timeout` require the bot to have the corresponding Discord permissions and sufficient role hierarchy over the target member/role.
-- The first `timeout(...)` slice currently supports `durationSeconds`, `until`, and `clear: true`; it does not yet send an audit-log reason.
+- `mod-add-role`, `mod-timeout`, `mod-kick`, and `mod-ban` require the bot to have the corresponding Discord permissions and sufficient role hierarchy over the target member/role.
+- `mod-unban` requires unban permissions in the guild.
+- The current `timeout(...)` slice supports `durationSeconds`, `until`, and `clear: true`; it does not yet send an audit-log reason.
+- The current `ban(...)` slice supports `reason` and `deleteMessageDays`.

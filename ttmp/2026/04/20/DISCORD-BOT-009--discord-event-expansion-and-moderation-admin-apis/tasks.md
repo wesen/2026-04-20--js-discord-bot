@@ -48,7 +48,7 @@
 - [x] Add `ctx.discord.members.addRole(...)`
 - [x] Add `ctx.discord.members.removeRole(...)`
 - [x] Add `ctx.discord.members.timeout(...)`
-- [ ] Decide whether `kick`, `ban`, and `unban` belong in the first moderation slice
+- [x] Add `ctx.discord.members.kick(...)`, `ban(...)`, and `unban(...)`
 - [x] Add explicit structured logging around destructive/admin Discord operations
 - [x] Add runtime tests for moderation/admin host methods
 - [x] Document permissions, error surfaces, and safety expectations

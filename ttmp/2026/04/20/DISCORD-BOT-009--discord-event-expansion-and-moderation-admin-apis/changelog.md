@@ -68,3 +68,14 @@ Added a focused operator/debug playbook for the currently implemented DISCORD-BO
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/playbook/01-debugging-event-and-moderation-flows.md — Operator/debug runbook for event and moderation validation
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/index.md — Updated ticket index to link to the new playbook
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/tasks.md — Marked the playbook task complete
+
+Implemented the next moderation/admin slice for `DISCORD-BOT-009`: JavaScript can now call `ctx.discord.members.kick(...)`, `ban(...)`, and `unban(...)`, the live host routes those methods through discordgo with structured logging, runtime tests cover the new destructive member operations, and the moderation example bot now advertises `mod-kick`, `mod-ban`, and `mod-unban` commands.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go — Exposed `kick`, `ban`, and `unban` into the `ctx.discord.members` namespace
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Implemented kick/ban/unban host operations and moderation payload normalization
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for kick/ban/unban member operations
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example moderation bot now demonstrates kick/ban/unban commands
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated operator-facing notes for the expanded member moderation surface
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/reference/01-discord-event-expansion-and-moderation-admin-apis-api-reference-and-planning-notes.md — Updated reference with kick/ban/unban semantics and caveats

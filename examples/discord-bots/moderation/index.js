@@ -69,6 +69,54 @@ module.exports = defineBot(({ command, event, configure }) => {
     return { content: `Timed out ${ctx.args.user_id} for ${ctx.args.duration_seconds} seconds.`, ephemeral: true };
   });
 
+  command("mod-kick", {
+    description: "Kick a guild member using the host moderation API",
+    options: {
+      user_id: { type: "string", description: "Target user ID", required: true },
+      reason: { type: "string", description: "Kick reason", required: false },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    await ctx.discord.members.kick(guildId, ctx.args.user_id, { reason: ctx.args.reason || "" });
+    return { content: `Kicked ${ctx.args.user_id}.`, ephemeral: true };
+  });
+
+  command("mod-ban", {
+    description: "Ban a guild member using the host moderation API",
+    options: {
+      user_id: { type: "string", description: "Target user ID", required: true },
+      reason: { type: "string", description: "Ban reason", required: false },
+      delete_message_days: { type: "integer", description: "How many days of messages to delete", required: false },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    await ctx.discord.members.ban(guildId, ctx.args.user_id, {
+      reason: ctx.args.reason || "",
+      deleteMessageDays: ctx.args.delete_message_days || 0,
+    });
+    return { content: `Banned ${ctx.args.user_id}.`, ephemeral: true };
+  });
+
+  command("mod-unban", {
+    description: "Unban a guild member using the host moderation API",
+    options: {
+      user_id: { type: "string", description: "Target user ID", required: true },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    await ctx.discord.members.unban(guildId, ctx.args.user_id);
+    return { content: `Unbanned ${ctx.args.user_id}.`, ephemeral: true };
+  });
+
   event("messageCreate", async (ctx) => {
     const content = (ctx.message && ctx.message.content || "").trim();
     if (content === "!modping") {

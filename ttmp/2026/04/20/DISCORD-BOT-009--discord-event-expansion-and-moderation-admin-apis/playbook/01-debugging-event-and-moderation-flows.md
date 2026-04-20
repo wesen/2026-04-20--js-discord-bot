@@ -78,6 +78,9 @@ Expected moderation example commands should include:
 - `mod-guidelines`
 - `mod-add-role`
 - `mod-timeout`
+- `mod-kick`
+- `mod-ban`
+- `mod-unban`
 
 ## Event debugging checklist
 
@@ -165,6 +168,48 @@ Common failure modes:
 - bot’s role hierarchy is below the target member
 - invalid or unexpected duration value
 
+### `mod-kick`
+
+Expected inputs:
+
+- a valid target user ID
+- optional reason
+- command must be run in a guild
+
+Common failure modes:
+
+- bot lacks kick-member permission
+- bot’s role hierarchy is below the target member
+- the target user ID is wrong for the current guild
+
+### `mod-ban`
+
+Expected inputs:
+
+- a valid target user ID
+- optional reason
+- optional `delete_message_days`
+- command must be run in a guild
+
+Common failure modes:
+
+- bot lacks ban-member permission
+- bot’s role hierarchy is below the target member
+- invalid target user ID
+
+### `mod-unban`
+
+Expected inputs:
+
+- a valid target user ID for a currently banned member
+- command must be run in a guild
+
+Common failure modes:
+
+- bot lacks permission to manage bans
+- the user is not currently banned
+- the target user ID is wrong
+
 ## Debug logs to look for
 
 With `--log-level debug`, the host now emits lifecycle logs for:
@@ -194,7 +239,9 @@ These logs should help answer:
   - `until` (RFC3339)
   - `clear: true`
 - `timeout(...)` does not yet send an audit-log reason
-- destructive moderation APIs like `kick`, `ban`, and `unban` are not yet implemented in this slice
+- `kick(...)` currently supports string or object payloads for `reason`
+- `ban(...)` currently supports `reason` and `deleteMessageDays`
+- `unban(...)` currently takes only guild ID and user ID
 
 ## Validation commands
 
