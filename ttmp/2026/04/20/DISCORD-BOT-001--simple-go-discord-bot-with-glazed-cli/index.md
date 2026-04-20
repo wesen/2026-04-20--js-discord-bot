@@ -19,12 +19,19 @@ RelatedFiles:
       Note: Chronological work log for the ticket
     - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/reference/02-discord-credentials-and-setup.md
       Note: Credential checklist and setup instructions
+    - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/ARTICLE - Playbook - Adding jsverbs to Arbitrary Go Glazed Tools.md
+      Note: Ticket-local copy of the reusable jsverbs integration playbook
+    - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/PROJ - JS Discord Bot - Adding jsverbs Support.md
+      Note: Ticket-local copy of the jsverbs-support project report
+    - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/PROJ - JS Discord Bot - Building a Discord Bot with a JavaScript API.md
+      Note: Ticket-local copy of the JS API project report
 ExternalSources: []
 Summary: Ticket overview for the simple Go Discord bot plan, docs, and working notes.
 LastUpdated: 2026-04-20T10:04:14.202445006-04:00
 WhatFor: Track the main documents and status for the Discord bot ticket.
 WhenToUse: Use as the landing page for the ticket workspace.
 ---
+
 
 
 
@@ -42,6 +49,9 @@ This ticket captures the first-pass plan for a simple Discord bot written in Go.
 - [Diary](./reference/01-diary.md)
 - [Local Validation and Smoke Test Checklist](./playbook/01-local-validation-and-smoke-test-checklist.md)
 - [Glazed Documentation Feedback and Env-Loading Gotcha](./analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md)
+- [Copied source note: jsverbs integration playbook](./sources/ARTICLE%20-%20Playbook%20-%20Adding%20jsverbs%20to%20Arbitrary%20Go%20Glazed%20Tools.md)
+- [Copied source note: Discord bot with JS API](./sources/PROJ%20-%20JS%20Discord%20Bot%20-%20Building%20a%20Discord%20Bot%20with%20a%20JavaScript%20API.md)
+- [Copied source note: Discord bot jsverbs support](./sources/PROJ%20-%20JS%20Discord%20Bot%20-%20Adding%20jsverbs%20Support.md)
 
 ## Status
 

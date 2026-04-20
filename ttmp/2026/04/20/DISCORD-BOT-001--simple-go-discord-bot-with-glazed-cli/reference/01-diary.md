@@ -9,6 +9,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../obsidian-vault/Projects/2026/04/20/ARTICLE - Playbook - Adding jsverbs to Arbitrary Go Glazed Tools.md
+      Note: Canonical vault note written for the reusable jsverbs integration pattern
+    - Path: ../../../../../../../obsidian-vault/Projects/2026/04/20/PROJ - JS Discord Bot - Adding jsverbs Support.md
+      Note: Canonical vault project note for the jsverbs support direction
+    - Path: ../../../../../../../obsidian-vault/Projects/2026/04/20/PROJ - JS Discord Bot - Building a Discord Bot with a JavaScript API.md
+      Note: Canonical vault project note for the JavaScript API direction
     - Path: cmd/discord-bot/commands.go
       Note: Glazed command implementations and env-loading fix documented here
     - Path: cmd/discord-bot/main.go
@@ -27,6 +33,7 @@ LastUpdated: 2026-04-20T10:04:42.995993948-04:00
 WhatFor: Record decisions, work steps, and follow-up ideas while the ticket is active.
 WhenToUse: Use when reviewing how the documentation and design were produced.
 ---
+
 
 
 # Diary
@@ -353,6 +360,81 @@ I launched the bot in a detached tmux session, confirmed it connected successful
 - tmux session name used: `discordbot-smoke`.
 - Connection log observed: `discord bot connected`.
 - Sync output showed `/ping` and `/echo` in the configured guild scope.
+
+## Step 6: Write reusable vault notes for the JavaScript-hosted future and copy them into the ticket
+
+After the Go-only Discord bot was working, I wrote three longer-form notes aimed at the next likely evolution of the project: a reusable playbook for adding `jsverbs` to arbitrary Go + Glazed tools, a project report on turning this bot into a JavaScript-hosted bot, and a second project report on adding `jsverbs` support to that bot. I created those notes in the Obsidian vault first so they would live as durable knowledge notes rather than only ticket-local markdown.
+
+Once the notes were written in the vault, I copied them into this ticket with `cp` so the ticket has a frozen local copy too. That gives the best of both worlds: reusable long-term knowledge in Obsidian and ticket-local artifacts for future handoff or review.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Write up a detailed playbook on how to add jsverbs to an arbitrary go glazed tool. That way we can reuse it in the future.
+
+Then write a project report on building a discord bot with JS API. Then another project report on ading jsverb support to that bot.
+
+Store the projects int he obsidian vault, and then once written use `cp` command to copy them inside the ticket."
+
+**Assistant interpretation:** Create one reusable knowledge note plus two project-oriented future-direction notes in the Obsidian vault, then copy those note files into the current Discord bot ticket.
+
+**Inferred user intent:** Preserve the design knowledge in the long-term vault while also making it immediately available from the current ticket workspace.
+
+### What I did
+- Wrote this reusable vault note:
+  - `/home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/ARTICLE - Playbook - Adding jsverbs to Arbitrary Go Glazed Tools.md`
+- Wrote this vault project report:
+  - `/home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/PROJ - JS Discord Bot - Building a Discord Bot with a JavaScript API.md`
+- Wrote this second vault project report:
+  - `/home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/PROJ - JS Discord Bot - Adding jsverbs Support.md`
+- Copied all three notes into the ticket with `cp` under:
+  - `ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/`
+- Updated the ticket index, tasks, and changelog so the copied notes are discoverable from the ticket workspace.
+
+### Why
+- The jsverbs integration note is reusable knowledge and belongs in the vault.
+- The two project reports are future-facing project notes that will be useful outside this ticket too.
+- Copying the files into the ticket preserves the exact versions that informed this stage of the project.
+
+### What worked
+- The Obsidian vault note style adapted well to one `ARTICLE - ...` note and two `PROJ - ...` notes.
+- The copied `sources/` files give the ticket an immediate local reference set without replacing the vault as the main long-term home.
+- The note split came out cleanly:
+  - reusable pattern note,
+  - JS API project direction,
+  - jsverbs support project direction.
+
+### What didn't work
+- No runtime or tool failures occurred in this step.
+- The only minor care point was making sure the copied ticket paths matched the exact vault filenames with spaces and punctuation, which is why I used explicit quoted paths in the `cp` command.
+
+### What I learned
+- For future-facing architecture work, the Obsidian vault is a better first destination than a ticket-only note because it encourages more durable, reusable writing.
+- Copying vault notes into `sources/` is a good ticket pattern when we want both long-term preservation and ticket-local portability.
+
+### What was tricky to build
+- The tricky part was writing the project reports honestly. The current repo has a working Go Discord bot, but it does not yet have a JS API or jsverbs support. So the reports needed to be explicit that they describe the next architectural phase rather than claiming those features already exist.
+- The other subtle point was keeping `jsverbs` support separate from the runtime JavaScript bot API in the writeup, since they are related but not the same abstraction.
+
+### What warrants a second pair of eyes
+- Whether the future JS API should be expressed as a dedicated `require("discord")` module or built on top of the `sandbox.defineBot(...)` shape.
+- Whether the eventual CLI surface for jsverbs in this repo should look like `discord-bot verbs ...` or the newer `list|run|help` action shape.
+
+### What should be done in the future
+- Decide whether the next implementation step is a JS host API first or a jsverbs CLI first.
+- If implementation starts, create a follow-up ticket or design doc that turns one of the two project reports into a concrete phased plan.
+
+### Code review instructions
+- Read the copied source notes under `sources/` from the ticket index.
+- If you want the canonical long-term versions, open the corresponding files in the Obsidian vault.
+- Treat the notes as future-direction reports grounded in the current repo state, not as descriptions of already-implemented features.
+
+### Technical details
+- Vault note directory used:
+  - `/home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/`
+- Ticket copy destination used:
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/`
+- Copy command pattern used:
+  - `cp '<vault note path>' '<ticket sources dir>/'`
 
 ## Related
 

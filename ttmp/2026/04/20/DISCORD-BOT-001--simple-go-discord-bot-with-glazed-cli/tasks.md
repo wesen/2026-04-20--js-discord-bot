@@ -7,6 +7,10 @@
 - [x] Document the required Discord credentials and how to obtain them
 - [x] Record a diary entry for the work completed so far
 - [x] Relate the ticket documents and validate the workspace
+- [x] Write a reusable jsverbs-to-Glazed integration playbook in the Obsidian vault
+- [x] Write a project report for building this Discord bot around a JavaScript API in the Obsidian vault
+- [x] Write a project report for adding jsverbs support to this Discord bot in the Obsidian vault
+- [x] Copy the resulting vault notes into the ticket with `cp`
 
 ## Planned implementation tasks
 

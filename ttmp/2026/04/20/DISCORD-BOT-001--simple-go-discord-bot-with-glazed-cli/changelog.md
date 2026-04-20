@@ -41,3 +41,17 @@ Smoke-tested the bot in a detached tmux session, confirmed gateway connection, a
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Discord gateway connection and slash-command registration verified by smoke test
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/playbook/01-local-validation-and-smoke-test-checklist.md — Repeatable validation checklist now includes the tmux run workflow
 
+
+## 2026-04-20
+
+Wrote three future-facing notes in the Obsidian vault — a reusable jsverbs integration playbook plus two project reports about a JavaScript API and jsverbs support for this Discord bot — then copied those notes into the ticket `sources/` directory with `cp` for durable ticket-local reference.
+
+### Related Files
+
+- /home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/ARTICLE - Playbook - Adding jsverbs to Arbitrary Go Glazed Tools.md — Reusable vault note explaining how to add jsverbs to arbitrary Go + Glazed CLIs
+- /home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/PROJ - JS Discord Bot - Building a Discord Bot with a JavaScript API.md — Vault project report for the JavaScript-hosted Discord bot direction
+- /home/manuel/code/wesen/obsidian-vault/Projects/2026/04/20/PROJ - JS Discord Bot - Adding jsverbs Support.md — Vault project report for adding jsverbs support to the Discord bot
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/ARTICLE - Playbook - Adding jsverbs to Arbitrary Go Glazed Tools.md — Ticket-local copy of the reusable integration playbook
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/PROJ - JS Discord Bot - Building a Discord Bot with a JavaScript API.md — Ticket-local copy of the JS API project report
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/PROJ - JS Discord Bot - Adding jsverbs Support.md — Ticket-local copy of the jsverbs-support project report
+
