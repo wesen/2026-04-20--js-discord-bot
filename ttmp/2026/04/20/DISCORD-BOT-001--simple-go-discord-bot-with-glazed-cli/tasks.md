@@ -11,6 +11,8 @@
 - [x] Write a project report for building this Discord bot around a JavaScript API in the Obsidian vault
 - [x] Write a project report for adding jsverbs support to this Discord bot in the Obsidian vault
 - [x] Copy the resulting vault notes into the ticket with `cp`
+- [x] Port the host-side jsverbs bot CLI from `go-go-goja` into this repository so `discord-bot` owns the bot UX locally
+- [x] Add a local example bot repository and smoke coverage in this repository
 
 ## Planned implementation tasks
 

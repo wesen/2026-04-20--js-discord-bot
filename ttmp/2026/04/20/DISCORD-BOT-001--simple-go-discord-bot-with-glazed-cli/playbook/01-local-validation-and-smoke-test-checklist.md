@@ -97,6 +97,19 @@ Expected result:
 - `/echo` returns the supplied text.
 - In tmux, the session stays alive until you detach or stop it.
 
+### 6) Exercise the local jsverbs bot CLI examples
+
+```bash
+GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/bots
+GOWORK=off go run ./cmd/discord-bot bots run discord greet --bot-repository ./examples/bots Manuel --excited
+GOWORK=off go run ./cmd/discord-bot bots help issues list --bot-repository ./examples/bots
+```
+
+Expected result:
+- `list` prints the example bot paths.
+- `run` prints structured JSON for the selected JS verb.
+- `help` renders verb-specific flags such as `--state` and `--labels`.
+
 ## Exit Criteria
 
 The bot is considered locally ready when:
@@ -105,6 +118,7 @@ The bot is considered locally ready when:
 - `validate-config` succeeds using the shell environment.
 - `sync-commands` registers the expected commands.
 - `run` connects cleanly and responds to `/ping`.
+- the local `bots list|run|help` commands work against `./examples/bots`.
 
 ## Failure Modes
 

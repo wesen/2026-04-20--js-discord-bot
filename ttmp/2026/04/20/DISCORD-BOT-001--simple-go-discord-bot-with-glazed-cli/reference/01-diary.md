@@ -21,8 +21,12 @@ RelatedFiles:
       Note: Entry point and signal-aware execution flow described in the diary
     - Path: cmd/discord-bot/root.go
       Note: Root Glazed/Cobra wiring and logging/help setup recorded in the diary
+    - Path: examples/bots/README.md
+      Note: Was added during Step 7 as the local smoke guide for the moved bot CLI
     - Path: internal/bot/bot.go
       Note: Discord session lifecycle and slash-command handling tracked in the diary
+    - Path: internal/botcli/runtime.go
+      Note: Was added during Step 7 to invoke jsverbs locally through imported go-go-goja packages
     - Path: internal/config/config.go
       Note: Shared Discord config parsing and validation used in the diary steps
     - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/playbook/01-local-validation-and-smoke-test-checklist.md
@@ -33,6 +37,7 @@ LastUpdated: 2026-04-20T10:04:42.995993948-04:00
 WhatFor: Record decisions, work steps, and follow-up ideas while the ticket is active.
 WhenToUse: Use when reviewing how the documentation and design were produced.
 ---
+
 
 
 
@@ -435,6 +440,91 @@ Store the projects int he obsidian vault, and then once written use `cp` command
   - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/`
 - Copy command pattern used:
   - `cp '<vault note path>' '<ticket sources dir>/'`
+
+## Step 7: Move the host-side bot CLI into this repository and keep `go-go-goja` as an imported dependency
+
+After writing the future-facing notes, I went ahead and moved the practical host-side bot CLI layer into `js-discord-bot` so this repository now owns the actual command surface. The important boundary is that `go-go-goja` remains the imported engine/jsverbs dependency, but the UX-specific package, examples, and tests now live locally here.
+
+This was the right move because the Discord bot repository should own its own operator-facing commands and examples. The reusable generic pieces stay in `go-go-goja`, but the host-side command naming, local examples, and smoke workflow belong in the app repo.
+
+### Prompt Context
+
+**User prompt (verbatim):** "move all the bot related stuff back to this repository, go-go-goja is just something we import. Is that easy to do ?"
+
+**Assistant interpretation:** Port the local host-side `bots list|run|help` package and examples into the Discord bot repository while leaving `go-go-goja` as the imported dependency for engine/jsverbs internals.
+
+**Inferred user intent:** Make this repository self-contained for bot UX and testing so `go-go-goja` stays a shared library rather than the place where the app-specific workflow lives.
+
+**Commit (code):** 80ba688 — "Add local jsverbs bot CLI to Discord bot"
+
+### What I did
+- Added a new local package under `internal/botcli/` with:
+  - `bootstrap.go`
+  - `command.go`
+  - `model.go`
+  - `resolve.go`
+  - `runtime.go`
+  - `command_test.go`
+- Mounted the new command group from `cmd/discord-bot/root.go` so the app now exposes:
+  - `discord-bot bots list`
+  - `discord-bot bots run <verb>`
+  - `discord-bot bots help <verb>`
+- Added a local example repository under:
+  - `examples/bots/`
+- Added duplicate-path fixtures under:
+  - `examples/bots-dupe-a/`
+  - `examples/bots-dupe-b/`
+- Updated `go.mod` so this repo imports `go-go-goja` for the reusable runtime/jsverbs pieces.
+- Validated with focused tests, smoke commands, and a full `go test ./...` pass.
+
+### Why
+- The bot-related UX belongs in the application repo, not in the shared support repo.
+- Keeping the host-side package local makes future Discord-specific changes much easier.
+- `go-go-goja` should remain a reusable dependency rather than the home of app-specific operator commands.
+
+### What worked
+- The port was straightforward because the code in `go-go-goja` was already separated cleanly into generic and host-specific layers.
+- The local command group worked immediately after adapting the command names and example paths.
+- The full repository test suite passed after the move.
+
+### What didn't work
+- There were no major architectural problems in the move itself.
+- The main care point was making sure the dependency boundary stayed clean: local host package here, imported engine/jsverbs there.
+
+### What I learned
+- Yes, this move is fairly easy **if** the host-side package is already separate from the generic `jsverbs` implementation.
+- The earlier choice to keep orchestration code out of generic `pkg/jsverbs` made the port much easier.
+
+### What was tricky to build
+- The trickiest part was dependency hygiene rather than code translation. The local repository needed to import `go-go-goja` cleanly while still owning all of the command-layer behavior, examples, and tests.
+- It was also important to keep the user-facing strings and smoke commands updated so the repo now says `discord-bot bots ...` everywhere instead of `go-go-goja bots ...`.
+
+### What warrants a second pair of eyes
+- Whether the `go.mod` replace-based local development setup is the right long-term workflow or whether the project should pin a tagged `go-go-goja` version later.
+- Whether the public command name should stay `bots` or eventually be renamed to `verbs` for consistency with the more generic pattern.
+
+### What should be done in the future
+- Decide when to replace the local `go-go-goja` replace-style development import with a pinned version.
+- If the JavaScript-hosted Discord runtime is built next, layer it on top of this local package structure rather than moving app UX back out again.
+
+### Code review instructions
+- Start with `cmd/discord-bot/root.go` and `internal/botcli/command.go`.
+- Then inspect `internal/botcli/bootstrap.go` and `internal/botcli/runtime.go`.
+- Run these smoke commands:
+  - `GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/bots`
+  - `GOWORK=off go run ./cmd/discord-bot bots run discord greet --bot-repository ./examples/bots Manuel --excited`
+  - `GOWORK=off go run ./cmd/discord-bot bots help issues list --bot-repository ./examples/bots`
+- Re-run `GOWORK=off go test ./...`.
+
+### Technical details
+- Focused validation command used:
+  - `GOWORK=off go test ./internal/botcli ./cmd/discord-bot`
+- Full validation command used:
+  - `GOWORK=off go test ./...`
+- New local example repo:
+  - `examples/bots/`
+- New local command surface:
+  - `discord-bot bots list|run|help`
 
 ## Related
 

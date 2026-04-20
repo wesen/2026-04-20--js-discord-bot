@@ -9,6 +9,10 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/bots/README.md
+      Note: Local example bot repository and smoke commands for the moved bot CLI
+    - Path: internal/botcli/command.go
+      Note: Local host-side bot CLI command surface now lives in this repository
     - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md
       Note: Maintainer-facing writeup of the Glazed documentation gap and env-loading gotcha
     - Path: ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/design-doc/01-implementation-and-architecture-guide.md
@@ -31,6 +35,7 @@ LastUpdated: 2026-04-20T10:04:14.202445006-04:00
 WhatFor: Track the main documents and status for the Discord bot ticket.
 WhenToUse: Use as the landing page for the ticket workspace.
 ---
+
 
 
 

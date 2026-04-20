@@ -55,3 +55,18 @@ Wrote three future-facing notes in the Obsidian vault — a reusable jsverbs int
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/PROJ - JS Discord Bot - Building a Discord Bot with a JavaScript API.md — Ticket-local copy of the JS API project report
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/sources/PROJ - JS Discord Bot - Adding jsverbs Support.md — Ticket-local copy of the jsverbs-support project report
 
+
+## 2026-04-20
+
+Moved the host-side jsverbs bot CLI into this repository so `discord-bot` now exposes a local `bots list|run|help` surface, while `go-go-goja` is used only as the imported engine/jsverbs dependency. Also added a local `examples/bots` repository and bot-CLI tests here.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Root command now mounts the local `bots` subcommand group
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/bootstrap.go — Local repository bootstrap and duplicate detection for jsverbs bot repositories
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command.go — Local `discord-bot bots list|run|help` command surface
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/runtime.go — Local runtime-backed verb execution built on imported `go-go-goja` packages
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command_test.go — Local smoke coverage for the moved bot CLI
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/bots/README.md — Local real-example repository for testing the moved bot CLI
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/go.mod — Adds the `go-go-goja` dependency via import/replace for local development
+
