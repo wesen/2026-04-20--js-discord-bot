@@ -36,3 +36,11 @@ WhenToUse: Use when planning richer event and moderation support.
 ## Overview
 
 This ticket groups the next operationally important Discord surfaces after richer interactions: more inbound events and host-side moderation/admin operations.
+
+## Key Links
+
+- `design-doc/01-discord-event-expansion-and-moderation-admin-apis-architecture-and-implementation-guide.md`
+- `reference/01-discord-event-expansion-and-moderation-admin-apis-api-reference-and-planning-notes.md`
+- `reference/02-diary.md`
+- `tasks.md`
+- `changelog.md`
