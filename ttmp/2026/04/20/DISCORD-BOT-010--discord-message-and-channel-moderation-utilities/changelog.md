@@ -31,3 +31,13 @@ Implemented Phase 2 of `DISCORD-BOT-010`: JavaScript can now bulk delete message
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for message bulk deletion
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-message-moderation-commands.js — Added the example bulk-delete command
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example notes to mention the bulk-delete utility
+
+Implemented Phase 3 of `DISCORD-BOT-010`: JavaScript can now fetch a channel and update channel topic/slowmode through `ctx.discord.channels.*`, the host normalizes fetched channel payloads into JS-friendly maps, and the moderation example bot now includes `mod-fetch-channel`, `mod-set-topic`, and `mod-set-slowmode` commands.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go — Exposed channel fetch/topic/slowmode helpers through the request-scoped Discord capability object
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Implemented channel utility host operations and normalized fetched channel payloads
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for channel fetch/topic/slowmode helpers
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-channel-moderation-commands.js — Added example commands for the new channel utilities
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example notes to mention the new channel utility surface

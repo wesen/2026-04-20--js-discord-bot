@@ -28,13 +28,13 @@
 - [x] Validate with focused and full Go test runs
 
 ### Phase 3 — channel utilities
-- [ ] Add `ctx.discord.channels.fetch(channelID)`
-- [ ] Add `ctx.discord.channels.setTopic(channelID, topic)`
-- [ ] Add `ctx.discord.channels.setSlowmode(channelID, seconds)`
-- [ ] Add normalized channel snapshot helpers
-- [ ] Add runtime tests for fetch/topic/slowmode helpers
-- [ ] Update the moderation example bot with channel utility commands
-- [ ] Validate with focused and full Go test runs
+- [x] Add `ctx.discord.channels.fetch(channelID)`
+- [x] Add `ctx.discord.channels.setTopic(channelID, topic)`
+- [x] Add `ctx.discord.channels.setSlowmode(channelID, seconds)`
+- [x] Add normalized channel snapshot helpers
+- [x] Add runtime tests for fetch/topic/slowmode helpers
+- [x] Update the moderation example bot with channel utility commands
+- [x] Validate with focused and full Go test runs
 
 ### Phase 4 — docs and operator guidance
 - [ ] Update reference docs with the implemented API surface and caveats

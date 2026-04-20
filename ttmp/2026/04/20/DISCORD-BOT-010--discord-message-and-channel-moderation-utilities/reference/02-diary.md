@@ -201,3 +201,59 @@ I kept the API small but ergonomic. The host now accepts a few practical payload
 ### What should be done in the future
 - Continue with Phase 3 channel fetch/topic/slowmode helpers.
 - Add the operator/playbook caveats for destructive message moderation flows in Phase 4.
+
+## Step 4: Implement Phase 3 channel fetch / topic / slowmode helpers
+
+After the message moderation phases, I moved to the planned channel utility slice. This was the right point to add channel helpers because the moderation example already had enough message and member operations that channel metadata and lightweight channel edits became the next coherent operator workflow.
+
+I kept the channel surface intentionally small:
+
+- fetch the current channel
+- set the current channel topic
+- set the current channel slowmode
+
+That gives useful moderation levers without yet turning the runtime into a generic channel-admin wrapper.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` to expose:
+  - `ctx.discord.channels.fetch(channelID)`
+  - `ctx.discord.channels.setTopic(channelID, topic)`
+  - `ctx.discord.channels.setSlowmode(channelID, seconds)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to implement:
+  - `ChannelFetch`
+  - `ChannelSetTopic`
+  - `ChannelSetSlowmode`
+  - `channelSnapshotMap(...)`
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving JavaScript can fetch a channel and invoke the topic/slowmode host operations.
+- Added `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-channel-moderation-commands.js`.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` to register the new channel command module.
+- Added example commands:
+  - `mod-fetch-channel`
+  - `mod-set-topic`
+  - `mod-set-slowmode`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to mention the expanded channel utility surface.
+- Ran:
+  - `gofmt -w internal/jsdiscord/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### Why
+- Channel fetch/topic/slowmode are the next most useful moderation-adjacent helpers after message fetch/pin/bulk delete.
+- They remain operator-facing and practical without widening into full channel CRUD.
+
+### What worked
+- The moderation example now shows the new channel commands in `bots help moderation` output.
+- The runtime tests still pass with the expanded channel utility namespace.
+
+### What didn't work
+- N/A in this slice.
+
+### What was tricky to build
+- The main design constraint was keeping the channel surface small and deliberate. It would be easy to keep adding arbitrary channel-edit fields, but topic and slowmode were the cleanest first pair.
+
+### What warrants a second pair of eyes
+- Whether `channelSnapshotMap(...)` is still the right minimal shape, or whether operators will quickly want one or two more fields before the next ticket.
+
+### What should be done in the future
+- Finish Phase 4 documentation and operator guidance.

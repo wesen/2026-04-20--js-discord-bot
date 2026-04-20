@@ -1008,6 +1008,45 @@ func buildDiscordOps(scriptPath string, session *discordgo.Session) *DiscordOps 
 			}
 			return err
 		},
+		ChannelFetch: func(ctx context.Context, channelID string) (map[string]any, error) {
+			_ = ctx
+			channelID = strings.TrimSpace(channelID)
+			if channelID == "" {
+				return nil, fmt.Errorf("channel fetch requires channel ID")
+			}
+			channel, err := session.Channel(channelID)
+			if err != nil {
+				return nil, err
+			}
+			ret := channelSnapshotMap(channel)
+			logLifecycleDebug("fetched discord channel from javascript", map[string]any{"script": scriptPath, "channelId": channelID, "action": "discord.channels.fetch"})
+			return ret, nil
+		},
+		ChannelSetTopic: func(ctx context.Context, channelID, topic string) error {
+			_ = ctx
+			channelID = strings.TrimSpace(channelID)
+			if channelID == "" {
+				return fmt.Errorf("channel setTopic requires channel ID")
+			}
+			_, err := session.ChannelEdit(channelID, &discordgo.ChannelEdit{Topic: topic})
+			if err == nil {
+				logLifecycleDebug("updated discord channel topic from javascript", map[string]any{"script": scriptPath, "channelId": channelID, "topic": truncateLogText(topic, 120), "action": "discord.channels.setTopic"})
+			}
+			return err
+		},
+		ChannelSetSlowmode: func(ctx context.Context, channelID string, seconds int) error {
+			_ = ctx
+			channelID = strings.TrimSpace(channelID)
+			if channelID == "" {
+				return fmt.Errorf("channel setSlowmode requires channel ID")
+			}
+			rate := seconds
+			_, err := session.ChannelEdit(channelID, &discordgo.ChannelEdit{RateLimitPerUser: &rate})
+			if err == nil {
+				logLifecycleDebug("updated discord channel slowmode from javascript", map[string]any{"script": scriptPath, "channelId": channelID, "seconds": seconds, "action": "discord.channels.setSlowmode"})
+			}
+			return err
+		},
 		MessageFetch: func(ctx context.Context, channelID, messageID string) (map[string]any, error) {
 			_ = ctx
 			channelID = strings.TrimSpace(channelID)
@@ -2371,6 +2410,30 @@ func channelMap(channelID string) map[string]any {
 		return map[string]any{}
 	}
 	return map[string]any{"id": channelID}
+}
+
+func channelSnapshotMap(channel *discordgo.Channel) map[string]any {
+	if channel == nil {
+		return map[string]any{}
+	}
+	ret := map[string]any{
+		"id":               channel.ID,
+		"guildID":          channel.GuildID,
+		"parentID":         channel.ParentID,
+		"name":             channel.Name,
+		"type":             fmt.Sprint(channel.Type),
+		"topic":            channel.Topic,
+		"nsfw":             channel.NSFW,
+		"position":         channel.Position,
+		"rateLimitPerUser": channel.RateLimitPerUser,
+	}
+	if channel.LastMessageID != "" {
+		ret["lastMessageID"] = channel.LastMessageID
+	}
+	if channel.LastPinTimestamp != nil {
+		ret["lastPinTimestamp"] = channel.LastPinTimestamp.Format(time.RFC3339)
+	}
+	return ret
 }
 
 func messageMap(message *discordgo.Message) map[string]any {

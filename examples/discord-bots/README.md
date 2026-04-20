@@ -16,7 +16,7 @@ GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
 - `knowledge-base/` — relative `require()` helper, search/article commands, message event
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event
-- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, member moderation host APIs, and message moderation utilities
+- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, member moderation host APIs, message moderation utilities, and channel utility helpers
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
@@ -42,7 +42,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
-- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, and `mod-bulk-delete` to demonstrate the early DISCORD-BOT-010 message moderation utilities.
+- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, and `mod-set-slowmode` to demonstrate the DISCORD-BOT-010 message and channel moderation utilities.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
 
 ## Moderation / event prerequisites

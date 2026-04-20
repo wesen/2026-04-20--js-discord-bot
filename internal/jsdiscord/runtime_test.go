@@ -755,6 +755,58 @@ func TestDiscordContextSupportsMessageBulkDelete(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsChannelUtilities(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("channel-tools", async (ctx) => {
+				const channel = await ctx.discord.channels.fetch("chan-1")
+				await ctx.discord.channels.setTopic("chan-1", "Escalation queue")
+				await ctx.discord.channels.setSlowmode("chan-1", 30)
+				return { content: String(channel.id) + ":" + String(channel.rateLimitPerUser) }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var fetches, topics, slowmodes int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "channel-tools",
+		Discord: &DiscordOps{
+			ChannelFetch: func(_ context.Context, channelID string) (map[string]any, error) {
+				fetches++
+				if channelID != "chan-1" {
+					t.Fatalf("channel fetch = %s", channelID)
+				}
+				return map[string]any{"id": "chan-1", "rateLimitPerUser": 0}, nil
+			},
+			ChannelSetTopic: func(_ context.Context, channelID, topic string) error {
+				topics++
+				if channelID != "chan-1" || topic != "Escalation queue" {
+					t.Fatalf("setTopic = %s %q", channelID, topic)
+				}
+				return nil
+			},
+			ChannelSetSlowmode: func(_ context.Context, channelID string, seconds int) error {
+				slowmodes++
+				if channelID != "chan-1" || seconds != 30 {
+					t.Fatalf("setSlowmode = %s %d", channelID, seconds)
+				}
+				return nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:chan-1:0]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if fetches != 1 || topics != 1 || slowmodes != 1 {
+		t.Fatalf("counts = fetch:%d topic:%d slowmode:%d", fetches, topics, slowmodes)
+	}
+}
+
 func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")

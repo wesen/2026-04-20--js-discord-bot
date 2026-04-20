@@ -53,21 +53,24 @@ type botDraft struct {
 }
 
 type DiscordOps struct {
-	ChannelSend       func(context.Context, string, any) error
-	MessageFetch      func(context.Context, string, string) (map[string]any, error)
-	MessageEdit       func(context.Context, string, string, any) error
-	MessageDelete     func(context.Context, string, string) error
-	MessageReact      func(context.Context, string, string, string) error
-	MessagePin        func(context.Context, string, string) error
-	MessageUnpin      func(context.Context, string, string) error
-	MessageListPinned func(context.Context, string) ([]map[string]any, error)
-	MessageBulkDelete func(context.Context, string, any) error
-	MemberAddRole     func(context.Context, string, string, string) error
-	MemberRemoveRole  func(context.Context, string, string, string) error
-	MemberSetTimeout  func(context.Context, string, string, any) error
-	MemberKick        func(context.Context, string, string, any) error
-	MemberBan         func(context.Context, string, string, any) error
-	MemberUnban       func(context.Context, string, string) error
+	ChannelSend        func(context.Context, string, any) error
+	ChannelFetch       func(context.Context, string) (map[string]any, error)
+	ChannelSetTopic    func(context.Context, string, string) error
+	ChannelSetSlowmode func(context.Context, string, int) error
+	MessageFetch       func(context.Context, string, string) (map[string]any, error)
+	MessageEdit        func(context.Context, string, string, any) error
+	MessageDelete      func(context.Context, string, string) error
+	MessageReact       func(context.Context, string, string, string) error
+	MessagePin         func(context.Context, string, string) error
+	MessageUnpin       func(context.Context, string, string) error
+	MessageListPinned  func(context.Context, string) ([]map[string]any, error)
+	MessageBulkDelete  func(context.Context, string, any) error
+	MemberAddRole      func(context.Context, string, string, string) error
+	MemberRemoveRole   func(context.Context, string, string, string) error
+	MemberSetTimeout   func(context.Context, string, string, any) error
+	MemberKick         func(context.Context, string, string, any) error
+	MemberBan          func(context.Context, string, string, any) error
+	MemberUnban        func(context.Context, string, string) error
 }
 
 type DispatchRequest struct {
@@ -878,6 +881,9 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 	members := vm.NewObject()
 	if ops == nil {
 		_ = channels.Set("send", func(string, any) error { return nil })
+		_ = channels.Set("fetch", func(string) any { return map[string]any{} })
+		_ = channels.Set("setTopic", func(string, string) error { return nil })
+		_ = channels.Set("setSlowmode", func(string, int) error { return nil })
 		_ = messages.Set("fetch", func(string, string) any { return map[string]any{} })
 		_ = messages.Set("edit", func(string, string, any) error { return nil })
 		_ = messages.Set("delete", func(string, string) error { return nil })
@@ -898,6 +904,24 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return nil
 			}
 			return ops.ChannelSend(ctx, channelID, payload)
+		})
+		_ = channels.Set("fetch", func(channelID string) (any, error) {
+			if ops.ChannelFetch == nil {
+				return map[string]any{}, nil
+			}
+			return ops.ChannelFetch(ctx, channelID)
+		})
+		_ = channels.Set("setTopic", func(channelID, topic string) error {
+			if ops.ChannelSetTopic == nil {
+				return nil
+			}
+			return ops.ChannelSetTopic(ctx, channelID, topic)
+		})
+		_ = channels.Set("setSlowmode", func(channelID string, seconds int) error {
+			if ops.ChannelSetSlowmode == nil {
+				return nil
+			}
+			return ops.ChannelSetSlowmode(ctx, channelID, seconds)
 		})
 		_ = messages.Set("fetch", func(channelID, messageID string) (any, error) {
 			if ops.MessageFetch == nil {
