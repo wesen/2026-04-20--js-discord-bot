@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -116,6 +117,9 @@ func printBotHelp(cmd *cobra.Command, bot DiscoveredBot) error {
 			}
 		}
 	}
+	if err := printRunSchema(out, bot); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -131,11 +135,50 @@ func newRunCommand() *cobra.Command {
 		printParsedValues bool
 	)
 	cmd := &cobra.Command{
-		Use:   "run <bot...>",
-		Short: "Run one or more named bot implementations through the live Discord host",
-		Args:  cobra.MinimumNArgs(1),
+		Use:                "run <bot>",
+		Short:              "Run one named bot implementation through the live Discord host",
+		Args:               cobra.ArbitraryArgs,
+		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bootstrap, err := DiscoverBootstrapFromCommand(cmd)
+			parsed, err := preparseRunArgs(args, defaultPreParsedRunArgs())
+			if err != nil {
+				return err
+			}
+			if parsed.ShowHelp && strings.TrimSpace(parsed.Selector) == "" {
+				return cmd.Help()
+			}
+			if parsed.ShowHelp {
+				cwd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("resolve cwd: %w", err)
+				}
+				repositories, err := repositoriesFromCLIPaths(parsed.BotRepositories, cwd)
+				if err != nil {
+					return err
+				}
+				bootstrap, err := bootstrapFromRepositories(repositories)
+				if err != nil {
+					return err
+				}
+				bots, err := DiscoverBots(cmd.Context(), bootstrap)
+				if err != nil {
+					return err
+				}
+				selected, err := ResolveBot(parsed.Selector, bots)
+				if err != nil {
+					return err
+				}
+				return printBotHelp(cmd, selected)
+			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			repositories, err := repositoriesFromCLIPaths(parsed.BotRepositories, cwd)
+			if err != nil {
+				return err
+			}
+			bootstrap, err := bootstrapFromRepositories(repositories)
 			if err != nil {
 				return err
 			}
@@ -143,26 +186,30 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			selected, err := ResolveBots(args, bots)
+			selected, err := ResolveBot(parsed.Selector, bots)
 			if err != nil {
 				return err
 			}
-			cfg := settingsFromValues(botToken, applicationID, guildID, publicKey, clientID, clientSecret)
+			runtimeConfig, err := parseRuntimeConfigArgs(selected, parsed.DynamicArgs)
+			if err != nil {
+				return err
+			}
+			cfg := settingsFromValues(parsed.BotToken, parsed.ApplicationID, parsed.GuildID, parsed.PublicKey, parsed.ClientID, parsed.ClientSecret)
 			if err := cfg.Validate(); err != nil {
 				return err
 			}
 			ctx, cancel := runContext(context.Background())
 			defer cancel()
-			return runSelectedBotsFn(ctx, RunRequest{Config: cfg, Bots: selected, SyncOnStart: syncOnStart, PrintParsedValues: printParsedValues, Out: cmd.OutOrStdout()})
+			return runSelectedBotsFn(ctx, RunRequest{Config: cfg, Bot: selected, RuntimeConfig: runtimeConfig, SyncOnStart: parsed.SyncOnStart, PrintParsedValues: parsed.PrintParsedValues, Out: cmd.OutOrStdout()})
 		},
 	}
-	cmd.Flags().StringVar(&botToken, "bot-token", os.Getenv("DISCORD_BOT_TOKEN"), "Discord bot token")
-	cmd.Flags().StringVar(&applicationID, "application-id", os.Getenv("DISCORD_APPLICATION_ID"), "Discord application/client ID")
-	cmd.Flags().StringVar(&guildID, "guild-id", os.Getenv("DISCORD_GUILD_ID"), "Optional guild ID for development sync")
-	cmd.Flags().StringVar(&publicKey, "public-key", os.Getenv("DISCORD_PUBLIC_KEY"), "Discord public key")
-	cmd.Flags().StringVar(&clientID, "client-id", os.Getenv("DISCORD_CLIENT_ID"), "Discord client ID")
-	cmd.Flags().StringVar(&clientSecret, "client-secret", os.Getenv("DISCORD_CLIENT_SECRET"), "Discord client secret")
-	cmd.Flags().BoolVar(&syncOnStart, "sync-on-start", false, "Sync slash commands for the selected bots before opening the gateway")
-	cmd.Flags().BoolVar(&printParsedValues, "print-parsed-values", false, "Print the resolved config and selected bots, then exit")
+	cmd.Flags().StringVar(&botToken, "bot-token", "", "Discord bot token")
+	cmd.Flags().StringVar(&applicationID, "application-id", "", "Discord application/client ID")
+	cmd.Flags().StringVar(&guildID, "guild-id", "", "Optional guild ID for development sync")
+	cmd.Flags().StringVar(&publicKey, "public-key", "", "Discord public key")
+	cmd.Flags().StringVar(&clientID, "client-id", "", "Discord client ID")
+	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "Discord client secret")
+	cmd.Flags().BoolVar(&syncOnStart, "sync-on-start", false, "Sync slash commands for the selected bot before opening the gateway")
+	cmd.Flags().BoolVar(&printParsedValues, "print-parsed-values", false, "Print the resolved config, selected bot, and runtime config, then exit")
 	return cmd
 }

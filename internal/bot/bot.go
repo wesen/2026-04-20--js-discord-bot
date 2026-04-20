@@ -16,20 +16,16 @@ import (
 type Bot struct {
 	cfg     appconfig.Settings
 	session *discordgo.Session
-	jsHost  *jsdiscord.MultiHost
+	jsHost  *jsdiscord.Host
 }
 
-// New creates a Discord session and wires bot handlers using settings-derived scripts.
+// New creates a Discord session and wires bot handlers using settings-derived script selection.
 func New(cfg appconfig.Settings) (*Bot, error) {
-	scripts := []string{}
-	if strings.TrimSpace(cfg.BotScript) != "" {
-		scripts = append(scripts, strings.TrimSpace(cfg.BotScript))
-	}
-	return NewWithScripts(cfg, scripts)
+	return NewWithScript(cfg, strings.TrimSpace(cfg.BotScript), nil)
 }
 
-// NewWithScripts creates a Discord session and wires bot handlers for one or more explicit bot scripts.
-func NewWithScripts(cfg appconfig.Settings, scripts []string) (*Bot, error) {
+// NewWithScript creates a Discord session and wires bot handlers for one explicit bot script.
+func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[string]any) (*Bot, error) {
 	session, err := discordgo.New("Bot " + strings.TrimSpace(cfg.BotToken))
 	if err != nil {
 		return nil, fmt.Errorf("create discord session: %w", err)
@@ -37,23 +33,24 @@ func NewWithScripts(cfg appconfig.Settings, scripts []string) (*Bot, error) {
 
 	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
 
-	var jsHost *jsdiscord.MultiHost
-	if len(scripts) > 0 {
-		jsHost, err = jsdiscord.NewMultiHost(context.Background(), scripts)
-		if err != nil {
-			return nil, fmt.Errorf("load javascript bot scripts: %w", err)
-		}
-		for _, descriptor := range jsHost.Descriptors() {
-			if descriptor == nil {
-				continue
-			}
-			log.Info().
-				Str("bot", descriptor.Name).
-				Str("script", descriptor.ScriptPath).
-				Strs("commands", commandNames(descriptor.Commands)).
-				Strs("events", eventNames(descriptor.Events)).
-				Msg("loaded javascript bot implementation")
-		}
+	script = strings.TrimSpace(script)
+	if script == "" {
+		return nil, fmt.Errorf("javascript bot script is required; use discord-bot bots run <bot> or pass --bot-script")
+	}
+
+	loaded, err := jsdiscord.LoadBot(context.Background(), script)
+	if err != nil {
+		return nil, fmt.Errorf("load javascript bot script: %w", err)
+	}
+	jsHost := loaded.Host
+	jsHost.SetRuntimeConfig(runtimeConfig)
+	if loaded.Descriptor != nil {
+		log.Info().
+			Str("bot", loaded.Descriptor.Name).
+			Str("script", loaded.Descriptor.ScriptPath).
+			Strs("commands", commandNames(loaded.Descriptor.Commands)).
+			Strs("events", eventNames(loaded.Descriptor.Events)).
+			Msg("loaded javascript bot implementation")
 	}
 
 	b := &Bot{
@@ -126,27 +123,10 @@ func (b *Bot) SyncCommands() ([]*discordgo.ApplicationCommand, error) {
 }
 
 func (b *Bot) applicationCommands() ([]*discordgo.ApplicationCommand, error) {
-	if b.jsHost != nil {
-		return b.jsHost.ApplicationCommands(context.Background())
+	if b.jsHost == nil {
+		return nil, fmt.Errorf("javascript bot host is not configured")
 	}
-	return []*discordgo.ApplicationCommand{
-		{
-			Name:        "ping",
-			Description: "Reply with pong",
-		},
-		{
-			Name:        "echo",
-			Description: "Echo text back to you",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "text",
-					Description: "Text to echo back",
-					Required:    true,
-				},
-			},
-		},
-	}, nil
+	return b.jsHost.ApplicationCommands(context.Background())
 }
 
 func commandNames(commands []jsdiscord.CommandDescriptor) []string {
@@ -188,7 +168,7 @@ func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
 
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchReady(context.Background(), session, ready); err != nil {
-			log.Error().Err(err).Msg("failed to dispatch ready event to javascript bots")
+			log.Error().Err(err).Msg("failed to dispatch ready event to javascript bot")
 		}
 	}
 }
@@ -196,7 +176,7 @@ func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
 func (b *Bot) handleGuildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchGuildCreate(context.Background(), session, guild); err != nil {
-			log.Error().Err(err).Msg("failed to dispatch guildCreate event to javascript bots")
+			log.Error().Err(err).Msg("failed to dispatch guildCreate event to javascript bot")
 		}
 	}
 }
@@ -207,20 +187,20 @@ func (b *Bot) handleMessageCreate(session *discordgo.Session, message *discordgo
 	}
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchMessageCreate(context.Background(), session, message); err != nil {
-			log.Error().Err(err).Msg("failed to dispatch messageCreate event to javascript bots")
+			log.Error().Err(err).Msg("failed to dispatch messageCreate event to javascript bot")
 		}
 	}
 }
 
 func (b *Bot) handleInteractionCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-	if interaction.Type != discordgo.InteractionApplicationCommand {
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchInteraction(context.Background(), session, interaction); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch interaction to javascript bot")
+		}
 		return
 	}
 
-	if b.jsHost != nil {
-		if err := b.jsHost.DispatchInteraction(context.Background(), session, interaction); err != nil {
-			log.Error().Err(err).Msg("failed to dispatch interaction to javascript bots")
-		}
+	if interaction.Type != discordgo.InteractionApplicationCommand {
 		return
 	}
 

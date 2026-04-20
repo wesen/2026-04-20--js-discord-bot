@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -83,6 +84,174 @@ func TestDiscordRegistrarSupportsRichCommandHelpers(t *testing.T) {
 	}
 }
 
+func TestDiscordCommandPromiseRejectionsIncludeJavaScriptErrorDetails(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("broken", async () => {
+				throw new Error("boom from js")
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	_, err := handle.DispatchCommand(context.Background(), DispatchRequest{Name: "broken"})
+	if err == nil {
+		t.Fatalf("expected dispatch error")
+	}
+	if got := err.Error(); !strings.Contains(got, "boom from js") {
+		t.Fatalf("error = %q", got)
+	}
+}
+
+func TestDiscordCommandContextSupportsTimerSleep(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		const { sleep } = require("timer")
+		module.exports = defineBot(({ command }) => {
+			command("search", async (ctx) => {
+				await ctx.defer({ ephemeral: true })
+				await sleep(5)
+				await ctx.edit({ content: "done" })
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var (
+		deferred []any
+		edits    []any
+	)
+	_, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "search",
+		Defer: func(_ context.Context, value any) error {
+			deferred = append(deferred, value)
+			return nil
+		},
+		Edit: func(_ context.Context, value any) error {
+			edits = append(edits, value)
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if len(deferred) != 1 || fmt.Sprint(deferred[0]) != "map[ephemeral:true]" {
+		t.Fatalf("deferred = %#v", deferred)
+	}
+	if len(edits) != 1 || fmt.Sprint(edits[0]) != "map[content:done]" {
+		t.Fatalf("edits = %#v", edits)
+	}
+}
+
+func TestDiscordCommandContextSupportsShowModal(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("feedback", async (ctx) => {
+				await ctx.showModal({
+					customId: "feedback:submit",
+					title: "Feedback",
+					components: [{
+						type: "actionRow",
+						components: [{
+							type: "textInput",
+							customId: "summary",
+							label: "Summary",
+							style: "short",
+							required: true,
+						}]
+					}]
+				})
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var shown []any
+	_, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "feedback",
+		ShowModal: func(_ context.Context, value any) error {
+			shown = append(shown, value)
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if len(shown) != 1 {
+		t.Fatalf("shown = %#v", shown)
+	}
+	payload, ok := shown[0].(map[string]any)
+	if !ok {
+		t.Fatalf("modal payload type = %T", shown[0])
+	}
+	if fmt.Sprint(payload["customId"]) != "feedback:submit" {
+		t.Fatalf("customId = %#v", payload["customId"])
+	}
+}
+
+func TestDiscordRuntimeSupportsComponentsModalsAndAutocomplete(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ component, modal, autocomplete }) => {
+			component("support:queue", async (ctx) => {
+				return { content: "selected:" + ((ctx.values && ctx.values[0]) || "") }
+			})
+			modal("feedback:submit", async (ctx) => {
+				return { content: "feedback:" + (ctx.values.summary || "") }
+			})
+			autocomplete("kb-search", "query", async (ctx) => {
+				const current = String((ctx.focused && ctx.focused.value) || "")
+				return [
+					{ name: "Architecture", value: "architecture" },
+					{ name: current, value: current }
+				]
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+
+	componentResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:      "support:queue",
+		Values:    []string{"billing"},
+		Component: map[string]any{"customId": "support:queue", "type": "select"},
+	})
+	if err != nil {
+		t.Fatalf("dispatch component: %v", err)
+	}
+	if got := fmt.Sprint(componentResult); got != "map[content:selected:billing]" {
+		t.Fatalf("component result = %s", got)
+	}
+
+	modalResult, err := handle.DispatchModal(context.Background(), DispatchRequest{
+		Name:   "feedback:submit",
+		Values: map[string]any{"summary": "looks good"},
+		Modal:  map[string]any{"customId": "feedback:submit"},
+	})
+	if err != nil {
+		t.Fatalf("dispatch modal: %v", err)
+	}
+	if got := fmt.Sprint(modalResult); got != "map[content:feedback:looks good]" {
+		t.Fatalf("modal result = %s", got)
+	}
+
+	autocompleteResult, err := handle.DispatchAutocomplete(context.Background(), DispatchRequest{
+		Name:    "kb-search",
+		Args:    map[string]any{"query": "arch"},
+		Focused: map[string]any{"name": "query", "value": "arch"},
+		Command: map[string]any{"name": "kb-search"},
+	})
+	if err != nil {
+		t.Fatalf("dispatch autocomplete: %v", err)
+	}
+	items, ok := autocompleteResult.([]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("autocomplete result = %#v", autocompleteResult)
+	}
+}
+
 func TestDiscordEventContextSupportsMessageCreate(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")
@@ -139,14 +308,17 @@ func TestDiscordEventContextSupportsMessageCreate(t *testing.T) {
 	}
 }
 
-func TestApplicationCommandFromSnapshot(t *testing.T) {
+func TestApplicationCommandFromSnapshotSupportsAutocompleteAndConstraints(t *testing.T) {
 	cmd, err := applicationCommandFromSnapshot(map[string]any{
 		"name": "echo",
 		"spec": map[string]any{
 			"description": "Echo text",
 			"options": map[string]any{
-				"text":  map[string]any{"type": "string", "description": "Text", "required": true},
-				"count": map[string]any{"type": "integer", "description": "Count"},
+				"text": map[string]any{
+					"type": "string", "description": "Text", "required": true,
+					"autocomplete": true, "minLength": 2, "maxLength": 100,
+				},
+				"count": map[string]any{"type": "integer", "description": "Count", "minValue": 1, "maxValue": 10},
 			},
 		},
 	})
@@ -159,15 +331,18 @@ func TestApplicationCommandFromSnapshot(t *testing.T) {
 	if len(cmd.Options) != 2 {
 		t.Fatalf("options = %d", len(cmd.Options))
 	}
-	if cmd.Options[0].Type != discordgo.ApplicationCommandOptionInteger {
-		t.Fatalf("expected sorted options by key, got first type %v", cmd.Options[0].Type)
+	if !cmd.Options[0].Autocomplete {
+		t.Fatalf("expected autocomplete option: %#v", cmd.Options[0])
 	}
-	if cmd.Options[1].Type != discordgo.ApplicationCommandOptionString {
-		t.Fatalf("expected string option second, got %v", cmd.Options[1].Type)
+	if cmd.Options[0].MinLength == nil || *cmd.Options[0].MinLength != 2 || cmd.Options[0].MaxLength != 100 {
+		t.Fatalf("unexpected string constraints: %#v", cmd.Options[0])
+	}
+	if cmd.Options[1].MinValue == nil || *cmd.Options[1].MinValue != 1 || cmd.Options[1].MaxValue != 10 {
+		t.Fatalf("unexpected number constraints: %#v", cmd.Options[1])
 	}
 }
 
-func TestNormalizeResponsePayloadSupportsEmbedsAndComponents(t *testing.T) {
+func TestNormalizeResponsePayloadSupportsEmbedsAndSelectComponents(t *testing.T) {
 	payload, err := normalizeResponsePayload(map[string]any{
 		"content":   "pong",
 		"ephemeral": true,
@@ -178,7 +353,13 @@ func TestNormalizeResponsePayloadSupportsEmbedsAndComponents(t *testing.T) {
 			map[string]any{
 				"type": "actionRow",
 				"components": []any{
-					map[string]any{"type": "button", "style": "link", "label": "Docs", "url": "https://example.com"},
+					map[string]any{
+						"type":     "select",
+						"customId": "support:queue",
+						"options": []any{
+							map[string]any{"label": "Billing", "value": "billing"},
+						},
+					},
 				},
 			},
 		},
@@ -197,6 +378,148 @@ func TestNormalizeResponsePayloadSupportsEmbedsAndComponents(t *testing.T) {
 	}
 	if len(payload.Components) != 1 {
 		t.Fatalf("components = %#v", payload.Components)
+	}
+}
+
+func TestNormalizeModalPayloadSupportsTextInputs(t *testing.T) {
+	payload, err := normalizeModalPayload(map[string]any{
+		"customId": "feedback:submit",
+		"title":    "Feedback",
+		"components": []any{
+			map[string]any{
+				"type": "actionRow",
+				"components": []any{
+					map[string]any{
+						"type":     "textInput",
+						"customId": "summary",
+						"label":    "Summary",
+						"style":    "short",
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("normalizeModalPayload: %v", err)
+	}
+	if payload.CustomID != "feedback:submit" || payload.Title != "Feedback" {
+		t.Fatalf("payload = %#v", payload)
+	}
+	if len(payload.Components) != 1 {
+		t.Fatalf("components = %#v", payload.Components)
+	}
+}
+
+func TestDiscordContextSupportsRuntimeConfig(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("show-config", async (ctx) => {
+				return { content: String(ctx.config.index_path) + ":" + String(ctx.config.read_only) }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name:   "show-config",
+		Config: map[string]any{"index_path": "./docs", "read_only": true},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:./docs:true]" {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestDiscordContextSupportsOutboundDiscordOps(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("announce", async (ctx) => {
+				await ctx.discord.channels.send("chan-1", {
+					content: "report",
+					files: [{ name: "report.txt", content: "hello" }],
+					replyTo: { messageId: "orig-1", channelId: "chan-1" }
+				})
+				await ctx.discord.messages.edit("chan-1", "msg-1", { content: "updated" })
+				await ctx.discord.messages.react("chan-1", "msg-1", "✅")
+				await ctx.discord.messages.delete("chan-1", "msg-1")
+				return { content: "done" }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var sends, edits, reacts, deletes int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "announce",
+		Discord: &DiscordOps{
+			ChannelSend: func(_ context.Context, channelID string, payload any) error {
+				sends++
+				if channelID != "chan-1" {
+					t.Fatalf("channelID = %q", channelID)
+				}
+				msg, err := normalizeMessageSend(payload)
+				if err != nil {
+					return err
+				}
+				if len(msg.Files) != 1 || msg.Files[0].Name != "report.txt" {
+					t.Fatalf("files = %#v", msg.Files)
+				}
+				if msg.Reference == nil || msg.Reference.MessageID != "orig-1" {
+					t.Fatalf("reference = %#v", msg.Reference)
+				}
+				return nil
+			},
+			MessageEdit: func(_ context.Context, channelID, messageID string, payload any) error {
+				edits++
+				if channelID != "chan-1" || messageID != "msg-1" {
+					t.Fatalf("edit target = %s/%s", channelID, messageID)
+				}
+				return nil
+			},
+			MessageReact: func(_ context.Context, channelID, messageID, emoji string) error {
+				reacts++
+				if emoji != "✅" {
+					t.Fatalf("emoji = %q", emoji)
+				}
+				return nil
+			},
+			MessageDelete: func(_ context.Context, channelID, messageID string) error {
+				deletes++
+				return nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:done]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if sends != 1 || edits != 1 || reacts != 1 || deletes != 1 {
+		t.Fatalf("counts = sends:%d edits:%d reacts:%d deletes:%d", sends, edits, reacts, deletes)
+	}
+}
+
+func TestNormalizeMessageSendSupportsFilesAndReplyReference(t *testing.T) {
+	message, err := normalizeMessageSend(map[string]any{
+		"content": "report",
+		"files": []any{
+			map[string]any{"name": "report.txt", "content": "hello", "contentType": "text/plain"},
+		},
+		"replyTo": map[string]any{"messageId": "orig-1", "channelId": "chan-1"},
+	})
+	if err != nil {
+		t.Fatalf("normalizeMessageSend: %v", err)
+	}
+	if len(message.Files) != 1 || message.Files[0].Name != "report.txt" {
+		t.Fatalf("files = %#v", message.Files)
+	}
+	if message.Reference == nil || message.Reference.MessageID != "orig-1" || message.Reference.ChannelID != "chan-1" {
+		t.Fatalf("reference = %#v", message.Reference)
 	}
 }
 

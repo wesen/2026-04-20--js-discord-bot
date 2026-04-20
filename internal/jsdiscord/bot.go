@@ -25,17 +25,44 @@ type eventDraft struct {
 	handler goja.Callable
 }
 
+type componentDraft struct {
+	customID string
+	handler  goja.Callable
+}
+
+type modalDraft struct {
+	customID string
+	handler  goja.Callable
+}
+
+type autocompleteDraft struct {
+	commandName string
+	optionName  string
+	handler     goja.Callable
+}
+
 type botDraft struct {
-	moduleName string
-	store      *MemoryStore
-	metadata   map[string]any
-	commands   []*commandDraft
-	events     []*eventDraft
+	moduleName    string
+	store         *MemoryStore
+	metadata      map[string]any
+	commands      []*commandDraft
+	events        []*eventDraft
+	components    []*componentDraft
+	modals        []*modalDraft
+	autocompletes []*autocompleteDraft
+}
+
+type DiscordOps struct {
+	ChannelSend   func(context.Context, string, any) error
+	MessageEdit   func(context.Context, string, string, any) error
+	MessageDelete func(context.Context, string, string) error
+	MessageReact  func(context.Context, string, string, string) error
 }
 
 type DispatchRequest struct {
 	Name        string
 	Args        map[string]any
+	Values      any
 	Command     map[string]any
 	Interaction map[string]any
 	Message     map[string]any
@@ -44,17 +71,26 @@ type DispatchRequest struct {
 	Channel     map[string]any
 	Me          map[string]any
 	Metadata    map[string]any
+	Config      map[string]any
+	Component   map[string]any
+	Modal       map[string]any
+	Focused     map[string]any
+	Discord     *DiscordOps
 	Reply       func(context.Context, any) error
 	FollowUp    func(context.Context, any) error
 	Edit        func(context.Context, any) error
 	Defer       func(context.Context, any) error
+	ShowModal   func(context.Context, any) error
 }
 
 type BotHandle struct {
-	vm              *goja.Runtime
-	dispatchCommand goja.Callable
-	dispatchEvent   goja.Callable
-	describe        goja.Callable
+	vm                   *goja.Runtime
+	dispatchCommand      goja.Callable
+	dispatchEvent        goja.Callable
+	dispatchComponent    goja.Callable
+	dispatchModal        goja.Callable
+	dispatchAutocomplete goja.Callable
+	describe             goja.Callable
 }
 
 func CompileBot(vm *goja.Runtime, value goja.Value) (*BotHandle, error) {
@@ -76,11 +112,31 @@ func CompileBot(vm *goja.Runtime, value goja.Value) (*BotHandle, error) {
 	if !ok {
 		return nil, fmt.Errorf("discord bot compile: missing dispatchEvent method")
 	}
+	dispatchComponent, ok := goja.AssertFunction(obj.Get("dispatchComponent"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing dispatchComponent method")
+	}
+	dispatchModal, ok := goja.AssertFunction(obj.Get("dispatchModal"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing dispatchModal method")
+	}
+	dispatchAutocomplete, ok := goja.AssertFunction(obj.Get("dispatchAutocomplete"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing dispatchAutocomplete method")
+	}
 	describe, ok := goja.AssertFunction(obj.Get("describe"))
 	if !ok {
 		return nil, fmt.Errorf("discord bot compile: missing describe method")
 	}
-	return &BotHandle{vm: vm, dispatchCommand: dispatchCommand, dispatchEvent: dispatchEvent, describe: describe}, nil
+	return &BotHandle{
+		vm:                   vm,
+		dispatchCommand:      dispatchCommand,
+		dispatchEvent:        dispatchEvent,
+		dispatchComponent:    dispatchComponent,
+		dispatchModal:        dispatchModal,
+		dispatchAutocomplete: dispatchAutocomplete,
+		describe:             describe,
+	}, nil
 }
 
 func (h *BotHandle) Describe(ctx context.Context) (map[string]any, error) {
@@ -117,6 +173,18 @@ func (h *BotHandle) DispatchCommand(ctx context.Context, request DispatchRequest
 
 func (h *BotHandle) DispatchEvent(ctx context.Context, request DispatchRequest) (any, error) {
 	return h.dispatch(ctx, h.dispatchEvent, request)
+}
+
+func (h *BotHandle) DispatchComponent(ctx context.Context, request DispatchRequest) (any, error) {
+	return h.dispatch(ctx, h.dispatchComponent, request)
+}
+
+func (h *BotHandle) DispatchModal(ctx context.Context, request DispatchRequest) (any, error) {
+	return h.dispatch(ctx, h.dispatchModal, request)
+}
+
+func (h *BotHandle) DispatchAutocomplete(ctx context.Context, request DispatchRequest) (any, error) {
+	return h.dispatch(ctx, h.dispatchAutocomplete, request)
 }
 
 func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request DispatchRequest) (any, error) {
@@ -180,7 +248,8 @@ func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any
 
 type promiseSnapshot struct {
 	State  goja.PromiseState
-	Result goja.Value
+	Result any
+	Text   string
 }
 
 func waitForPromise(ctx context.Context, owner runtimeowner.Runner, promise *goja.Promise) (any, error) {
@@ -190,8 +259,13 @@ func waitForPromise(ctx context.Context, owner runtimeowner.Runner, promise *goj
 			return nil, ctx.Err()
 		default:
 		}
-		ret, err := owner.Call(ctx, "discord.bot.promise-state", func(context.Context, *goja.Runtime) (any, error) {
-			return promiseSnapshot{State: promise.State(), Result: promise.Result()}, nil
+		ret, err := owner.Call(ctx, "discord.bot.promise-state", func(_ context.Context, vm *goja.Runtime) (any, error) {
+			result := promise.Result()
+			return promiseSnapshot{
+				State:  promise.State(),
+				Result: exportSettledValue(result),
+				Text:   describeSettledValue(vm, result),
+			}, nil
 		})
 		if err != nil {
 			return nil, err
@@ -204,25 +278,67 @@ func waitForPromise(ctx context.Context, owner runtimeowner.Runner, promise *goj
 		case goja.PromiseStatePending:
 			time.Sleep(5 * time.Millisecond)
 		case goja.PromiseStateRejected:
-			return nil, fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
-		case goja.PromiseStateFulfilled:
-			if snapshot.Result == nil || goja.IsUndefined(snapshot.Result) || goja.IsNull(snapshot.Result) {
-				return nil, nil
+			message := strings.TrimSpace(snapshot.Text)
+			if message == "" {
+				message = fmt.Sprint(snapshot.Result)
 			}
-			return snapshot.Result.Export(), nil
+			return nil, fmt.Errorf("promise rejected: %s", message)
+		case goja.PromiseStateFulfilled:
+			return snapshot.Result, nil
 		}
 	}
 }
 
-func valueString(value goja.Value) string {
+func exportSettledValue(value goja.Value) any {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return nil
+	}
+	return value.Export()
+}
+
+func describeSettledValue(vm *goja.Runtime, value goja.Value) string {
 	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
 		return ""
 	}
-	return fmt.Sprint(value.Export())
+	if obj := value.ToObject(vm); obj != nil {
+		if stack := strings.TrimSpace(safeValueString(vm, obj.Get("stack"))); stack != "" {
+			return stack
+		}
+	}
+	if text := strings.TrimSpace(safeValueString(vm, value)); text != "" && text != "[object Object]" {
+		return text
+	}
+	return strings.TrimSpace(fmt.Sprint(value.Export()))
+}
+
+func safeValueString(vm *goja.Runtime, value goja.Value) string {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return ""
+	}
+	if ex, ok := value.Export().(error); ok {
+		return ex.Error()
+	}
+	if obj := value.ToObject(vm); obj != nil {
+		if fn, ok := goja.AssertFunction(obj.Get("toString")); ok {
+			if ret, err := fn(value); err == nil && !goja.IsUndefined(ret) && !goja.IsNull(ret) {
+				return ret.String()
+			}
+		}
+	}
+	return value.String()
 }
 
 func newBotDraft(state *RuntimeState) *botDraft {
-	return &botDraft{moduleName: state.ModuleName(), store: state.Store(), metadata: map[string]any{}, commands: []*commandDraft{}, events: []*eventDraft{}}
+	return &botDraft{
+		moduleName:    state.ModuleName(),
+		store:         state.Store(),
+		metadata:      map[string]any{},
+		commands:      []*commandDraft{},
+		events:        []*eventDraft{},
+		components:    []*componentDraft{},
+		modals:        []*modalDraft{},
+		autocompletes: []*autocompleteDraft{},
+	}
 }
 
 func (d *botDraft) command(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
@@ -268,6 +384,58 @@ func (d *botDraft) event(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 	return goja.Undefined()
 }
 
+func (d *botDraft) component(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 2 {
+		panic(vm.NewGoError(fmt.Errorf("discord.component expects component(customId, handler)")))
+	}
+	customID := strings.TrimSpace(call.Arguments[0].String())
+	if customID == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.component customId is empty")))
+	}
+	handler, ok := goja.AssertFunction(call.Arguments[1])
+	if !ok {
+		panic(vm.NewGoError(fmt.Errorf("discord.component %q handler is not a function", customID)))
+	}
+	d.components = append(d.components, &componentDraft{customID: customID, handler: handler})
+	return goja.Undefined()
+}
+
+func (d *botDraft) modal(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 2 {
+		panic(vm.NewGoError(fmt.Errorf("discord.modal expects modal(customId, handler)")))
+	}
+	customID := strings.TrimSpace(call.Arguments[0].String())
+	if customID == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.modal customId is empty")))
+	}
+	handler, ok := goja.AssertFunction(call.Arguments[1])
+	if !ok {
+		panic(vm.NewGoError(fmt.Errorf("discord.modal %q handler is not a function", customID)))
+	}
+	d.modals = append(d.modals, &modalDraft{customID: customID, handler: handler})
+	return goja.Undefined()
+}
+
+func (d *botDraft) autocomplete(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 3 {
+		panic(vm.NewGoError(fmt.Errorf("discord.autocomplete expects autocomplete(commandName, optionName, handler)")))
+	}
+	commandName := strings.TrimSpace(call.Arguments[0].String())
+	if commandName == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.autocomplete command name is empty")))
+	}
+	optionName := strings.TrimSpace(call.Arguments[1].String())
+	if optionName == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.autocomplete option name is empty")))
+	}
+	handler, ok := goja.AssertFunction(call.Arguments[2])
+	if !ok {
+		panic(vm.NewGoError(fmt.Errorf("discord.autocomplete %q/%q handler is not a function", commandName, optionName)))
+	}
+	d.autocompletes = append(d.autocompletes, &autocompleteDraft{commandName: commandName, optionName: optionName, handler: handler})
+	return goja.Undefined()
+}
+
 func (d *botDraft) configure(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) != 1 {
 		panic(vm.NewGoError(fmt.Errorf("discord.configure expects configure(options)")))
@@ -285,15 +453,29 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 	_ = bot.Set("metadata", cloneMap(d.metadata))
 	_ = bot.Set("commands", commandSnapshotsFromDrafts(d.commands))
 	_ = bot.Set("events", eventSnapshotsFromDrafts(d.events))
+	_ = bot.Set("components", componentSnapshotsFromDrafts(d.components))
+	_ = bot.Set("modals", modalSnapshotsFromDrafts(d.modals))
+	_ = bot.Set("autocompletes", autocompleteSnapshotsFromDrafts(d.autocompletes))
 
 	commands := append([]*commandDraft(nil), d.commands...)
 	events := append([]*eventDraft(nil), d.events...)
+	components := append([]*componentDraft(nil), d.components...)
+	modals := append([]*modalDraft(nil), d.modals...)
+	autocompletes := append([]*autocompleteDraft(nil), d.autocompletes...)
 	store := d.store
 	metadata := cloneMap(d.metadata)
 	moduleName := d.moduleName
 
 	_ = bot.Set("describe", func(goja.FunctionCall) goja.Value {
-		return vm.ToValue(map[string]any{"kind": "discord.bot", "metadata": cloneMap(metadata), "commands": commandSnapshotsFromDrafts(commands), "events": eventSnapshotsFromDrafts(events)})
+		return vm.ToValue(map[string]any{
+			"kind":          "discord.bot",
+			"metadata":      cloneMap(metadata),
+			"commands":      commandSnapshotsFromDrafts(commands),
+			"events":        eventSnapshotsFromDrafts(events),
+			"components":    componentSnapshotsFromDrafts(components),
+			"modals":        modalSnapshotsFromDrafts(modals),
+			"autocompletes": autocompleteSnapshotsFromDrafts(autocompletes),
+		})
 	})
 	_ = bot.Set("dispatchCommand", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
@@ -341,6 +523,68 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 		}
 		return vm.ToValue(results)
 	})
+	_ = bot.Set("dispatchComponent", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 1 {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchComponent expects one input object")))
+		}
+		input := objectFromValue(vm, call.Arguments[0])
+		name := strings.TrimSpace(input.Get("name").String())
+		if name == "" {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchComponent input name is empty")))
+		}
+		component := findComponent(components, name)
+		if component == nil {
+			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no component handler for %q", moduleName, name)))
+		}
+		ctx := buildContext(vm, store, input, "component", name, metadata)
+		result, err := component.handler(goja.Undefined(), ctx)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return result
+	})
+	_ = bot.Set("dispatchModal", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 1 {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchModal expects one input object")))
+		}
+		input := objectFromValue(vm, call.Arguments[0])
+		name := strings.TrimSpace(input.Get("name").String())
+		if name == "" {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchModal input name is empty")))
+		}
+		modal := findModal(modals, name)
+		if modal == nil {
+			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no modal handler for %q", moduleName, name)))
+		}
+		ctx := buildContext(vm, store, input, "modal", name, metadata)
+		result, err := modal.handler(goja.Undefined(), ctx)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return result
+	})
+	_ = bot.Set("dispatchAutocomplete", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 1 {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchAutocomplete expects one input object")))
+		}
+		input := objectFromValue(vm, call.Arguments[0])
+		commandName := strings.TrimSpace(input.Get("name").String())
+		focused := exportMap(input.Get("focused"))
+		optionName := strings.TrimSpace(fmt.Sprint(focused["name"]))
+		if commandName == "" || optionName == "" {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchAutocomplete requires command name and focused option name")))
+		}
+		autocomplete := findAutocomplete(autocompletes, commandName, optionName)
+		if autocomplete == nil {
+			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no autocomplete handler for %q/%q", moduleName, commandName, optionName)))
+		}
+		ctx := buildContext(vm, store, input, "autocomplete", commandName+":"+optionName, metadata)
+		result, err := autocomplete.handler(goja.Undefined(), ctx)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return result
+	})
 	return bot
 }
 
@@ -385,6 +629,30 @@ func eventSnapshotsFromDrafts(events []*eventDraft) []map[string]any {
 	return out
 }
 
+func componentSnapshotsFromDrafts(components []*componentDraft) []map[string]any {
+	out := make([]map[string]any, 0, len(components))
+	for _, component := range components {
+		out = append(out, map[string]any{"customId": component.customID})
+	}
+	return out
+}
+
+func modalSnapshotsFromDrafts(modals []*modalDraft) []map[string]any {
+	out := make([]map[string]any, 0, len(modals))
+	for _, modal := range modals {
+		out = append(out, map[string]any{"customId": modal.customID})
+	}
+	return out
+}
+
+func autocompleteSnapshotsFromDrafts(autocompletes []*autocompleteDraft) []map[string]any {
+	out := make([]map[string]any, 0, len(autocompletes))
+	for _, autocomplete := range autocompletes {
+		out = append(out, map[string]any{"commandName": autocomplete.commandName, "optionName": autocomplete.optionName})
+	}
+	return out
+}
+
 func findCommand(commands []*commandDraft, name string) *commandDraft {
 	for _, command := range commands {
 		if command != nil && command.name == name {
@@ -402,6 +670,33 @@ func findEvents(events []*eventDraft, name string) []*eventDraft {
 		}
 	}
 	return matches
+}
+
+func findComponent(components []*componentDraft, customID string) *componentDraft {
+	for _, component := range components {
+		if component != nil && component.customID == customID {
+			return component
+		}
+	}
+	return nil
+}
+
+func findModal(modals []*modalDraft, customID string) *modalDraft {
+	for _, modal := range modals {
+		if modal != nil && modal.customID == customID {
+			return modal
+		}
+	}
+	return nil
+}
+
+func findAutocomplete(autocompletes []*autocompleteDraft, commandName, optionName string) *autocompleteDraft {
+	for _, autocomplete := range autocompletes {
+		if autocomplete != nil && autocomplete.commandName == commandName && autocomplete.optionName == optionName {
+			return autocomplete
+		}
+	}
+	return nil
 }
 
 func objectFromValue(vm *goja.Runtime, value goja.Value) *goja.Object {
@@ -430,6 +725,7 @@ func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchR
 	input := vm.NewObject()
 	setObjectField(vm, input, "name", request.Name)
 	setObjectField(vm, input, "args", request.Args)
+	setObjectField(vm, input, "values", request.Values)
 	setObjectField(vm, input, "command", request.Command)
 	setObjectField(vm, input, "interaction", request.Interaction)
 	setObjectField(vm, input, "message", request.Message)
@@ -438,6 +734,13 @@ func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchR
 	setObjectField(vm, input, "channel", request.Channel)
 	setObjectField(vm, input, "me", request.Me)
 	setObjectField(vm, input, "metadata", request.Metadata)
+	setObjectField(vm, input, "config", request.Config)
+	setObjectField(vm, input, "component", request.Component)
+	setObjectField(vm, input, "modal", request.Modal)
+	setObjectField(vm, input, "focused", request.Focused)
+	if request.Discord != nil {
+		setObjectField(vm, input, "discord", discordOpsObject(vm, ctx, request.Discord))
+	}
 	if request.Reply != nil {
 		_ = input.Set("reply", func(message any) error { return request.Reply(ctx, message) })
 	} else {
@@ -458,6 +761,11 @@ func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchR
 	} else {
 		_ = input.Set("defer", func(any) error { return nil })
 	}
+	if request.ShowModal != nil {
+		_ = input.Set("showModal", func(payload any) error { return request.ShowModal(ctx, payload) })
+	} else {
+		_ = input.Set("showModal", func(any) error { return fmt.Errorf("showModal is not available in this context") })
+	}
 	return input
 }
 
@@ -465,6 +773,7 @@ func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind
 	ctx := vm.NewObject()
 	setObjectField(vm, ctx, "args", input.Get("args"))
 	setObjectField(vm, ctx, "options", input.Get("args"))
+	setObjectField(vm, ctx, "values", input.Get("values"))
 	setObjectField(vm, ctx, "command", input.Get("command"))
 	setObjectField(vm, ctx, "interaction", input.Get("interaction"))
 	setObjectField(vm, ctx, "message", input.Get("message"))
@@ -473,6 +782,11 @@ func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind
 	setObjectField(vm, ctx, "channel", input.Get("channel"))
 	setObjectField(vm, ctx, "me", input.Get("me"))
 	setObjectField(vm, ctx, "metadata", input.Get("metadata"))
+	setObjectField(vm, ctx, "config", input.Get("config"))
+	setObjectField(vm, ctx, "component", input.Get("component"))
+	setObjectField(vm, ctx, "modal", input.Get("modal"))
+	setObjectField(vm, ctx, "focused", input.Get("focused"))
+	setObjectField(vm, ctx, "discord", input.Get("discord"))
 	_ = ctx.Set("store", storeObject(vm, store))
 	_ = ctx.Set("log", loggerObject(vm, kind, name, metadata))
 	if reply := input.Get("reply"); !goja.IsUndefined(reply) && !goja.IsNull(reply) {
@@ -494,6 +808,11 @@ func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind
 		_ = ctx.Set("defer", def)
 	} else {
 		_ = ctx.Set("defer", func(any) error { return nil })
+	}
+	if showModal := input.Get("showModal"); !goja.IsUndefined(showModal) && !goja.IsNull(showModal) {
+		_ = ctx.Set("showModal", showModal)
+	} else {
+		_ = ctx.Set("showModal", func(any) error { return fmt.Errorf("showModal is not available in this context") })
 	}
 	return ctx
 }
@@ -530,6 +849,46 @@ func storeObject(vm *goja.Runtime, store *MemoryStore) *goja.Object {
 		return storeObject(vm, store.Namespace(parts...))
 	})
 	return obj
+}
+
+func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *goja.Object {
+	root := vm.NewObject()
+	channels := vm.NewObject()
+	messages := vm.NewObject()
+	if ops == nil {
+		_ = channels.Set("send", func(string, any) error { return nil })
+		_ = messages.Set("edit", func(string, string, any) error { return nil })
+		_ = messages.Set("delete", func(string, string) error { return nil })
+		_ = messages.Set("react", func(string, string, string) error { return nil })
+	} else {
+		_ = channels.Set("send", func(channelID string, payload any) error {
+			if ops.ChannelSend == nil {
+				return nil
+			}
+			return ops.ChannelSend(ctx, channelID, payload)
+		})
+		_ = messages.Set("edit", func(channelID, messageID string, payload any) error {
+			if ops.MessageEdit == nil {
+				return nil
+			}
+			return ops.MessageEdit(ctx, channelID, messageID, payload)
+		})
+		_ = messages.Set("delete", func(channelID, messageID string) error {
+			if ops.MessageDelete == nil {
+				return nil
+			}
+			return ops.MessageDelete(ctx, channelID, messageID)
+		})
+		_ = messages.Set("react", func(channelID, messageID, emoji string) error {
+			if ops.MessageReact == nil {
+				return nil
+			}
+			return ops.MessageReact(ctx, channelID, messageID, emoji)
+		})
+	}
+	_ = root.Set("channels", channels)
+	_ = root.Set("messages", messages)
+	return root
 }
 
 func loggerObject(vm *goja.Runtime, kind, name string, metadata map[string]any) *goja.Object {

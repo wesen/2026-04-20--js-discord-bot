@@ -133,6 +133,9 @@ func (s *RuntimeState) defineBot(vm *goja.Runtime, call goja.FunctionCall) goja.
 	api := vm.NewObject()
 	_ = api.Set("command", func(call goja.FunctionCall) goja.Value { return draft.command(vm, call) })
 	_ = api.Set("event", func(call goja.FunctionCall) goja.Value { return draft.event(vm, call) })
+	_ = api.Set("component", func(call goja.FunctionCall) goja.Value { return draft.component(vm, call) })
+	_ = api.Set("modal", func(call goja.FunctionCall) goja.Value { return draft.modal(vm, call) })
+	_ = api.Set("autocomplete", func(call goja.FunctionCall) goja.Value { return draft.autocomplete(vm, call) })
 	_ = api.Set("configure", func(call goja.FunctionCall) goja.Value { return draft.configure(vm, call) })
 	if _, err := builder(goja.Undefined(), api); err != nil {
 		panic(vm.NewGoError(err))

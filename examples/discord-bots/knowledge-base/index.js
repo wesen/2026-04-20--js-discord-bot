@@ -5,7 +5,21 @@ module.exports = defineBot(({ command, event, configure }) => {
   configure({
     name: "knowledge-base",
     description: "Search and summarize internal docs from JavaScript",
-    category: "knowledge"
+    category: "knowledge",
+    run: {
+      fields: {
+        index_path: {
+          type: "string",
+          help: "Optional path label for the active docs index",
+          default: "builtin-docs"
+        },
+        read_only: {
+          type: "bool",
+          help: "Disable write operations for future knowledge-base mutations",
+          default: true
+        }
+      }
+    }
   });
 
   command("kb-search", {
@@ -19,11 +33,12 @@ module.exports = defineBot(({ command, event, configure }) => {
     }
   }, async (ctx) => {
     const matches = docs.search(ctx.args.query);
+    const indexPath = ctx.config && ctx.config.index_path || "builtin-docs";
     if (matches.length === 0) {
-      return { content: `No docs found for ${ctx.args.query}.`, ephemeral: true };
+      return { content: `No docs found for ${ctx.args.query} in ${indexPath}.`, ephemeral: true };
     }
     return {
-      content: `Found ${matches.length} document(s) for ${ctx.args.query}.`,
+      content: `Found ${matches.length} document(s) for ${ctx.args.query} in ${indexPath}.`,
       embeds: [{
         title: "Knowledge Base Search",
         description: matches.map((m) => `**${m.key}** — ${m.excerpt}`).join("\n"),

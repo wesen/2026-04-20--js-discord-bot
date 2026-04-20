@@ -16,7 +16,8 @@ import (
 
 type RunRequest struct {
 	Config            appconfig.Settings
-	Bots              []DiscoveredBot
+	Bot               DiscoveredBot
+	RuntimeConfig     map[string]any
 	SyncOnStart       bool
 	PrintParsedValues bool
 	Out               io.Writer
@@ -28,11 +29,7 @@ func runSelectedBots(ctx context.Context, request RunRequest) error {
 	if request.PrintParsedValues {
 		return printRunRequest(request.Out, request)
 	}
-	scripts := make([]string, 0, len(request.Bots))
-	for _, bot := range request.Bots {
-		scripts = append(scripts, bot.ScriptPath())
-	}
-	instance, err := appbot.NewWithScripts(request.Config, scripts)
+	instance, err := appbot.NewWithScript(request.Config, request.Bot.ScriptPath(), request.RuntimeConfig)
 	if err != nil {
 		return err
 	}
@@ -83,27 +80,24 @@ func printRunRequest(w io.Writer, request RunRequest) error {
 			"clientID":      request.Config.ClientID,
 			"clientSecret":  nonEmptyMask(request.Config.ClientSecret),
 		},
-		"syncOnStart": request.SyncOnStart,
-		"bots":        botDebugSummaries(request.Bots),
+		"syncOnStart":   request.SyncOnStart,
+		"bot":           botDebugSummary(request.Bot),
+		"runtimeConfig": request.RuntimeConfig,
 	}
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(payload)
 }
 
-func botDebugSummaries(bots []DiscoveredBot) []map[string]any {
-	ret := make([]map[string]any, 0, len(bots))
-	for _, bot := range bots {
-		ret = append(ret, map[string]any{
-			"name":        bot.Name(),
-			"description": bot.Description(),
-			"scriptPath":  bot.ScriptPath(),
-			"sourceLabel": bot.SourceLabel(),
-			"commands":    bot.CommandNames(),
-			"events":      bot.EventNames(),
-		})
+func botDebugSummary(bot DiscoveredBot) map[string]any {
+	return map[string]any{
+		"name":        bot.Name(),
+		"description": bot.Description(),
+		"scriptPath":  bot.ScriptPath(),
+		"sourceLabel": bot.SourceLabel(),
+		"commands":    bot.CommandNames(),
+		"events":      bot.EventNames(),
 	}
-	return ret
 }
 
 func nonEmptyMask(value string) string {
