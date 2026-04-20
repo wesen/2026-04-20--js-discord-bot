@@ -51,10 +51,10 @@
 - [ ] Decide whether `kick`, `ban`, and `unban` belong in the first moderation slice
 - [x] Add explicit structured logging around destructive/admin Discord operations
 - [x] Add runtime tests for moderation/admin host methods
-- [ ] Document permissions, error surfaces, and safety expectations
+- [x] Document permissions, error surfaces, and safety expectations
 
 ### Phase 3 — examples and operator guidance
-- [ ] Add one moderation-oriented example bot that uses the new event and admin surfaces
-- [ ] Document privileged intent requirements (`GuildMembers`, reaction intents where needed)
-- [ ] Document permission expectations and common failure modes
+- [x] Add one moderation-oriented example bot that uses the new event and admin surfaces
+- [x] Document privileged intent requirements (`GuildMembers`, reaction intents where needed)
+- [x] Document permission expectations and common failure modes
 - [ ] Add a small operator/debug playbook for tracing event and moderation flows

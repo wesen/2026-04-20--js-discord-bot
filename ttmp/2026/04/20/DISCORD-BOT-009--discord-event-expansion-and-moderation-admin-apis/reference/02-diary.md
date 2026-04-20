@@ -288,3 +288,31 @@ The implementation reused the existing `ctx.discord` host-ops pattern from outbo
 ### What should be done next
 - Decide whether the next admin slice should add `kick`, `ban`, and `unban`, or whether the better next step is operator-facing permissions/failure-mode documentation.
 - Add documentation for privileged intents, required permissions, and expected Discord API failure modes.
+
+## Step 6: Document intents, permissions, and failure-mode expectations
+
+After finishing the first member moderation API slice, I chose to complete the operator-facing documentation before adding more destructive APIs. That keeps the current implemented surface understandable and safer to use before we widen it further.
+
+This step updated both the ticket reference doc and the example repository notes so the current implementation state is explicit. In particular, I corrected the earlier planning-era sketch that implied `timeout(...)` already accepted an audit-log reason, which is not true in the current implementation.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/reference/01-discord-event-expansion-and-moderation-admin-apis-api-reference-and-planning-notes.md` to document:
+  - implemented event families
+  - current `ctx.before`, `ctx.reaction`, and `ctx.member` shapes
+  - implemented `ctx.discord.members.*` methods
+  - gateway intent requirements
+  - permission and role-hierarchy expectations
+  - current timeout payload limitations
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` with operator-facing notes about intents, guild-only moderation commands, permission expectations, and current timeout limitations.
+- Updated the DISCORD-BOT-009 task list and changelog to reflect the finished documentation slice.
+
+### Why
+- The current moderation/admin surface is now real enough that operators need concrete usage caveats, not just future planning notes.
+- It is better to document the current capabilities accurately before adding more dangerous operations like bans.
+
+### What worked
+- The ticket now reflects the implemented reality instead of older sketches.
+- The example repository README now tells operators what they need to enable and what kinds of failures to expect.
+
+### What should be done next
+- Decide whether Phase 2 should continue with `kick`, `ban`, and `unban`, or whether the next best step is the small operator/debug playbook task.

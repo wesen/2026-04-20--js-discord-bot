@@ -52,3 +52,11 @@ Implemented the first moderation/admin host API slice for `DISCORD-BOT-009`: Jav
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for outbound member moderation operations
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example moderation bot now demonstrates host-backed add-role and timeout commands
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention the first moderation/admin host APIs
+
+Added the operator-facing documentation slice for the newly implemented DISCORD-BOT-009 surfaces. The reference doc and example repository notes now describe the currently supported event families, the `ctx.discord.members.*` API surface, required gateway intents, permission and role-hierarchy expectations, common failure modes, and the current timeout payload limitations.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/reference/01-discord-event-expansion-and-moderation-admin-apis-api-reference-and-planning-notes.md — Updated API reference with implemented event and member-moderation surfaces plus operational caveats
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Added gateway-intent, permission, and timeout-surface notes for operators using the moderation example bot
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/tasks.md — Marked the documentation and operator-guidance tasks completed for the current slice

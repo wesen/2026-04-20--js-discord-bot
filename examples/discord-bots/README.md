@@ -33,3 +33,14 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role` and `mod-timeout` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
+
+## Moderation / event prerequisites
+
+- Event-heavy moderation flows depend on gateway intents including:
+  - `GuildMessages`
+  - `GuildMessageReactions`
+  - `GuildMembers`
+  - `MessageContent`
+- Moderation commands must be run in a guild context.
+- `mod-add-role` and `mod-timeout` require the bot to have the corresponding Discord permissions and sufficient role hierarchy over the target member/role.
+- The first `timeout(...)` slice currently supports `durationSeconds`, `until`, and `clear: true`; it does not yet send an audit-log reason.
