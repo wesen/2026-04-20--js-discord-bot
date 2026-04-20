@@ -306,6 +306,8 @@ I launched the bot in a detached tmux session, confirmed it connected successful
 
 **Inferred user intent:** Confirm the bot actually starts in a real terminal multiplexer session and stays available for live Discord smoke testing.
 
+**Commit (docs):** 566e7d8 — "Docs: record tmux smoke test"
+
 ### What I did
 - Started `go run ./cmd/discord-bot run` inside a detached tmux session.
 - Confirmed the bot connected and logged a ready message.
