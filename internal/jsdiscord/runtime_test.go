@@ -651,6 +651,66 @@ func TestDiscordContextSupportsOutboundDiscordOps(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsMessageModerationOps(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("message-tools", async (ctx) => {
+				const message = await ctx.discord.messages.fetch("chan-1", "msg-1")
+				await ctx.discord.messages.pin("chan-1", "msg-1")
+				await ctx.discord.messages.unpin("chan-1", "msg-1")
+				const pinned = await ctx.discord.messages.listPinned("chan-1")
+				return { content: String(message.id) + ":" + String(pinned.length) }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var fetches, pins, unpins, listPinned int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "message-tools",
+		Discord: &DiscordOps{
+			MessageFetch: func(_ context.Context, channelID, messageID string) (map[string]any, error) {
+				fetches++
+				if channelID != "chan-1" || messageID != "msg-1" {
+					t.Fatalf("fetch target = %s/%s", channelID, messageID)
+				}
+				return map[string]any{"id": "msg-1", "content": "hello"}, nil
+			},
+			MessagePin: func(_ context.Context, channelID, messageID string) error {
+				pins++
+				if channelID != "chan-1" || messageID != "msg-1" {
+					t.Fatalf("pin target = %s/%s", channelID, messageID)
+				}
+				return nil
+			},
+			MessageUnpin: func(_ context.Context, channelID, messageID string) error {
+				unpins++
+				if channelID != "chan-1" || messageID != "msg-1" {
+					t.Fatalf("unpin target = %s/%s", channelID, messageID)
+				}
+				return nil
+			},
+			MessageListPinned: func(_ context.Context, channelID string) ([]map[string]any, error) {
+				listPinned++
+				if channelID != "chan-1" {
+					t.Fatalf("listPinned channel = %s", channelID)
+				}
+				return []map[string]any{{"id": "msg-1"}, {"id": "msg-2"}}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:msg-1:2]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if fetches != 1 || pins != 1 || unpins != 1 || listPinned != 1 {
+		t.Fatalf("counts = fetch:%d pin:%d unpin:%d list:%d", fetches, pins, unpins, listPinned)
+	}
+}
+
 func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")

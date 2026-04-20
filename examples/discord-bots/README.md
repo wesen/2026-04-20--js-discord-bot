@@ -2,12 +2,21 @@
 
 This repository exercises the named bot runner model.
 
+## Docs
+
+If you want the full API reference or a step-by-step bot-building playbook, load the embedded help pages from the CLI:
+
+```bash
+GOWORK=off go run ./cmd/discord-bot help discord-js-bot-api-reference
+GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
+```
+
 ## Bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
 - `knowledge-base/` — relative `require()` helper, search/article commands, message event
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event
-- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, and member moderation host APIs
+- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, member moderation host APIs, and message moderation utilities
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
@@ -33,6 +42,8 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
+- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, and `mod-list-pins` to demonstrate the first DISCORD-BOT-010 message moderation utilities.
+- The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
 
 ## Moderation / event prerequisites
 

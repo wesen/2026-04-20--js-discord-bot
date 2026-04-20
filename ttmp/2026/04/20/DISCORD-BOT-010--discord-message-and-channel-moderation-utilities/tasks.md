@@ -5,19 +5,19 @@
 - [x] Create ticket workspace
 - [x] Write detailed architecture / implementation guide
 - [x] Write API reference and planning notes
-- [ ] Add and maintain a diary as implementation progresses
+- [x] Add and maintain a diary as implementation progresses
 
 ## Planned implementation phases
 
 ### Phase 1 — message inspection and pinning
-- [ ] Add `ctx.discord.messages.fetch(channelID, messageID)`
-- [ ] Add `ctx.discord.messages.pin(channelID, messageID)`
-- [ ] Add `ctx.discord.messages.unpin(channelID, messageID)`
-- [ ] Add `ctx.discord.messages.listPinned(channelID)`
-- [ ] Add normalized message snapshot helpers for fetched/pinned messages
-- [ ] Add runtime tests for fetch/pin/unpin/listPinned
-- [ ] Update the moderation example bot with pin/fetch commands
-- [ ] Validate with focused and full Go test runs
+- [x] Add `ctx.discord.messages.fetch(channelID, messageID)`
+- [x] Add `ctx.discord.messages.pin(channelID, messageID)`
+- [x] Add `ctx.discord.messages.unpin(channelID, messageID)`
+- [x] Add `ctx.discord.messages.listPinned(channelID)`
+- [x] Add normalized message snapshot helpers for fetched/pinned messages
+- [x] Add runtime tests for fetch/pin/unpin/listPinned
+- [x] Update the moderation example bot with pin/fetch commands
+- [x] Validate with focused and full Go test runs
 
 ### Phase 2 — message bulk deletion
 - [ ] Add `ctx.discord.messages.bulkDelete(channelID, messageIDs)`

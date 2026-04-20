@@ -53,16 +53,20 @@ type botDraft struct {
 }
 
 type DiscordOps struct {
-	ChannelSend      func(context.Context, string, any) error
-	MessageEdit      func(context.Context, string, string, any) error
-	MessageDelete    func(context.Context, string, string) error
-	MessageReact     func(context.Context, string, string, string) error
-	MemberAddRole    func(context.Context, string, string, string) error
-	MemberRemoveRole func(context.Context, string, string, string) error
-	MemberSetTimeout func(context.Context, string, string, any) error
-	MemberKick       func(context.Context, string, string, any) error
-	MemberBan        func(context.Context, string, string, any) error
-	MemberUnban      func(context.Context, string, string) error
+	ChannelSend       func(context.Context, string, any) error
+	MessageFetch      func(context.Context, string, string) (map[string]any, error)
+	MessageEdit       func(context.Context, string, string, any) error
+	MessageDelete     func(context.Context, string, string) error
+	MessageReact      func(context.Context, string, string, string) error
+	MessagePin        func(context.Context, string, string) error
+	MessageUnpin      func(context.Context, string, string) error
+	MessageListPinned func(context.Context, string) ([]map[string]any, error)
+	MemberAddRole     func(context.Context, string, string, string) error
+	MemberRemoveRole  func(context.Context, string, string, string) error
+	MemberSetTimeout  func(context.Context, string, string, any) error
+	MemberKick        func(context.Context, string, string, any) error
+	MemberBan         func(context.Context, string, string, any) error
+	MemberUnban       func(context.Context, string, string) error
 }
 
 type DispatchRequest struct {
@@ -873,9 +877,13 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 	members := vm.NewObject()
 	if ops == nil {
 		_ = channels.Set("send", func(string, any) error { return nil })
+		_ = messages.Set("fetch", func(string, string) any { return map[string]any{} })
 		_ = messages.Set("edit", func(string, string, any) error { return nil })
 		_ = messages.Set("delete", func(string, string) error { return nil })
 		_ = messages.Set("react", func(string, string, string) error { return nil })
+		_ = messages.Set("pin", func(string, string) error { return nil })
+		_ = messages.Set("unpin", func(string, string) error { return nil })
+		_ = messages.Set("listPinned", func(string) any { return []map[string]any{} })
 		_ = members.Set("addRole", func(string, string, string) error { return nil })
 		_ = members.Set("removeRole", func(string, string, string) error { return nil })
 		_ = members.Set("timeout", func(string, string, any) error { return nil })
@@ -888,6 +896,12 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return nil
 			}
 			return ops.ChannelSend(ctx, channelID, payload)
+		})
+		_ = messages.Set("fetch", func(channelID, messageID string) (any, error) {
+			if ops.MessageFetch == nil {
+				return map[string]any{}, nil
+			}
+			return ops.MessageFetch(ctx, channelID, messageID)
 		})
 		_ = messages.Set("edit", func(channelID, messageID string, payload any) error {
 			if ops.MessageEdit == nil {
@@ -906,6 +920,24 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return nil
 			}
 			return ops.MessageReact(ctx, channelID, messageID, emoji)
+		})
+		_ = messages.Set("pin", func(channelID, messageID string) error {
+			if ops.MessagePin == nil {
+				return nil
+			}
+			return ops.MessagePin(ctx, channelID, messageID)
+		})
+		_ = messages.Set("unpin", func(channelID, messageID string) error {
+			if ops.MessageUnpin == nil {
+				return nil
+			}
+			return ops.MessageUnpin(ctx, channelID, messageID)
+		})
+		_ = messages.Set("listPinned", func(channelID string) (any, error) {
+			if ops.MessageListPinned == nil {
+				return []map[string]any{}, nil
+			}
+			return ops.MessageListPinned(ctx, channelID)
 		})
 		_ = members.Set("addRole", func(guildID, userID, roleID string) error {
 			if ops.MemberAddRole == nil {

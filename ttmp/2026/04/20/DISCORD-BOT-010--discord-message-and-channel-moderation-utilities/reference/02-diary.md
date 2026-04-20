@@ -11,8 +11,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/discord-bots/README.md
+      Note: Example repository notes updated for Phase 1 message moderation utilities
     - Path: examples/discord-bots/moderation/index.js
       Note: Moderation example bot will demonstrate the new utilities
+    - Path: examples/discord-bots/moderation/lib/register-events.js
+      Note: Event handlers extracted during example split
+    - Path: examples/discord-bots/moderation/lib/register-member-moderation-commands.js
+      Note: Member moderation commands extracted during example split
+    - Path: examples/discord-bots/moderation/lib/register-message-moderation-commands.js
+      Note: Phase 1 message moderation example commands
+    - Path: examples/discord-bots/moderation/lib/register-overview-commands.js
+      Note: Moderation example split into focused registration modules
     - Path: internal/jsdiscord/bot.go
       Note: Request-scoped Discord capability object will grow with message and channel moderation utilities
     - Path: internal/jsdiscord/host.go
@@ -25,6 +35,7 @@ LastUpdated: 2026-04-20T20:25:00-04:00
 WhatFor: Capture implementation steps, validation commands, failures, and review guidance while adding message and channel moderation utility APIs.
 WhenToUse: Use when resuming or reviewing DISCORD-BOT-010 work.
 ---
+
 
 
 # Diary
@@ -62,3 +73,73 @@ This ticket starts from a deliberate priority decision rather than from a random
 - Validate the initial ticket docs.
 - Commit the planning/docs checkpoint.
 - Start Phase 1 implementation.
+
+## Step 2: Implement Phase 1 message fetch / pin / unpin / listPinned
+
+The first code slice followed the planned priority exactly: start with the least risky and most directly useful message moderation utilities. These APIs are immediately useful to a moderation bot, but they do not yet introduce bulk destructive behavior.
+
+While building the example commands for this phase, it became clear that the moderation example file itself was starting to grow into a “god file.” I decided to split it now into focused registration modules. That is not just cleanup; it also demonstrates the preferred architecture for authors after the single-bot-per-process pivot: compose richer behavior *inside* one bot implementation using normal JavaScript modules.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** After creating the new ticket, proceed with the first planned implementation phase and keep the example bot maintainable while its command surface expands.
+
+**Inferred user intent:** Implement the highest-priority moderation utilities first, and keep the example architecture aligned with the project’s composition model.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` to expose:
+  - `ctx.discord.messages.fetch(channelID, messageID)`
+  - `ctx.discord.messages.pin(channelID, messageID)`
+  - `ctx.discord.messages.unpin(channelID, messageID)`
+  - `ctx.discord.messages.listPinned(channelID)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to implement the corresponding Discordgo-backed host operations.
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving JavaScript can invoke the new message moderation utilities.
+- Refactored the moderation example bot into focused modules:
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-overview-commands.js`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-message-moderation-commands.js`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-member-moderation-commands.js`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-events.js`
+- Replaced `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` with a small composition root that registers those modules.
+- Added example commands:
+  - `mod-fetch-message`
+  - `mod-pin`
+  - `mod-unpin`
+  - `mod-list-pins`
+- Ran:
+  - `gofmt -w internal/jsdiscord/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### Why
+- Message fetch/pin/unpin/listPinned are useful immediately and lower risk than bulk deletion.
+- Splitting the moderation example now prevents it from becoming harder to review with every new command and event.
+- The split also doubles as an example of the recommended in-bot composition model.
+
+### What worked
+- The runtime tests passed with the new message moderation APIs.
+- `bots help moderation` now shows the new message moderation commands.
+- The moderation bot became easier to navigate after the split.
+
+### What didn't work
+- N/A in this slice.
+
+### What I learned
+- The moderation example is already valuable enough that its internal structure matters for maintainability and pedagogy, not just for convenience.
+
+### What was tricky to build
+- The main subtlety was deciding whether to keep piling commands into one example file or stop and demonstrate the intended composition pattern explicitly. Splitting the bot now was the cleaner long-term choice.
+
+### What warrants a second pair of eyes
+- Whether the message normalization returned by `fetch(...)` and `listPinned(...)` should remain intentionally minimal or grow in the next phases.
+
+### What should be done in the future
+- Continue with Phase 2 bulk delete.
+- Then continue with Phase 3 channel fetch/topic/slowmode helpers.
+
+### Code review instructions
+- Start with `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` and `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go`.
+- Then inspect `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go`.
+- Finally review the moderation example split under `examples/discord-bots/moderation/lib/` and validate help output with the exact command above.
