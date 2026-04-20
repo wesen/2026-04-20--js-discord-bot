@@ -66,9 +66,12 @@ type DispatchRequest struct {
 	Command     map[string]any
 	Interaction map[string]any
 	Message     map[string]any
+	Before      map[string]any
 	User        map[string]any
 	Guild       map[string]any
 	Channel     map[string]any
+	Member      map[string]any
+	Reaction    map[string]any
 	Me          map[string]any
 	Metadata    map[string]any
 	Config      map[string]any
@@ -729,9 +732,12 @@ func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchR
 	setObjectField(vm, input, "command", request.Command)
 	setObjectField(vm, input, "interaction", request.Interaction)
 	setObjectField(vm, input, "message", request.Message)
+	setObjectField(vm, input, "before", request.Before)
 	setObjectField(vm, input, "user", request.User)
 	setObjectField(vm, input, "guild", request.Guild)
 	setObjectField(vm, input, "channel", request.Channel)
+	setObjectField(vm, input, "member", request.Member)
+	setObjectField(vm, input, "reaction", request.Reaction)
 	setObjectField(vm, input, "me", request.Me)
 	setObjectField(vm, input, "metadata", request.Metadata)
 	setObjectField(vm, input, "config", request.Config)
@@ -777,9 +783,12 @@ func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind
 	setObjectField(vm, ctx, "command", input.Get("command"))
 	setObjectField(vm, ctx, "interaction", input.Get("interaction"))
 	setObjectField(vm, ctx, "message", input.Get("message"))
+	setObjectField(vm, ctx, "before", input.Get("before"))
 	setObjectField(vm, ctx, "user", input.Get("user"))
 	setObjectField(vm, ctx, "guild", input.Get("guild"))
 	setObjectField(vm, ctx, "channel", input.Get("channel"))
+	setObjectField(vm, ctx, "member", input.Get("member"))
+	setObjectField(vm, ctx, "reaction", input.Get("reaction"))
 	setObjectField(vm, ctx, "me", input.Get("me"))
 	setObjectField(vm, ctx, "metadata", input.Get("metadata"))
 	setObjectField(vm, ctx, "config", input.Get("config"))

@@ -7,7 +7,7 @@ This repository exercises the named bot runner model.
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
 - `knowledge-base/` — relative `require()` helper, search/article commands, message event
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event
-- `moderation/` — embeds, components, ephemeral responses, message event
+- `moderation/` — embeds, components, ephemeral responses, message create/update/delete events
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
@@ -31,3 +31,4 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
+- `moderation` now also logs message edit/delete lifecycle events to demonstrate the first DISCORD-BOT-009 event-expansion slice.

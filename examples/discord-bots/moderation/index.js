@@ -45,4 +45,28 @@ module.exports = defineBot(({ command, event, configure }) => {
       await ctx.reply({ content: "Moderation bot message trigger received." });
     }
   });
+
+  event("messageUpdate", async (ctx) => {
+    const before = String(ctx.before && ctx.before.content || "").trim();
+    const after = String(ctx.message && ctx.message.content || "").trim();
+    if (before === after || after === "") {
+      return null;
+    }
+    ctx.log.info("moderation observed message edit", {
+      messageId: ctx.message && ctx.message.id,
+      before,
+      after,
+      channelId: ctx.channel && ctx.channel.id,
+    });
+    return null;
+  });
+
+  event("messageDelete", async (ctx) => {
+    ctx.log.info("moderation observed message delete", {
+      messageId: ctx.message && ctx.message.id,
+      cachedContent: ctx.before && ctx.before.content,
+      channelId: ctx.channel && ctx.channel.id,
+    });
+    return null;
+  });
 });

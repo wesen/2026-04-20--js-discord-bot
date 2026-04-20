@@ -10,15 +10,15 @@
 ## Planned implementation phases
 
 ### Phase 1A — message lifecycle events
-- [ ] Add `messageUpdate` session handling in `internal/bot/bot.go`
-- [ ] Add `messageDelete` session handling in `internal/bot/bot.go`
-- [ ] Add `Host.DispatchMessageUpdate(...)`
-- [ ] Add `Host.DispatchMessageDelete(...)`
-- [ ] Normalize partial/update/delete-safe message payloads in `internal/jsdiscord/host.go`
-- [ ] Extend JS dispatch context so message lifecycle handlers can inspect the updated/deleted message payload
-- [ ] Add runtime tests for `messageUpdate` and `messageDelete`
-- [ ] Update one example bot to demonstrate message lifecycle events
-- [ ] Validate with focused and full Go test runs
+- [x] Add `messageUpdate` session handling in `internal/bot/bot.go`
+- [x] Add `messageDelete` session handling in `internal/bot/bot.go`
+- [x] Add `Host.DispatchMessageUpdate(...)`
+- [x] Add `Host.DispatchMessageDelete(...)`
+- [x] Normalize partial/update/delete-safe message payloads in `internal/jsdiscord/host.go`
+- [x] Extend JS dispatch context so message lifecycle handlers can inspect the updated/deleted message payload
+- [x] Add runtime tests for `messageUpdate` and `messageDelete`
+- [x] Update one example bot to demonstrate message lifecycle events
+- [x] Validate with focused and full Go test runs
 
 ### Phase 1B — reaction events
 - [ ] Add `reactionAdd` session handling in `internal/bot/bot.go`

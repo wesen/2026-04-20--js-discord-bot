@@ -163,6 +163,65 @@ func (h *Host) DispatchMessageCreate(ctx context.Context, session *discordgo.Ses
 	return nil
 }
 
+func (h *Host) DispatchMessageUpdate(ctx context.Context, session *discordgo.Session, message *discordgo.MessageUpdate) error {
+	if h == nil || h.handle == nil || message == nil {
+		return nil
+	}
+	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
+	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "messageUpdate",
+		Message:  messageMap(message.Message),
+		Before:   messageMap(message.BeforeUpdate),
+		User:     userMap(message.Author),
+		Guild:    guildMap(message.GuildID),
+		Channel:  channelMap(message.ChannelID),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Discord:  buildDiscordOps(h.scriptPath, session),
+		Reply:    responder.Reply,
+		FollowUp: responder.FollowUp,
+		Edit:     responder.Edit,
+		Defer:    responder.Defer,
+	})
+	if err != nil {
+		return err
+	}
+	if !responder.Acknowledged() {
+		return emitEventResult(ctx, responder.Reply, result)
+	}
+	return nil
+}
+
+func (h *Host) DispatchMessageDelete(ctx context.Context, session *discordgo.Session, message *discordgo.MessageDelete) error {
+	if h == nil || h.handle == nil || message == nil {
+		return nil
+	}
+	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
+	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "messageDelete",
+		Message:  messageDeleteMap(message),
+		Before:   messageMap(message.BeforeDelete),
+		Guild:    guildMap(message.GuildID),
+		Channel:  channelMap(message.ChannelID),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Discord:  buildDiscordOps(h.scriptPath, session),
+		Reply:    responder.Reply,
+		FollowUp: responder.FollowUp,
+		Edit:     responder.Edit,
+		Defer:    responder.Defer,
+	})
+	if err != nil {
+		return err
+	}
+	if !responder.Acknowledged() {
+		return emitEventResult(ctx, responder.Reply, result)
+	}
+	return nil
+}
+
 func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) error {
 	if h == nil || h.handle == nil || interaction == nil {
 		return nil
@@ -1844,6 +1903,23 @@ func messageMap(message *discordgo.Message) map[string]any {
 		"guildID":   message.GuildID,
 		"channelID": message.ChannelID,
 		"author":    userMap(message.Author),
+	}
+}
+
+func messageDeleteMap(message *discordgo.MessageDelete) map[string]any {
+	if message == nil {
+		return map[string]any{}
+	}
+	if message.Message != nil {
+		ret := messageMap(message.Message)
+		ret["deleted"] = true
+		return ret
+	}
+	return map[string]any{
+		"id":        message.ID,
+		"guildID":   message.GuildID,
+		"channelID": message.ChannelID,
+		"deleted":   true,
 	}
 }
 

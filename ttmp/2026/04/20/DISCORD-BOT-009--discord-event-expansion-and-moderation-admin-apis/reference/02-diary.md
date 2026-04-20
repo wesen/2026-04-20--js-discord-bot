@@ -11,18 +11,25 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/discord-bots/README.md
+      Note: Repository notes updated to mention message lifecycle event coverage
+    - Path: examples/discord-bots/moderation/index.js
+      Note: Moderation example demonstrating message update/delete events
     - Path: internal/bot/bot.go
       Note: Live Discord session handlers will expand here as DISCORD-BOT-009 progresses
     - Path: internal/jsdiscord/bot.go
       Note: JS dispatch context shape will grow with richer event payloads
     - Path: internal/jsdiscord/host.go
       Note: Event normalization and dispatch methods will grow here
+    - Path: internal/jsdiscord/runtime_test.go
+      Note: Runtime coverage for message lifecycle event delivery
 ExternalSources: []
 Summary: Chronological implementation diary for DISCORD-BOT-009 event expansion and moderation/admin API work.
 LastUpdated: 2026-04-20T19:10:00-04:00
 WhatFor: Capture implementation sequencing, validation commands, failures, and review notes while expanding Discord event support and moderation/admin capabilities.
 WhenToUse: Use when resuming or reviewing DISCORD-BOT-009 work.
 ---
+
 
 
 # Diary
@@ -71,3 +78,71 @@ The ticket already had a good high-level design, but the next step needed more c
 ### Why
 - The event-expansion slice is a good first implementation target because it is useful, lower risk than destructive admin actions, and fits the current single-bot architecture well.
 - A diary is especially important here because the work spans runtime context shape, discordgo session wiring, normalization, tests, examples, and operator docs.
+
+## Step 2: Implement Phase 1A message lifecycle events
+
+The first real code slice for DISCORD-BOT-009 was message lifecycle support. I started here because it is operationally useful, low-risk compared to moderation actions, and a good way to extend the event/context model without yet introducing destructive host APIs.
+
+The core implementation path was straightforward but touched multiple seams. I added new Discord session handlers in the live bot, added corresponding dispatch methods in the JS host, extended the runtime dispatch/context wiring with `before` so handlers can inspect cached pre-update/pre-delete message state, and wrote tests proving JavaScript can receive both updated and deleted message payloads.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, create a detailed set of tasks and then work through them one by one, committing at appropriate intervals, keeping a diary"
+
+**Assistant interpretation:** After planning the task breakdown, begin executing the first implementation slice and record what changed.
+
+**Inferred user intent:** Make tangible progress immediately, not just planning, and use commit boundaries to keep each slice reviewable.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go` to add:
+  - `handleMessageUpdate(...)`
+  - `handleMessageDelete(...)`
+  - session registration for both handlers
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to add:
+  - `DispatchMessageUpdate(...)`
+  - `DispatchMessageDelete(...)`
+  - `messageDeleteMap(...)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` so dispatch requests and JS context can now carry:
+  - `before`
+  - groundwork fields for richer future event payloads (`member`, `reaction`)
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving:
+  - `messageUpdate` handlers can inspect `ctx.message` and `ctx.before`
+  - `messageDelete` handlers can inspect deleted message IDs and cached prior content
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` so the moderation example bot logs message edits and deletes.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to mention the new message lifecycle example coverage.
+- Ran:
+  - `gofmt -w internal/jsdiscord/bot.go internal/jsdiscord/host.go internal/bot/bot.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### Why
+- Message lifecycle events are immediately useful for audit/moderation-style bots.
+- `ctx.before` is a good general runtime pattern that can later help more than just message events when cached prior state exists.
+- This slice expands the event surface without yet involving permission-sensitive admin APIs.
+
+### What worked
+- The runtime now recognizes `messageUpdate` and `messageDelete` as normal JavaScript events.
+- The moderation example now advertises those events in `bots help moderation` output.
+- Focused and full test suites still pass.
+
+### What didn't work
+- N/A in this slice.
+
+### What I learned
+- The host already had a reusable event-dispatch shape; the main missing pieces were normalized payloads and a way to carry prior cached state into JS.
+
+### What was tricky to build
+- The only subtle point was delete/update payload safety. Delete events may have less complete message information, so the normalization had to remain useful even when only IDs/channel/guild data are available.
+
+### What warrants a second pair of eyes
+- Whether `ctx.before` should remain a generic context field as-is or eventually be specialized for more event types with richer typed sub-objects.
+
+### What should be done next
+- Continue with Phase 1B reaction events.
+- Then continue with Phase 1C guild member events.
+
+### Code review instructions
+- Start with `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go` and `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go`.
+- Then inspect `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` for the new `before` wiring.
+- Finally validate the event behavior through `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` and `bots help moderation`.

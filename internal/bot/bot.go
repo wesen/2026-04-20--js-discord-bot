@@ -62,6 +62,8 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 	session.AddHandler(b.handleReady)
 	session.AddHandler(b.handleGuildCreate)
 	session.AddHandler(b.handleMessageCreate)
+	session.AddHandler(b.handleMessageUpdate)
+	session.AddHandler(b.handleMessageDelete)
 	session.AddHandler(b.handleInteractionCreate)
 
 	return b, nil
@@ -188,6 +190,34 @@ func (b *Bot) handleMessageCreate(session *discordgo.Session, message *discordgo
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchMessageCreate(context.Background(), session, message); err != nil {
 			log.Error().Err(err).Msg("failed to dispatch messageCreate event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleMessageUpdate(session *discordgo.Session, message *discordgo.MessageUpdate) {
+	if message == nil {
+		return
+	}
+	if message.Author != nil && message.Author.Bot {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchMessageUpdate(context.Background(), session, message); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch messageUpdate event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleMessageDelete(session *discordgo.Session, message *discordgo.MessageDelete) {
+	if message == nil {
+		return
+	}
+	if message.Author != nil && message.Author.Bot {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchMessageDelete(context.Background(), session, message); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch messageDelete event to javascript bot")
 		}
 	}
 }

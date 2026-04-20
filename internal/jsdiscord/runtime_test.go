@@ -308,6 +308,49 @@ func TestDiscordEventContextSupportsMessageCreate(t *testing.T) {
 	}
 }
 
+func TestDiscordEventContextSupportsMessageUpdateAndDelete(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ event }) => {
+			event("messageUpdate", async (ctx) => {
+				if ((ctx.message && ctx.message.content || "").trim() !== "edited text") {
+					return null
+				}
+				return "update:" + String(ctx.before && ctx.before.content || "") + "->" + String(ctx.message && ctx.message.content || "")
+			})
+			event("messageDelete", async (ctx) => {
+				return "delete:" + String(ctx.message && ctx.message.id || "") + ":before=" + String(ctx.before && ctx.before.content || "")
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+
+	updated, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:    "messageUpdate",
+		Message: map[string]any{"id": "msg-1", "content": "edited text", "channelID": "chan-1"},
+		Before:  map[string]any{"id": "msg-1", "content": "old text", "channelID": "chan-1"},
+	})
+	if err != nil {
+		t.Fatalf("dispatch messageUpdate: %v", err)
+	}
+	if got := fmt.Sprint(updated); got != "[update:old text->edited text]" {
+		t.Fatalf("messageUpdate result = %s", got)
+	}
+
+	deleted, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:    "messageDelete",
+		Message: map[string]any{"id": "msg-2", "deleted": true, "channelID": "chan-1"},
+		Before:  map[string]any{"id": "msg-2", "content": "removed text", "channelID": "chan-1"},
+	})
+	if err != nil {
+		t.Fatalf("dispatch messageDelete: %v", err)
+	}
+	if got := fmt.Sprint(deleted); got != "[delete:msg-2:before=removed text]" {
+		t.Fatalf("messageDelete result = %s", got)
+	}
+}
+
 func TestApplicationCommandFromSnapshotSupportsAutocompleteAndConstraints(t *testing.T) {
 	cmd, err := applicationCommandFromSnapshot(map[string]any{
 		"name": "echo",
