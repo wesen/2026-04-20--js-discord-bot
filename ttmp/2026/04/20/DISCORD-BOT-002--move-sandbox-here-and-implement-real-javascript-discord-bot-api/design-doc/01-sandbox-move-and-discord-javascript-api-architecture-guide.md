@@ -32,7 +32,7 @@ WhenToUse: Use when extending or reviewing the JavaScript-hosted Discord runtime
 
 The generic runtime and jsverbs layers belong in `go-go-goja`, but the application-facing JavaScript bot API belongs in `js-discord-bot`. This ticket moves the sandbox-style host functionality into this repository and reshapes it into a real Discord-specific CommonJS API exposed as `require("discord")`.
 
-The first implementation slice is intentionally vertical: a JavaScript bot script can now define slash commands and a `ready` event, the host can sync those commands to Discord, and live interactions can dispatch into JavaScript handlers while the Go host still owns the Discord session, credentials, and lifecycle.
+The first implementation slice is intentionally vertical: a JavaScript bot script can now define slash commands, return richer Discord payloads, use deferred/edit/follow-up interaction flows, and listen for `ready`, `guildCreate`, and `messageCreate` events. The host can sync those commands to Discord and dispatch live events into JavaScript handlers while the Go host still owns the Discord session, credentials, and lifecycle.
 
 ## Problem Statement
 
@@ -59,7 +59,8 @@ Implement a local `internal/jsdiscord` package with four responsibilities:
    - `ctx.args`, `ctx.reply`, `ctx.defer`, `ctx.log`, `ctx.store`
 4. **Discord host integration**
    - sync application commands from JS metadata
-   - dispatch live slash commands and `ready` events into JS
+   - dispatch live slash commands into JS
+   - dispatch `ready`, `guildCreate`, and `messageCreate` events into JS
 
 ## Design Decisions
 
@@ -88,17 +89,21 @@ JavaScript owns:
 - small in-memory state
 - reply/defer decisions
 
-### 4. Keep the first response shape intentionally small
+### 4. Grow the response shape carefully, but support real Discord workflows
 
-The first implementation supports:
+The current implementation supports:
 
 - string return values
 - `{ content: string }`
 - `{ content: string, ephemeral: true }`
+- embeds
+- action-row/button components
 - explicit `ctx.reply(...)`
-- explicit `ctx.defer()`
+- explicit `ctx.defer(payload?)`
+- explicit `ctx.edit(...)`
+- explicit `ctx.followUp(...)`
 
-That is enough to prove the full path end-to-end without prematurely modeling every Discord response feature.
+This keeps the API understandable while covering the most important real Discord interaction flows.
 
 ## Architecture
 
@@ -129,7 +134,10 @@ module.exports = defineBot(({ command, event, configure }) => {
   command("ping", {
     description: "Reply with pong from JavaScript"
   }, async () => {
-    return { content: "pong" }
+    return {
+      content: "pong",
+      embeds: [{ title: "Pong", description: "Handled by JavaScript" }],
+    }
   })
 
   command("echo", {
@@ -142,11 +150,19 @@ module.exports = defineBot(({ command, event, configure }) => {
       }
     }
   }, async (ctx) => {
-    return { content: ctx.args.text }
+    await ctx.defer({ ephemeral: true })
+    await ctx.edit({ content: ctx.args.text })
+    await ctx.followUp({ content: "Follow-up from JavaScript", ephemeral: true })
   })
 
   event("ready", async (ctx) => {
     ctx.log.info("js discord bot connected", { user: ctx.me && ctx.me.username })
+  })
+
+  event("messageCreate", async (ctx) => {
+    if ((ctx.message && ctx.message.content || "").trim() === "!pingjs") {
+      await ctx.reply({ content: "pong from messageCreate" })
+    }
   })
 })
 ```
@@ -164,10 +180,9 @@ module.exports = defineBot(({ command, event, configure }) => {
 - derive slash command metadata from JS command specs
 - dispatch interactions and `ready` into JS handlers
 
-### Phase 3 — richer Discord surface
-- richer response payloads
-- more command option types
-- more events
+### Phase 3 — continue expanding the Discord surface
+- more command option types and validation
+- more Discord events and interaction variants
 - maybe script inspection / dry-run CLI commands
 
 ## Alternatives Considered

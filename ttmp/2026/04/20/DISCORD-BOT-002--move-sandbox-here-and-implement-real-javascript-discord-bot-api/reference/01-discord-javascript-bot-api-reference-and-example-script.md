@@ -74,24 +74,35 @@ const { defineBot } = require("discord")
 | `ctx.options` | Alias for `ctx.args` |
 | `ctx.command` | Basic command metadata |
 | `ctx.interaction` | Basic interaction metadata |
+| `ctx.message` | Message metadata for `messageCreate` handlers |
 | `ctx.user` | Invoking user |
 | `ctx.guild` | Guild metadata when present |
 | `ctx.channel` | Channel metadata when present |
 | `ctx.me` | Current bot user |
 | `ctx.metadata` | Host-provided metadata such as `scriptPath` |
-| `ctx.reply(payload)` | Send the initial interaction response |
-| `ctx.defer()` | Send a deferred initial response |
+| `ctx.reply(payload)` | Send the initial interaction response, or a channel reply for message events |
+| `ctx.defer(payload?)` | Send a deferred initial interaction response |
+| `ctx.edit(payload)` | Edit the deferred/original interaction response |
+| `ctx.followUp(payload)` | Send an interaction follow-up message |
 | `ctx.store.*` | Runtime-local in-memory store |
 | `ctx.log.info/debug/warn/error(msg, fields)` | Structured logging |
 
-### First-slice response shapes
+### Supported response payload shapes
 
-Supported return or reply payloads:
+Supported return or reply payloads now include:
 
 ```js
 "pong"
 { content: "pong" }
 { content: "secret pong", ephemeral: true }
+{
+  content: "pong",
+  embeds: [{ title: "Pong", description: "From JavaScript" }],
+  components: [{
+    type: "actionRow",
+    components: [{ type: "button", style: "link", label: "Docs", url: "https://example.com" }]
+  }]
+}
 ```
 
 ## Usage Example
@@ -105,7 +116,10 @@ module.exports = defineBot(({ command, event, configure }) => {
   command("ping", {
     description: "Reply with pong from the JavaScript Discord bot API"
   }, async () => {
-    return { content: "pong" }
+    return {
+      content: "pong",
+      embeds: [{ title: "Pong", description: "JavaScript handled this slash command." }],
+    }
   })
 
   command("echo", {
@@ -118,7 +132,9 @@ module.exports = defineBot(({ command, event, configure }) => {
       }
     }
   }, async (ctx) => {
-    return { content: ctx.args.text }
+    await ctx.defer({ ephemeral: true })
+    await ctx.edit({ content: ctx.args.text })
+    await ctx.followUp({ content: "Follow-up from JavaScript", ephemeral: true })
   })
 
   event("ready", async (ctx) => {
@@ -126,6 +142,12 @@ module.exports = defineBot(({ command, event, configure }) => {
       user: ctx.me && ctx.me.username,
       script: ctx.metadata && ctx.metadata.scriptPath,
     })
+  })
+
+  event("messageCreate", async (ctx) => {
+    if ((ctx.message && ctx.message.content || "").trim() === "!pingjs") {
+      await ctx.reply({ content: "pong from messageCreate" })
+    }
   })
 })
 ```

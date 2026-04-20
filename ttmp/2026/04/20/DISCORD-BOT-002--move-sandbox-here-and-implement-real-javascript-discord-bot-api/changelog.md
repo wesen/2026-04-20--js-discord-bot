@@ -22,3 +22,15 @@ Ported the sandbox-style runtime-local JS host layer into `internal/jsdiscord`, 
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Bot runtime now optionally loads and runs a JavaScript bot script
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/config/config.go — New `bot-script` setting for loading a JavaScript bot definition
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/js-bots/ping.js — First local JavaScript Discord bot example
+
+## 2026-04-20
+
+Expanded the local Discord JS bot API with richer response payloads and broader live event coverage. JavaScript handlers can now use embeds, action-row/button components, deferred interaction responses, response edits, follow-up messages, and additional `guildCreate` / `messageCreate` events.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Response normalization now supports embeds, components, deferred/edit/follow-up flows, and additional live event dispatch paths
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go — JS context now exposes `message`, `followUp`, and `edit` in addition to `reply` and `defer`
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Live Discord host now registers `guildCreate` and `messageCreate` handlers and enables the required intents
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added tests for richer payload normalization and message-event context wiring
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/js-bots/ping.js — Example bot now demonstrates embeds, deferred edit/follow-up flows, and message event handling
