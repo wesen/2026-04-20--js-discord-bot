@@ -21,3 +21,13 @@ Implemented Phase 1 of `DISCORD-BOT-010`: JavaScript can now fetch a message, pi
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Refactored the moderation example into composed registration modules
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-message-moderation-commands.js — Added example commands for message fetch/pin/unpin/listPinned
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes for the new Phase 1 utilities and the in-bot composition split
+
+Implemented Phase 2 of `DISCORD-BOT-010`: JavaScript can now bulk delete messages through `ctx.discord.messages.bulkDelete(...)`, the host accepts practical message-ID list payload forms and emits structured logs for the destructive operation, and the moderation example bot now includes a `mod-bulk-delete` command.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go — Exposed `bulkDelete` through the request-scoped Discord message capability surface
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Implemented bulk-delete host operations and message-ID payload normalization
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for message bulk deletion
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-message-moderation-commands.js — Added the example bulk-delete command
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example notes to mention the bulk-delete utility

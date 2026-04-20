@@ -42,7 +42,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
-- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, and `mod-list-pins` to demonstrate the first DISCORD-BOT-010 message moderation utilities.
+- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, and `mod-bulk-delete` to demonstrate the early DISCORD-BOT-010 message moderation utilities.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
 
 ## Moderation / event prerequisites

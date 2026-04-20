@@ -20,12 +20,12 @@
 - [x] Validate with focused and full Go test runs
 
 ### Phase 2 — message bulk deletion
-- [ ] Add `ctx.discord.messages.bulkDelete(channelID, messageIDs)`
-- [ ] Decide the accepted input forms for message ID lists (`[]string`, `[]any`, object payload, or all three)
-- [ ] Add structured logging around bulk delete requests
-- [ ] Add runtime tests for bulk deletion
-- [ ] Update the moderation example bot with a bulk-delete command
-- [ ] Validate with focused and full Go test runs
+- [x] Add `ctx.discord.messages.bulkDelete(channelID, messageIDs)`
+- [x] Decide the accepted input forms for message ID lists (`[]string`, `[]any`, object payload, or all three)
+- [x] Add structured logging around bulk delete requests
+- [x] Add runtime tests for bulk deletion
+- [x] Update the moderation example bot with a bulk-delete command
+- [x] Validate with focused and full Go test runs
 
 ### Phase 3 — channel utilities
 - [ ] Add `ctx.discord.channels.fetch(channelID)`

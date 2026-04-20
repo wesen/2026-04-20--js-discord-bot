@@ -692,6 +692,51 @@ func normalizeBanOptions(payload any) (string, int, error) {
 	}
 }
 
+func normalizeMessageIDList(payload any) ([]string, error) {
+	switch v := payload.(type) {
+	case nil:
+		return nil, fmt.Errorf("message bulkDelete requires at least one message ID")
+	case []string:
+		return cleanedMessageIDs(v)
+	case []any:
+		ids := make([]string, 0, len(v))
+		for _, item := range v {
+			id := strings.TrimSpace(fmt.Sprint(item))
+			if id != "" {
+				ids = append(ids, id)
+			}
+		}
+		return cleanedMessageIDs(ids)
+	case map[string]any:
+		if ids, ok := v["messageIds"]; ok {
+			return normalizeMessageIDList(ids)
+		}
+		return nil, fmt.Errorf("message bulkDelete payload must include messageIds")
+	default:
+		return nil, fmt.Errorf("unsupported message bulkDelete payload type %T", payload)
+	}
+}
+
+func cleanedMessageIDs(ids []string) ([]string, error) {
+	ret := make([]string, 0, len(ids))
+	seen := map[string]struct{}{}
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ret = append(ret, id)
+	}
+	if len(ret) == 0 {
+		return nil, fmt.Errorf("message bulkDelete requires at least one message ID")
+	}
+	return ret, nil
+}
+
 func int64Value(value any) (int64, bool) {
 	switch v := value.(type) {
 	case int:
@@ -1064,6 +1109,22 @@ func buildDiscordOps(scriptPath string, session *discordgo.Session) *DiscordOps 
 			}
 			logLifecycleDebug("listed pinned discord channel messages from javascript", map[string]any{"script": scriptPath, "channelId": channelID, "count": len(ret), "action": "discord.messages.listPinned"})
 			return ret, nil
+		},
+		MessageBulkDelete: func(ctx context.Context, channelID string, payload any) error {
+			_ = ctx
+			channelID = strings.TrimSpace(channelID)
+			if channelID == "" {
+				return fmt.Errorf("message bulkDelete requires channel ID")
+			}
+			messageIDs, err := normalizeMessageIDList(payload)
+			if err != nil {
+				return err
+			}
+			err = session.ChannelMessagesBulkDelete(channelID, messageIDs)
+			if err == nil {
+				logLifecycleDebug("bulk deleted discord channel messages from javascript", mergeLogFields(map[string]any{"script": scriptPath, "channelId": channelID, "count": len(messageIDs), "action": "discord.messages.bulkDelete"}, payloadLogFields(map[string]any{"messageIds": messageIDs})))
+			}
+			return err
 		},
 		MemberAddRole: func(ctx context.Context, guildID, userID, roleID string) error {
 			_ = ctx

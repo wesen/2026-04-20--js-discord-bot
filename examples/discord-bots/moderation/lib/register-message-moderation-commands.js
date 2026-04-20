@@ -66,4 +66,22 @@ module.exports = function registerMessageModerationCommands({ command }) {
       embeds: [{ title: "Pinned messages", description, color: 0x57F287 }],
     };
   });
+
+  command("mod-bulk-delete", {
+    description: "Bulk delete message IDs in the current channel using the host moderation utilities",
+    options: {
+      message_ids: { type: "string", description: "Comma-separated message IDs", required: true },
+    }
+  }, async (ctx) => {
+    const channelId = ctx.channel && ctx.channel.id;
+    if (!channelId) {
+      return { content: "This command requires a channel context.", ephemeral: true };
+    }
+    const messageIds = String(ctx.args.message_ids || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    await ctx.discord.messages.bulkDelete(channelId, messageIds);
+    return { content: `Bulk deleted ${messageIds.length} message(s).`, ephemeral: true };
+  });
 };

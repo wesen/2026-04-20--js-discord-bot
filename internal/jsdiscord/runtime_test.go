@@ -711,6 +711,50 @@ func TestDiscordContextSupportsMessageModerationOps(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsMessageBulkDelete(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("purge", async (ctx) => {
+				await ctx.discord.messages.bulkDelete("chan-1", ["msg-1", "msg-2", "msg-2"])
+				await ctx.discord.messages.bulkDelete("chan-1", { messageIds: ["msg-3"] })
+				return { content: "purged" }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var payloads [][]string
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "purge",
+		Discord: &DiscordOps{
+			MessageBulkDelete: func(_ context.Context, channelID string, payload any) error {
+				if channelID != "chan-1" {
+					t.Fatalf("bulkDelete channel = %s", channelID)
+				}
+				ids, err := normalizeMessageIDList(payload)
+				if err != nil {
+					return err
+				}
+				payloads = append(payloads, ids)
+				return nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:purged]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if len(payloads) != 2 {
+		t.Fatalf("payloads = %#v", payloads)
+	}
+	if fmt.Sprint(payloads[0]) != "[msg-1 msg-2]" || fmt.Sprint(payloads[1]) != "[msg-3]" {
+		t.Fatalf("payloads = %#v", payloads)
+	}
+}
+
 func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")

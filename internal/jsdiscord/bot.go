@@ -61,6 +61,7 @@ type DiscordOps struct {
 	MessagePin        func(context.Context, string, string) error
 	MessageUnpin      func(context.Context, string, string) error
 	MessageListPinned func(context.Context, string) ([]map[string]any, error)
+	MessageBulkDelete func(context.Context, string, any) error
 	MemberAddRole     func(context.Context, string, string, string) error
 	MemberRemoveRole  func(context.Context, string, string, string) error
 	MemberSetTimeout  func(context.Context, string, string, any) error
@@ -884,6 +885,7 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 		_ = messages.Set("pin", func(string, string) error { return nil })
 		_ = messages.Set("unpin", func(string, string) error { return nil })
 		_ = messages.Set("listPinned", func(string) any { return []map[string]any{} })
+		_ = messages.Set("bulkDelete", func(string, any) error { return nil })
 		_ = members.Set("addRole", func(string, string, string) error { return nil })
 		_ = members.Set("removeRole", func(string, string, string) error { return nil })
 		_ = members.Set("timeout", func(string, string, any) error { return nil })
@@ -938,6 +940,12 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return []map[string]any{}, nil
 			}
 			return ops.MessageListPinned(ctx, channelID)
+		})
+		_ = messages.Set("bulkDelete", func(channelID string, messageIDs any) error {
+			if ops.MessageBulkDelete == nil {
+				return nil
+			}
+			return ops.MessageBulkDelete(ctx, channelID, messageIDs)
 		})
 		_ = members.Set("addRole", func(guildID, userID, roleID string) error {
 			if ops.MemberAddRole == nil {

@@ -143,3 +143,61 @@ While building the example commands for this phase, it became clear that the mod
 - Start with `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` and `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go`.
 - Then inspect `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go`.
 - Finally review the moderation example split under `examples/discord-bots/moderation/lib/` and validate help output with the exact command above.
+
+## Step 3: Implement Phase 2 bulk deletion
+
+After the safer fetch/pin/unpin/listPinned slice was stable, I moved to the first destructive message moderation utility: bulk deletion. This was intentionally the second phase rather than the first, because it benefits from the same channel/message targeting mental model while still carrying higher risk.
+
+I kept the API small but ergonomic. The host now accepts a few practical payload forms for message IDs rather than forcing one exact JS shape, and it logs the count of deleted messages so operators can trace destructive actions more easily.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue to the next planned phase after the initial message utilities and keep the implementation reviewable.
+
+**Inferred user intent:** Progress through the message/channel moderation ticket in the planned order, not by jumping ahead to unrelated surfaces.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` to expose `ctx.discord.messages.bulkDelete(channelID, messageIDs)`.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to add:
+  - `MessageBulkDelete`
+  - `normalizeMessageIDList(...)`
+  - `cleanedMessageIDs(...)`
+- Chose to accept these input forms for message IDs:
+  - `[]string`
+  - `[]any`
+  - `{ messageIds: ... }`
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving both direct array input and object-wrapped input work.
+- Extended `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-message-moderation-commands.js` with `mod-bulk-delete`.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to mention the new utility.
+- Ran:
+  - `gofmt -w internal/jsdiscord/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### Why
+- Bulk delete is a highly practical moderation tool, but still destructive enough that it belonged after the lower-risk Phase 1 helpers.
+- Supporting a few common ID-list input shapes makes the API easier to use from JavaScript without making it overly generic.
+
+### What worked
+- The runtime tests passed with both array-style and object-wrapped message ID inputs.
+- `bots help moderation` now includes `mod-bulk-delete`.
+- The host now emits explicit debug logging for the destructive bulk-delete action.
+
+### What didn't work
+- N/A in this slice.
+
+### What I learned
+- It is worth normalizing a small set of ergonomic payload forms for JS-facing destructive operations, as long as the accepted shapes stay tightly bounded and documented.
+
+### What was tricky to build
+- The main sharp edge was choosing input flexibility without turning the API into a vague catch-all. The compromise was to support only a narrow set of clearly normalizable list shapes and deduplicate/clean IDs before issuing the Discord API call.
+
+### What warrants a second pair of eyes
+- Whether the host should eventually preflight even more safety checks for bulk deletion, or whether that should remain an operator responsibility documented in the playbook.
+
+### What should be done in the future
+- Continue with Phase 3 channel fetch/topic/slowmode helpers.
+- Add the operator/playbook caveats for destructive message moderation flows in Phase 4.
