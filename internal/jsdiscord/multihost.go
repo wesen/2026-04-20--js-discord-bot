@@ -135,19 +135,19 @@ func (m *MultiHost) ApplicationCommands(ctx context.Context) ([]*discordgo.Appli
 }
 
 func (m *MultiHost) DispatchReady(ctx context.Context, session *discordgo.Session, ready *discordgo.Ready) error {
-	return m.dispatchAll(ctx, func(bot *LoadedBot) error {
+	return m.dispatchEvent(ctx, "ready", func(bot *LoadedBot) error {
 		return bot.Host.DispatchReady(ctx, session, ready)
 	})
 }
 
 func (m *MultiHost) DispatchGuildCreate(ctx context.Context, session *discordgo.Session, guild *discordgo.GuildCreate) error {
-	return m.dispatchAll(ctx, func(bot *LoadedBot) error {
+	return m.dispatchEvent(ctx, "guildCreate", func(bot *LoadedBot) error {
 		return bot.Host.DispatchGuildCreate(ctx, session, guild)
 	})
 }
 
 func (m *MultiHost) DispatchMessageCreate(ctx context.Context, session *discordgo.Session, message *discordgo.MessageCreate) error {
-	return m.dispatchAll(ctx, func(bot *LoadedBot) error {
+	return m.dispatchEvent(ctx, "messageCreate", func(bot *LoadedBot) error {
 		return bot.Host.DispatchMessageCreate(ctx, session, message)
 	})
 }
@@ -164,13 +164,13 @@ func (m *MultiHost) DispatchInteraction(ctx context.Context, session *discordgo.
 	return bot.Host.DispatchInteraction(ctx, session, interaction)
 }
 
-func (m *MultiHost) dispatchAll(ctx context.Context, fn func(*LoadedBot) error) error {
+func (m *MultiHost) dispatchEvent(ctx context.Context, eventName string, fn func(*LoadedBot) error) error {
 	if m == nil {
 		return nil
 	}
 	var retErr error
 	for _, bot := range m.bots {
-		if bot == nil {
+		if bot == nil || !botHandlesEvent(bot, eventName) {
 			continue
 		}
 		if err := fn(bot); err != nil {
@@ -178,4 +178,17 @@ func (m *MultiHost) dispatchAll(ctx context.Context, fn func(*LoadedBot) error) 
 		}
 	}
 	return retErr
+}
+
+func botHandlesEvent(bot *LoadedBot, eventName string) bool {
+	if bot == nil || bot.Descriptor == nil {
+		return false
+	}
+	eventName = strings.TrimSpace(eventName)
+	for _, event := range bot.Descriptor.Events {
+		if strings.TrimSpace(event.Name) == eventName {
+			return true
+		}
+	}
+	return false
 }

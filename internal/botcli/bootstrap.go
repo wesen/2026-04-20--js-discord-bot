@@ -1,6 +1,7 @@
 package botcli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
@@ -163,7 +164,13 @@ func discoverScriptCandidates(root string) ([]string, error) {
 		}
 		parent := filepath.Dir(path)
 		if parent == root || strings.EqualFold(name, "index.js") {
-			ret = append(ret, path)
+			looksLikeBot, err := looksLikeBotScript(path)
+			if err != nil {
+				return err
+			}
+			if looksLikeBot {
+				ret = append(ret, path)
+			}
 		}
 		return nil
 	})
@@ -172,4 +179,23 @@ func discoverScriptCandidates(root string) ([]string, error) {
 	}
 	sort.Strings(ret)
 	return ret, nil
+}
+
+func looksLikeBotScript(path string) (bool, error) {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	trimmed := bytes.TrimSpace(source)
+	if len(trimmed) == 0 {
+		return false, nil
+	}
+	text := string(trimmed)
+	if !strings.Contains(text, "defineBot") {
+		return false, nil
+	}
+	if strings.Contains(text, `require("discord")`) || strings.Contains(text, `require('discord')`) {
+		return true, nil
+	}
+	return false, nil
 }
