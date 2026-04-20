@@ -29,3 +29,15 @@ Added a maintainer-facing analysis of the Glazed env-loading gotcha and listed t
 
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/analysis/01-glazed-documentation-feedback-and-env-loading-gotcha.md — Documentation feedback writeup for Glazed maintainers
 
+
+## 2026-04-20
+
+Smoke-tested the bot in a detached tmux session, confirmed gateway connection, and verified slash-command sync for the development guild.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/cmd/discord-bot/commands.go — run and sync-commands paths exercised during the tmux smoke test
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/cmd/discord-bot/main.go — Signal-aware CLI entrypoint used in the tmux run session
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Discord gateway connection and slash-command registration verified by smoke test
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-001--simple-go-discord-bot-with-glazed-cli/playbook/01-local-validation-and-smoke-test-checklist.md — Repeatable validation checklist now includes the tmux run workflow
+

@@ -78,8 +78,16 @@ Expected result:
 
 ### 5) Start the bot
 
+Run it directly when you want the process tied to your terminal:
+
 ```bash
 go run ./cmd/discord-bot run
+```
+
+Run it in tmux when you want the bot to stay alive while you inspect logs or do live Discord testing:
+
+```bash
+tmux new-session -d -s discordbot-smoke 'bash -lc "cd /home/manuel/code/wesen/2026-04-20--js-discord-bot && set -a && source ./.envrc && set +a && go run ./cmd/discord-bot run"'
 ```
 
 Expected result:
@@ -87,6 +95,7 @@ Expected result:
 - The logs show a ready/connected message.
 - `/ping` replies with `pong` in the test guild.
 - `/echo` returns the supplied text.
+- In tmux, the session stays alive until you detach or stop it.
 
 ## Exit Criteria
 

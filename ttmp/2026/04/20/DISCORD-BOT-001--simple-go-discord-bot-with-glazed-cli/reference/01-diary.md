@@ -294,6 +294,64 @@ which doucment in ~/code/wesen/corporate-headquarters/glazed do you think should
 - The recommended docs to update first are `pkg/doc/topics/21-cmds-middlewares.md`, `pkg/doc/tutorials/05-build-first-command.md`, and `pkg/cli/cobra-parser.go`.
 - The analysis intentionally avoids Discord-specific examples so it can be reused for any Glazed CLI.
 
+## Step 5: Smoke test the bot in tmux and sync slash commands
+
+I launched the bot in a detached tmux session, confirmed it connected successfully, and then ran the command sync path separately. The tmux run proved the bot can start cleanly in a long-lived terminal session, while the sync command verified the slash-command registration path against the development guild.
+
+### Prompt Context
+
+**User prompt (verbatim):** "try it in tmux"
+
+**Assistant interpretation:** Run the Discord bot in a tmux-backed terminal session so it can stay alive while we inspect the output and validate runtime behavior.
+
+**Inferred user intent:** Confirm the bot actually starts in a real terminal multiplexer session and stays available for live Discord smoke testing.
+
+### What I did
+- Started `go run ./cmd/discord-bot run` inside a detached tmux session.
+- Confirmed the bot connected and logged a ready message.
+- Ran `go run ./cmd/discord-bot sync-commands` against the configured development guild.
+- Verified both `/ping` and `/echo` were registered successfully.
+
+### Why
+- A tmux-backed run is a practical way to keep the bot process alive during interactive testing.
+- Syncing commands before user testing avoids stale slash-command state.
+
+### What worked
+- The tmux session stayed alive and showed a successful connection log line.
+- The sync command returned the registered slash commands with the expected guild scope.
+- The code path did not require any additional changes to work in tmux.
+
+### What didn't work
+- The first attempt to create an extra tmux window for sync testing was awkward, so I verified the sync path directly after confirming the tmux run session.
+- No bot runtime failures occurred during the actual smoke test.
+
+### What I learned
+- The bot runtime is stable enough to run under tmux without special handling.
+- The explicit sync command is useful even after the bot is already connected.
+- For this app, tmux is a convenient operational wrapper rather than something the code must know about.
+
+### What was tricky to build
+- The key practical issue was not the bot itself, but making sure the smoke test stayed observable while the process kept running.
+- Once the tmux session was live, the bot behaved like a normal long-running CLI process.
+
+### What warrants a second pair of eyes
+- Whether slash-command sync should be part of startup for first-run convenience, or stay a separate command as it is now.
+- Whether the bot should emit a more explicit startup message before waiting on the context.
+
+### What should be done in the future
+- Try an actual `/ping` interaction in the Discord test server.
+- Add a small `/about` or `/status` command if the bot needs more visible confirmation.
+- Consider adding a graceful shutdown log line when the context is canceled.
+
+### Code review instructions
+- Inspect the `run` and `sync-commands` command paths together with the tmux smoke-test workflow.
+- Validate that the bot connects cleanly and that the slash-command registration path still works in a live session.
+
+### Technical details
+- tmux session name used: `discordbot-smoke`.
+- Connection log observed: `discord bot connected`.
+- Sync output showed `/ping` and `/echo` in the configured guild scope.
+
 ## Related
 
 - `design-doc/01-implementation-and-architecture-guide.md`
