@@ -1,0 +1,556 @@
+package jsdiscord
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/dop251/goja"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
+
+type commandDraft struct {
+	name    string
+	spec    map[string]any
+	handler goja.Callable
+}
+
+type eventDraft struct {
+	name    string
+	handler goja.Callable
+}
+
+type botDraft struct {
+	moduleName string
+	store      *MemoryStore
+	metadata   map[string]any
+	commands   []*commandDraft
+	events     []*eventDraft
+}
+
+type DispatchRequest struct {
+	Name        string
+	Args        map[string]any
+	Command     map[string]any
+	Interaction map[string]any
+	User        map[string]any
+	Guild       map[string]any
+	Channel     map[string]any
+	Me          map[string]any
+	Metadata    map[string]any
+	Reply       func(context.Context, any) error
+	Defer       func(context.Context) error
+}
+
+type BotHandle struct {
+	vm              *goja.Runtime
+	dispatchCommand goja.Callable
+	dispatchEvent   goja.Callable
+	describe        goja.Callable
+}
+
+func CompileBot(vm *goja.Runtime, value goja.Value) (*BotHandle, error) {
+	if vm == nil {
+		return nil, fmt.Errorf("discord bot compile: vm is nil")
+	}
+	if goja.IsUndefined(value) || goja.IsNull(value) {
+		return nil, fmt.Errorf("discord bot compile: value is nil")
+	}
+	obj := value.ToObject(vm)
+	if obj == nil {
+		return nil, fmt.Errorf("discord bot compile: value is not an object")
+	}
+	dispatchCommand, ok := goja.AssertFunction(obj.Get("dispatchCommand"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing dispatchCommand method")
+	}
+	dispatchEvent, ok := goja.AssertFunction(obj.Get("dispatchEvent"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing dispatchEvent method")
+	}
+	describe, ok := goja.AssertFunction(obj.Get("describe"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing describe method")
+	}
+	return &BotHandle{vm: vm, dispatchCommand: dispatchCommand, dispatchEvent: dispatchEvent, describe: describe}, nil
+}
+
+func (h *BotHandle) Describe(ctx context.Context) (map[string]any, error) {
+	if h == nil {
+		return nil, fmt.Errorf("discord bot handle is nil")
+	}
+	bindings, ok := runtimebridge.Lookup(h.vm)
+	if !ok || bindings.Owner == nil {
+		return nil, fmt.Errorf("discord bot requires runtime owner bindings")
+	}
+	ret, err := bindings.Owner.Call(ctx, "discord.bot.describe", func(context.Context, *goja.Runtime) (any, error) {
+		value, err := h.describe(goja.Undefined())
+		if err != nil {
+			return nil, err
+		}
+		if goja.IsUndefined(value) || goja.IsNull(value) {
+			return map[string]any{}, nil
+		}
+		if exported, ok := value.Export().(map[string]any); ok {
+			return exported, nil
+		}
+		return map[string]any{"value": value.Export()}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	result, _ := ret.(map[string]any)
+	return result, nil
+}
+
+func (h *BotHandle) DispatchCommand(ctx context.Context, request DispatchRequest) (any, error) {
+	return h.dispatch(ctx, h.dispatchCommand, request)
+}
+
+func (h *BotHandle) DispatchEvent(ctx context.Context, request DispatchRequest) (any, error) {
+	return h.dispatch(ctx, h.dispatchEvent, request)
+}
+
+func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request DispatchRequest) (any, error) {
+	if h == nil {
+		return nil, fmt.Errorf("discord bot handle is nil")
+	}
+	bindings, ok := runtimebridge.Lookup(h.vm)
+	if !ok || bindings.Owner == nil {
+		return nil, fmt.Errorf("discord bot requires runtime owner bindings")
+	}
+	ret, err := bindings.Owner.Call(ctx, "discord.bot.dispatch", func(callCtx context.Context, vm *goja.Runtime) (any, error) {
+		input := buildDispatchInput(vm, callCtx, request)
+		result, err := fn(goja.Undefined(), input)
+		if err != nil {
+			return nil, err
+		}
+		if goja.IsUndefined(result) || goja.IsNull(result) {
+			return nil, nil
+		}
+		return result.Export(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return settleValue(ctx, bindings.Owner, ret)
+}
+
+func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+	switch v := value.(type) {
+	case *goja.Promise:
+		return waitForPromise(ctx, owner, v)
+	case goja.Value:
+		return settleValue(ctx, owner, v.Export())
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			settled, err := settleValue(ctx, owner, item)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = settled
+		}
+		return out, nil
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, item := range v {
+			settled, err := settleValue(ctx, owner, item)
+			if err != nil {
+				return nil, err
+			}
+			out[key] = settled
+		}
+		return out, nil
+	default:
+		return value, nil
+	}
+}
+
+type promiseSnapshot struct {
+	State  goja.PromiseState
+	Result goja.Value
+}
+
+func waitForPromise(ctx context.Context, owner runtimeowner.Runner, promise *goja.Promise) (any, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		ret, err := owner.Call(ctx, "discord.bot.promise-state", func(context.Context, *goja.Runtime) (any, error) {
+			return promiseSnapshot{State: promise.State(), Result: promise.Result()}, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		snapshot, ok := ret.(promiseSnapshot)
+		if !ok {
+			return nil, fmt.Errorf("discord bot promise snapshot has unexpected type %T", ret)
+		}
+		switch snapshot.State {
+		case goja.PromiseStatePending:
+			time.Sleep(5 * time.Millisecond)
+		case goja.PromiseStateRejected:
+			return nil, fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
+		case goja.PromiseStateFulfilled:
+			if snapshot.Result == nil || goja.IsUndefined(snapshot.Result) || goja.IsNull(snapshot.Result) {
+				return nil, nil
+			}
+			return snapshot.Result.Export(), nil
+		}
+	}
+}
+
+func valueString(value goja.Value) string {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return ""
+	}
+	return fmt.Sprint(value.Export())
+}
+
+func newBotDraft(state *RuntimeState) *botDraft {
+	return &botDraft{moduleName: state.ModuleName(), store: state.Store(), metadata: map[string]any{}, commands: []*commandDraft{}, events: []*eventDraft{}}
+}
+
+func (d *botDraft) command(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) < 2 || len(call.Arguments) > 3 {
+		panic(vm.NewGoError(fmt.Errorf("discord.command expects command(name, [spec], handler)")))
+	}
+	name := strings.TrimSpace(call.Arguments[0].String())
+	if name == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.command name is empty")))
+	}
+	var spec map[string]any
+	var handler goja.Callable
+	var ok bool
+	if len(call.Arguments) == 2 {
+		handler, ok = goja.AssertFunction(call.Arguments[1])
+		if !ok {
+			panic(vm.NewGoError(fmt.Errorf("discord.command %q handler is not a function", name)))
+		}
+	} else {
+		spec = exportMap(call.Arguments[1])
+		handler, ok = goja.AssertFunction(call.Arguments[2])
+		if !ok {
+			panic(vm.NewGoError(fmt.Errorf("discord.command %q handler is not a function", name)))
+		}
+	}
+	d.commands = append(d.commands, &commandDraft{name: name, spec: spec, handler: handler})
+	return goja.Undefined()
+}
+
+func (d *botDraft) event(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 2 {
+		panic(vm.NewGoError(fmt.Errorf("discord.event expects event(name, handler)")))
+	}
+	name := strings.TrimSpace(call.Arguments[0].String())
+	if name == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.event name is empty")))
+	}
+	handler, ok := goja.AssertFunction(call.Arguments[1])
+	if !ok {
+		panic(vm.NewGoError(fmt.Errorf("discord.event %q handler is not a function", name)))
+	}
+	d.events = append(d.events, &eventDraft{name: name, handler: handler})
+	return goja.Undefined()
+}
+
+func (d *botDraft) configure(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 1 {
+		panic(vm.NewGoError(fmt.Errorf("discord.configure expects configure(options)")))
+	}
+	options := exportMap(call.Arguments[0])
+	for key, value := range options {
+		d.metadata[key] = value
+	}
+	return goja.Undefined()
+}
+
+func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
+	bot := vm.NewObject()
+	_ = bot.Set("kind", "discord.bot")
+	_ = bot.Set("metadata", cloneMap(d.metadata))
+	_ = bot.Set("commands", commandSnapshotsFromDrafts(d.commands))
+	_ = bot.Set("events", eventSnapshotsFromDrafts(d.events))
+
+	commands := append([]*commandDraft(nil), d.commands...)
+	events := append([]*eventDraft(nil), d.events...)
+	store := d.store
+	metadata := cloneMap(d.metadata)
+	moduleName := d.moduleName
+
+	_ = bot.Set("describe", func(goja.FunctionCall) goja.Value {
+		return vm.ToValue(map[string]any{"kind": "discord.bot", "metadata": cloneMap(metadata), "commands": commandSnapshotsFromDrafts(commands), "events": eventSnapshotsFromDrafts(events)})
+	})
+	_ = bot.Set("dispatchCommand", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 1 {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchCommand expects one input object")))
+		}
+		input := objectFromValue(vm, call.Arguments[0])
+		name := strings.TrimSpace(input.Get("name").String())
+		if name == "" {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchCommand input name is empty")))
+		}
+		command := findCommand(commands, name)
+		if command == nil {
+			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no command named %q", moduleName, name)))
+		}
+		ctx := buildContext(vm, store, input, "command", name, metadata)
+		result, err := command.handler(goja.Undefined(), ctx)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return result
+	})
+	_ = bot.Set("dispatchEvent", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 1 {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchEvent expects one input object")))
+		}
+		input := objectFromValue(vm, call.Arguments[0])
+		name := strings.TrimSpace(input.Get("name").String())
+		if name == "" {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchEvent input name is empty")))
+		}
+		matches := findEvents(events, name)
+		if len(matches) == 0 {
+			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no event named %q", moduleName, name)))
+		}
+		ctx := buildContext(vm, store, input, "event", name, metadata)
+		results := make([]any, 0, len(matches))
+		for _, ev := range matches {
+			result, err := ev.handler(goja.Undefined(), ctx)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			if !goja.IsUndefined(result) && !goja.IsNull(result) {
+				results = append(results, result.Export())
+			}
+		}
+		return vm.ToValue(results)
+	})
+	return bot
+}
+
+func exportMap(value goja.Value) map[string]any {
+	if goja.IsUndefined(value) || goja.IsNull(value) {
+		return map[string]any{}
+	}
+	if exported, ok := value.Export().(map[string]any); ok {
+		return exported
+	}
+	return map[string]any{"value": value.Export()}
+}
+
+func cloneMap(input map[string]any) map[string]any {
+	if len(input) == 0 {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(input))
+	for key, value := range input {
+		out[key] = value
+	}
+	return out
+}
+
+func commandSnapshotsFromDrafts(commands []*commandDraft) []map[string]any {
+	out := make([]map[string]any, 0, len(commands))
+	for _, command := range commands {
+		snapshot := map[string]any{"name": command.name}
+		if len(command.spec) > 0 {
+			snapshot["spec"] = cloneMap(command.spec)
+		}
+		out = append(out, snapshot)
+	}
+	return out
+}
+
+func eventSnapshotsFromDrafts(events []*eventDraft) []map[string]any {
+	out := make([]map[string]any, 0, len(events))
+	for _, event := range events {
+		out = append(out, map[string]any{"name": event.name})
+	}
+	return out
+}
+
+func findCommand(commands []*commandDraft, name string) *commandDraft {
+	for _, command := range commands {
+		if command != nil && command.name == name {
+			return command
+		}
+	}
+	return nil
+}
+
+func findEvents(events []*eventDraft, name string) []*eventDraft {
+	matches := make([]*eventDraft, 0, 1)
+	for _, event := range events {
+		if event != nil && event.name == name {
+			matches = append(matches, event)
+		}
+	}
+	return matches
+}
+
+func objectFromValue(vm *goja.Runtime, value goja.Value) *goja.Object {
+	if goja.IsUndefined(value) || goja.IsNull(value) {
+		return vm.NewObject()
+	}
+	obj := value.ToObject(vm)
+	if obj == nil {
+		return vm.NewObject()
+	}
+	return obj
+}
+
+func setObjectField(vm *goja.Runtime, obj *goja.Object, name string, value any) {
+	if obj == nil {
+		return
+	}
+	if value == nil {
+		_ = obj.Set(name, vm.ToValue(nil))
+		return
+	}
+	_ = obj.Set(name, value)
+}
+
+func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchRequest) *goja.Object {
+	input := vm.NewObject()
+	setObjectField(vm, input, "name", request.Name)
+	setObjectField(vm, input, "args", request.Args)
+	setObjectField(vm, input, "command", request.Command)
+	setObjectField(vm, input, "interaction", request.Interaction)
+	setObjectField(vm, input, "user", request.User)
+	setObjectField(vm, input, "guild", request.Guild)
+	setObjectField(vm, input, "channel", request.Channel)
+	setObjectField(vm, input, "me", request.Me)
+	setObjectField(vm, input, "metadata", request.Metadata)
+	if request.Reply != nil {
+		_ = input.Set("reply", func(message any) error { return request.Reply(ctx, message) })
+	} else {
+		_ = input.Set("reply", func(any) error { return nil })
+	}
+	if request.Defer != nil {
+		_ = input.Set("defer", func() error { return request.Defer(ctx) })
+	} else {
+		_ = input.Set("defer", func() error { return nil })
+	}
+	return input
+}
+
+func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind, name string, metadata map[string]any) *goja.Object {
+	ctx := vm.NewObject()
+	setObjectField(vm, ctx, "args", input.Get("args"))
+	setObjectField(vm, ctx, "options", input.Get("args"))
+	setObjectField(vm, ctx, "command", input.Get("command"))
+	setObjectField(vm, ctx, "interaction", input.Get("interaction"))
+	setObjectField(vm, ctx, "user", input.Get("user"))
+	setObjectField(vm, ctx, "guild", input.Get("guild"))
+	setObjectField(vm, ctx, "channel", input.Get("channel"))
+	setObjectField(vm, ctx, "me", input.Get("me"))
+	setObjectField(vm, ctx, "metadata", input.Get("metadata"))
+	_ = ctx.Set("store", storeObject(vm, store))
+	_ = ctx.Set("log", loggerObject(vm, kind, name, metadata))
+	if reply := input.Get("reply"); !goja.IsUndefined(reply) && !goja.IsNull(reply) {
+		_ = ctx.Set("reply", reply)
+	} else {
+		_ = ctx.Set("reply", func(any) error { return nil })
+	}
+	if def := input.Get("defer"); !goja.IsUndefined(def) && !goja.IsNull(def) {
+		_ = ctx.Set("defer", def)
+	} else {
+		_ = ctx.Set("defer", func() error { return nil })
+	}
+	return ctx
+}
+
+func storeObject(vm *goja.Runtime, store *MemoryStore) *goja.Object {
+	obj := vm.NewObject()
+	_ = obj.Set("get", func(key string, defaultValue any) any {
+		if store == nil {
+			return defaultValue
+		}
+		return store.Get(key, defaultValue)
+	})
+	_ = obj.Set("set", func(key string, value any) {
+		if store != nil {
+			store.Set(key, value)
+		}
+	})
+	_ = obj.Set("delete", func(key string) bool {
+		if store == nil {
+			return false
+		}
+		return store.Delete(key)
+	})
+	_ = obj.Set("keys", func(prefix string) []string {
+		if store == nil {
+			return nil
+		}
+		return store.Keys(prefix)
+	})
+	_ = obj.Set("namespace", func(parts ...string) any {
+		if store == nil {
+			return storeObject(vm, NewMemoryStore().Namespace(parts...))
+		}
+		return storeObject(vm, store.Namespace(parts...))
+	})
+	return obj
+}
+
+func loggerObject(vm *goja.Runtime, kind, name string, metadata map[string]any) *goja.Object {
+	obj := vm.NewObject()
+	baseFields := map[string]any{"jsKind": kind, "jsName": name}
+	for key, value := range metadata {
+		baseFields["meta."+key] = value
+	}
+	setLogMethod := func(level string, fn func(string, map[string]any)) { _ = obj.Set(level, fn) }
+	setLogMethod("info", func(msg string, fields map[string]any) {
+		e := log.Info()
+		applyFields(e, baseFields)
+		applyFields(e, fields)
+		e.Msg(msg)
+	})
+	setLogMethod("debug", func(msg string, fields map[string]any) {
+		e := log.Debug()
+		applyFields(e, baseFields)
+		applyFields(e, fields)
+		e.Msg(msg)
+	})
+	setLogMethod("warn", func(msg string, fields map[string]any) {
+		e := log.Warn()
+		applyFields(e, baseFields)
+		applyFields(e, fields)
+		e.Msg(msg)
+	})
+	setLogMethod("error", func(msg string, fields map[string]any) {
+		e := log.Error()
+		applyFields(e, baseFields)
+		applyFields(e, fields)
+		e.Msg(msg)
+	})
+	return obj
+}
+
+func applyFields(event *zerolog.Event, fields map[string]any) {
+	if event == nil || len(fields) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		event.Interface(key, fields[key])
+	}
+}

@@ -9,12 +9,14 @@ import (
 	"github.com/rs/zerolog/log"
 
 	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
 // Bot wraps the Discord session and bot behavior.
 type Bot struct {
 	cfg     appconfig.Settings
 	session *discordgo.Session
+	jsHost  *jsdiscord.Host
 }
 
 // New creates a Discord session and wires bot handlers.
@@ -26,9 +28,18 @@ func New(cfg appconfig.Settings) (*Bot, error) {
 
 	session.Identify.Intents = discordgo.IntentsGuilds
 
+	var jsHost *jsdiscord.Host
+	if strings.TrimSpace(cfg.BotScript) != "" {
+		jsHost, err = jsdiscord.NewHost(context.Background(), cfg.BotScript)
+		if err != nil {
+			return nil, fmt.Errorf("load javascript bot script %q: %w", cfg.BotScript, err)
+		}
+	}
+
 	b := &Bot{
 		cfg:     cfg,
 		session: session,
+		jsHost:  jsHost,
 	}
 
 	session.AddHandler(b.handleReady)
@@ -47,18 +58,26 @@ func (b *Bot) Open() error {
 
 // Close disconnects the bot from Discord.
 func (b *Bot) Close() error {
-	if b.session == nil {
-		return nil
+	var retErr error
+	if b.session != nil {
+		if err := b.session.Close(); err != nil {
+			retErr = fmt.Errorf("close discord session: %w", err)
+		}
 	}
-	if err := b.session.Close(); err != nil {
-		return fmt.Errorf("close discord session: %w", err)
+	if b.jsHost != nil {
+		if err := b.jsHost.Close(context.Background()); err != nil && retErr == nil {
+			retErr = fmt.Errorf("close javascript bot host: %w", err)
+		}
 	}
-	return nil
+	return retErr
 }
 
 // SyncCommands registers the slash commands for the configured scope.
 func (b *Bot) SyncCommands() ([]*discordgo.ApplicationCommand, error) {
-	commands := b.applicationCommands()
+	commands, err := b.applicationCommands()
+	if err != nil {
+		return nil, err
+	}
 	guildID := strings.TrimSpace(b.cfg.GuildID)
 
 	created, err := b.session.ApplicationCommandBulkOverwrite(b.cfg.ApplicationID, guildID, commands)
@@ -72,7 +91,10 @@ func (b *Bot) SyncCommands() ([]*discordgo.ApplicationCommand, error) {
 	return created, nil
 }
 
-func (b *Bot) applicationCommands() []*discordgo.ApplicationCommand {
+func (b *Bot) applicationCommands() ([]*discordgo.ApplicationCommand, error) {
+	if b.jsHost != nil {
+		return b.jsHost.ApplicationCommands(context.Background())
+	}
 	return []*discordgo.ApplicationCommand{
 		{
 			Name:        "ping",
@@ -90,18 +112,32 @@ func (b *Bot) applicationCommands() []*discordgo.ApplicationCommand {
 				},
 			},
 		},
-	}
+	}, nil
 }
 
-func (b *Bot) handleReady(_ *discordgo.Session, ready *discordgo.Ready) {
+func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
 	log.Info().
 		Str("user", ready.User.Username).
 		Str("user_id", ready.User.ID).
+		Str("bot_script", strings.TrimSpace(b.cfg.BotScript)).
 		Msg("discord bot connected")
+
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchReady(context.Background(), session, ready); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch ready event to javascript bot")
+		}
+	}
 }
 
 func (b *Bot) handleInteractionCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 	if interaction.Type != discordgo.InteractionApplicationCommand {
+		return
+	}
+
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchInteraction(context.Background(), session, interaction); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch interaction to javascript bot")
+		}
 		return
 	}
 

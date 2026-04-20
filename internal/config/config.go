@@ -16,6 +16,7 @@ type Settings struct {
 	PublicKey     string `glazed:"public-key"`
 	ClientID      string `glazed:"client-id"`
 	ClientSecret  string `glazed:"client-secret"`
+	BotScript     string `glazed:"bot-script"`
 }
 
 // FromValues decodes the default Glazed section into bot settings.

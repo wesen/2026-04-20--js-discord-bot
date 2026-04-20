@@ -53,6 +53,7 @@ func newDiscordCommandDescription(name, short, long string) (*cmds.CommandDescri
 			fields.New("public-key", fields.TypeString, fields.WithHelp("Discord application public key (only needed for HTTP interactions)")),
 			fields.New("client-id", fields.TypeString, fields.WithHelp("Discord client ID")),
 			fields.New("client-secret", fields.TypeString, fields.WithHelp("Discord client secret")),
+			fields.New("bot-script", fields.TypeString, fields.WithHelp("Optional path to a JavaScript Discord bot script loaded through goja")),
 		),
 		cmds.WithSections(glazedSection, commandSettingsSection),
 	), nil
@@ -131,6 +132,7 @@ func (c *runCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Val
 		types.MRP("status", "running"),
 		types.MRP("application_id", cfg.ApplicationID),
 		types.MRP("guild_id", strings.TrimSpace(cfg.GuildID)),
+		types.MRP("bot_script", strings.TrimSpace(cfg.BotScript)),
 		types.MRP("token", cfg.RedactedToken()),
 	)
 	if err := gp.AddRow(ctx, row); err != nil {
@@ -156,6 +158,7 @@ func (c *validateConfigCommand) RunIntoGlazeProcessor(ctx context.Context, vals 
 		types.MRP("configured", true),
 		types.MRP("application_id", cfg.ApplicationID),
 		types.MRP("guild_id", strings.TrimSpace(cfg.GuildID)),
+		types.MRP("bot_script", strings.TrimSpace(cfg.BotScript)),
 		types.MRP("bot_token_present", strings.TrimSpace(cfg.BotToken) != ""),
 		// Keep secrets out of output; show only the redacted token marker.
 		types.MRP("token", cfg.RedactedToken()),
