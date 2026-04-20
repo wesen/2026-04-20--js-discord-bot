@@ -243,6 +243,8 @@ which doucment in ~/code/wesen/corporate-headquarters/glazed do you think should
 
 **Inferred user intent:** Turn the debugging experience into actionable feedback for the Glazed maintainers and call out the exact docs that should be clarified.
 
+**Commit (docs):** 8a2d4e1 — "Add Glazed documentation feedback analysis"
+
 ### What I did
 - Added a maintainer-facing analysis document to the ticket.
 - Reviewed the most relevant Glazed docs and the Cobra parser implementation to identify where the wording could be sharper.
