@@ -31,7 +31,7 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 		return nil, fmt.Errorf("create discord session: %w", err)
 	}
 
-	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMessageReactions | discordgo.IntentsMessageContent
+	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMessageReactions | discordgo.IntentsMessageContent
 
 	script = strings.TrimSpace(script)
 	if script == "" {
@@ -61,6 +61,9 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 
 	session.AddHandler(b.handleReady)
 	session.AddHandler(b.handleGuildCreate)
+	session.AddHandler(b.handleGuildMemberAdd)
+	session.AddHandler(b.handleGuildMemberUpdate)
+	session.AddHandler(b.handleGuildMemberRemove)
 	session.AddHandler(b.handleMessageCreate)
 	session.AddHandler(b.handleMessageUpdate)
 	session.AddHandler(b.handleMessageDelete)
@@ -181,6 +184,48 @@ func (b *Bot) handleGuildCreate(session *discordgo.Session, guild *discordgo.Gui
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchGuildCreate(context.Background(), session, guild); err != nil {
 			log.Error().Err(err).Msg("failed to dispatch guildCreate event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleGuildMemberAdd(session *discordgo.Session, member *discordgo.GuildMemberAdd) {
+	if member == nil {
+		return
+	}
+	if member.User != nil && member.User.Bot {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchGuildMemberAdd(context.Background(), session, member); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch guildMemberAdd event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleGuildMemberUpdate(session *discordgo.Session, member *discordgo.GuildMemberUpdate) {
+	if member == nil {
+		return
+	}
+	if member.User != nil && member.User.Bot {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchGuildMemberUpdate(context.Background(), session, member); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch guildMemberUpdate event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleGuildMemberRemove(session *discordgo.Session, member *discordgo.GuildMemberRemove) {
+	if member == nil {
+		return
+	}
+	if member.User != nil && member.User.Bot {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchGuildMemberRemove(context.Background(), session, member); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch guildMemberRemove event to javascript bot")
 		}
 	}
 }

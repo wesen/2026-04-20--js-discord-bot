@@ -134,6 +134,61 @@ func (h *Host) DispatchGuildCreate(ctx context.Context, session *discordgo.Sessi
 	return err
 }
 
+func (h *Host) DispatchGuildMemberAdd(ctx context.Context, session *discordgo.Session, member *discordgo.GuildMemberAdd) error {
+	if h == nil || h.handle == nil || member == nil || member.Member == nil {
+		return nil
+	}
+	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "guildMemberAdd",
+		Member:   memberMap(member.Member),
+		User:     userMap(member.User),
+		Guild:    guildMap(member.GuildID),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Command:  map[string]any{"event": "guildMemberAdd"},
+		Discord:  buildDiscordOps(h.scriptPath, session),
+	})
+	return err
+}
+
+func (h *Host) DispatchGuildMemberUpdate(ctx context.Context, session *discordgo.Session, member *discordgo.GuildMemberUpdate) error {
+	if h == nil || h.handle == nil || member == nil || member.Member == nil {
+		return nil
+	}
+	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "guildMemberUpdate",
+		Member:   memberMap(member.Member),
+		Before:   memberMap(member.BeforeUpdate),
+		User:     userMap(member.User),
+		Guild:    guildMap(member.GuildID),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Command:  map[string]any{"event": "guildMemberUpdate"},
+		Discord:  buildDiscordOps(h.scriptPath, session),
+	})
+	return err
+}
+
+func (h *Host) DispatchGuildMemberRemove(ctx context.Context, session *discordgo.Session, member *discordgo.GuildMemberRemove) error {
+	if h == nil || h.handle == nil || member == nil || member.Member == nil {
+		return nil
+	}
+	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "guildMemberRemove",
+		Member:   memberMap(member.Member),
+		User:     userMap(member.User),
+		Guild:    guildMap(member.GuildID),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Command:  map[string]any{"event": "guildMemberRemove"},
+		Discord:  buildDiscordOps(h.scriptPath, session),
+	})
+	return err
+}
+
 func (h *Host) DispatchMessageCreate(ctx context.Context, session *discordgo.Session, message *discordgo.MessageCreate) error {
 	if h == nil || h.handle == nil || message == nil || message.Message == nil {
 		return nil
@@ -1940,9 +1995,12 @@ func memberMap(member *discordgo.Member) map[string]any {
 		return map[string]any{}
 	}
 	ret := map[string]any{
+		"guildId": member.GuildID,
 		"nick":    member.Nick,
 		"roles":   append([]string(nil), member.Roles...),
 		"pending": member.Pending,
+		"deaf":    member.Deaf,
+		"mute":    member.Mute,
 	}
 	if member.User != nil {
 		ret["user"] = userMap(member.User)

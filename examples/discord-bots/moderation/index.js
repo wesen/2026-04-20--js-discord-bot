@@ -87,4 +87,31 @@ module.exports = defineBot(({ command, event, configure }) => {
     });
     return null;
   });
+
+  event("guildMemberAdd", async (ctx) => {
+    ctx.log.info("moderation observed member join", {
+      userId: ctx.user && ctx.user.id,
+      guildId: ctx.guild && ctx.guild.id,
+      roles: ctx.member && ctx.member.roles,
+    });
+    return null;
+  });
+
+  event("guildMemberUpdate", async (ctx) => {
+    ctx.log.info("moderation observed member update", {
+      userId: ctx.user && ctx.user.id,
+      guildId: ctx.guild && ctx.guild.id,
+      beforeRoles: ctx.before && ctx.before.roles,
+      afterRoles: ctx.member && ctx.member.roles,
+    });
+    return null;
+  });
+
+  event("guildMemberRemove", async (ctx) => {
+    ctx.log.info("moderation observed member leave", {
+      userId: ctx.user && ctx.user.id,
+      guildId: ctx.guild && ctx.guild.id,
+    });
+    return null;
+  });
 });

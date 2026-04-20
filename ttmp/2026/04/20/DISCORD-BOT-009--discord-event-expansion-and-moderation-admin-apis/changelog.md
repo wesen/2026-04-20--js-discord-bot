@@ -32,3 +32,13 @@ Implemented Phase 1B of `DISCORD-BOT-009`: the live bot now forwards `reactionAd
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added regression coverage for `reactionAdd` and `reactionRemove`
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example bot now demonstrates reaction event logging
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention reaction event coverage
+
+Implemented Phase 1C of `DISCORD-BOT-009`: the live bot now forwards `guildMemberAdd`, `guildMemberUpdate`, and `guildMemberRemove` into the JavaScript host, the runtime context exposes normalized `ctx.member` payloads plus `ctx.before` for member updates when cached prior state exists, and the moderation example bot now demonstrates all three early event families from DISCORD-BOT-009.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Added guild-member session handlers and required member intent wiring
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Added guild member dispatch methods and richer member normalization
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added regression coverage for guild member event delivery
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example bot now demonstrates guild member event logging
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention guild member event coverage

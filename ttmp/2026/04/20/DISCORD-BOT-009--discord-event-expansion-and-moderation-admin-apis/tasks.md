@@ -32,17 +32,17 @@
 - [x] Validate with focused and full Go test runs
 
 ### Phase 1C — guild member events
-- [ ] Add `guildMemberAdd` session handling in `internal/bot/bot.go`
-- [ ] Add `guildMemberUpdate` session handling in `internal/bot/bot.go`
-- [ ] Add `guildMemberRemove` session handling in `internal/bot/bot.go`
-- [ ] Add `Host.DispatchGuildMemberAdd(...)`
-- [ ] Add `Host.DispatchGuildMemberUpdate(...)`
-- [ ] Add `Host.DispatchGuildMemberRemove(...)`
-- [ ] Normalize member payloads (user, nick, roles, joinedAt, pending, guild ID)
-- [ ] Extend JS dispatch context with `ctx.member`
-- [ ] Add runtime tests for guild member events
-- [ ] Update one example bot to demonstrate guild member event usage
-- [ ] Validate with focused and full Go test runs
+- [x] Add `guildMemberAdd` session handling in `internal/bot/bot.go`
+- [x] Add `guildMemberUpdate` session handling in `internal/bot/bot.go`
+- [x] Add `guildMemberRemove` session handling in `internal/bot/bot.go`
+- [x] Add `Host.DispatchGuildMemberAdd(...)`
+- [x] Add `Host.DispatchGuildMemberUpdate(...)`
+- [x] Add `Host.DispatchGuildMemberRemove(...)`
+- [x] Normalize member payloads (user, nick, roles, joinedAt, pending, guild ID)
+- [x] Extend JS dispatch context with `ctx.member`
+- [x] Add runtime tests for guild member events
+- [x] Update one example bot to demonstrate guild member event usage
+- [x] Validate with focused and full Go test runs
 
 ### Phase 2 — moderation/admin host APIs
 - [ ] Add `ctx.discord.members.addRole(...)`

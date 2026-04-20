@@ -394,6 +394,67 @@ func TestDiscordEventContextSupportsReactionAddAndRemove(t *testing.T) {
 	}
 }
 
+func TestDiscordEventContextSupportsGuildMemberEvents(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ event }) => {
+			event("guildMemberAdd", async (ctx) => {
+				return "add:" + String(ctx.member && ctx.member.id || "") + ":roles=" + String((ctx.member && ctx.member.roles || []).length)
+			})
+			event("guildMemberUpdate", async (ctx) => {
+				const before = Array.isArray(ctx.before && ctx.before.roles) ? ctx.before.roles.length : 0
+				const after = Array.isArray(ctx.member && ctx.member.roles) ? ctx.member.roles.length : 0
+				return "update:" + String(ctx.member && ctx.member.id || "") + ":" + String(before) + "->" + String(after)
+			})
+			event("guildMemberRemove", async (ctx) => {
+				return "remove:" + String(ctx.user && ctx.user.id || "") + ":guild=" + String(ctx.guild && ctx.guild.id || "")
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+
+	added, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:   "guildMemberAdd",
+		Guild:  map[string]any{"id": "guild-1"},
+		User:   map[string]any{"id": "user-1"},
+		Member: map[string]any{"id": "user-1", "roles": []string{"mod", "helper"}},
+	})
+	if err != nil {
+		t.Fatalf("dispatch guildMemberAdd: %v", err)
+	}
+	if got := fmt.Sprint(added); got != "[add:user-1:roles=2]" {
+		t.Fatalf("guildMemberAdd result = %s", got)
+	}
+
+	updated, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:   "guildMemberUpdate",
+		Guild:  map[string]any{"id": "guild-1"},
+		User:   map[string]any{"id": "user-1"},
+		Member: map[string]any{"id": "user-1", "roles": []string{"mod", "helper", "trusted"}},
+		Before: map[string]any{"id": "user-1", "roles": []string{"mod"}},
+	})
+	if err != nil {
+		t.Fatalf("dispatch guildMemberUpdate: %v", err)
+	}
+	if got := fmt.Sprint(updated); got != "[update:user-1:1->3]" {
+		t.Fatalf("guildMemberUpdate result = %s", got)
+	}
+
+	removed, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:   "guildMemberRemove",
+		Guild:  map[string]any{"id": "guild-1"},
+		User:   map[string]any{"id": "user-2"},
+		Member: map[string]any{"id": "user-2", "roles": []string{"member"}},
+	})
+	if err != nil {
+		t.Fatalf("dispatch guildMemberRemove: %v", err)
+	}
+	if got := fmt.Sprint(removed); got != "[remove:user-2:guild=guild-1]" {
+		t.Fatalf("guildMemberRemove result = %s", got)
+	}
+}
+
 func TestApplicationCommandFromSnapshotSupportsAutocompleteAndConstraints(t *testing.T) {
 	cmd, err := applicationCommandFromSnapshot(map[string]any{
 		"name": "echo",

@@ -195,3 +195,46 @@ The main work was to add session handlers, host dispatch methods, and normalizat
 ### What should be done next
 - Continue with Phase 1C guild member events.
 - After that, move to explicit moderation/admin host methods under `ctx.discord.members`.
+
+## Step 4: Implement Phase 1C guild member events
+
+With message lifecycle and reaction events in place, the next event family was guild members. This is the last major non-destructive event slice before moving into actual moderation/admin methods, and it also required the first privileged member intent in the live bot session.
+
+The pattern stayed consistent with earlier slices: add live session handlers, add host dispatch methods, normalize payloads, add runtime tests, and then extend the moderation example so operators can inspect the new event set through `bots help moderation` and debug logs.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go` to:
+  - add `IntentsGuildMembers`
+  - register `handleGuildMemberAdd(...)`
+  - register `handleGuildMemberUpdate(...)`
+  - register `handleGuildMemberRemove(...)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to add:
+  - `DispatchGuildMemberAdd(...)`
+  - `DispatchGuildMemberUpdate(...)`
+  - `DispatchGuildMemberRemove(...)`
+  - richer `memberMap(...)` normalization including guild ID, roles, join time, and basic state flags
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving JavaScript can receive all three guild member event types.
+- Extended `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` so the moderation example now logs member joins, updates, and leaves.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to mention guild member event coverage.
+- Ran:
+  - `gofmt -w internal/bot/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### What worked
+- `bots help moderation` now shows:
+  - `guildMemberAdd`
+  - `guildMemberUpdate`
+  - `guildMemberRemove`
+  - plus the earlier message and reaction event families
+- Focused and full test runs still pass.
+- The early event-expansion phase is now complete enough to support real moderation/audit-style event observation.
+
+### Why
+- Guild member events are the natural bridge between passive event observation and active moderation operations.
+- Adding these before destructive host methods keeps the implementation sequence safer and easier to review.
+
+### What should be done next
+- Start Phase 2 moderation/admin host APIs.
+- Begin with `ctx.discord.members.addRole(...)`, `removeRole(...)`, and `timeout(...)` rather than jumping straight to `kick` and `ban`.
