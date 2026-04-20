@@ -222,6 +222,67 @@ func (h *Host) DispatchMessageDelete(ctx context.Context, session *discordgo.Ses
 	return nil
 }
 
+func (h *Host) DispatchReactionAdd(ctx context.Context, session *discordgo.Session, reaction *discordgo.MessageReactionAdd) error {
+	if h == nil || h.handle == nil || reaction == nil || reaction.MessageReaction == nil {
+		return nil
+	}
+	responder := newChannelResponder(session, reaction.ChannelID, h.scriptPath)
+	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "reactionAdd",
+		Message:  map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID},
+		User:     userRefMap(reaction.UserID),
+		Guild:    guildMap(reaction.GuildID),
+		Channel:  channelMap(reaction.ChannelID),
+		Member:   memberMap(reaction.Member),
+		Reaction: reactionMap(reaction.MessageReaction),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Discord:  buildDiscordOps(h.scriptPath, session),
+		Reply:    responder.Reply,
+		FollowUp: responder.FollowUp,
+		Edit:     responder.Edit,
+		Defer:    responder.Defer,
+	})
+	if err != nil {
+		return err
+	}
+	if !responder.Acknowledged() {
+		return emitEventResult(ctx, responder.Reply, result)
+	}
+	return nil
+}
+
+func (h *Host) DispatchReactionRemove(ctx context.Context, session *discordgo.Session, reaction *discordgo.MessageReactionRemove) error {
+	if h == nil || h.handle == nil || reaction == nil || reaction.MessageReaction == nil {
+		return nil
+	}
+	responder := newChannelResponder(session, reaction.ChannelID, h.scriptPath)
+	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
+		Name:     "reactionRemove",
+		Message:  map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID},
+		User:     userRefMap(reaction.UserID),
+		Guild:    guildMap(reaction.GuildID),
+		Channel:  channelMap(reaction.ChannelID),
+		Reaction: reactionMap(reaction.MessageReaction),
+		Me:       currentUserMap(session),
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Discord:  buildDiscordOps(h.scriptPath, session),
+		Reply:    responder.Reply,
+		FollowUp: responder.FollowUp,
+		Edit:     responder.Edit,
+		Defer:    responder.Defer,
+	})
+	if err != nil {
+		return err
+	}
+	if !responder.Acknowledged() {
+		return emitEventResult(ctx, responder.Reply, result)
+	}
+	return nil
+}
+
 func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) error {
 	if h == nil || h.handle == nil || interaction == nil {
 		return nil
@@ -1849,6 +1910,14 @@ func userMap(user *discordgo.User) map[string]any {
 	return map[string]any{"id": user.ID, "username": user.Username, "discriminator": user.Discriminator, "bot": user.Bot}
 }
 
+func userRefMap(userID string) map[string]any {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return map[string]any{}
+	}
+	return map[string]any{"id": userID}
+}
+
 func interactionUserMap(interaction *discordgo.InteractionCreate) map[string]any {
 	if interaction == nil {
 		return map[string]any{}
@@ -1864,6 +1933,46 @@ func currentUserMap(session *discordgo.Session) map[string]any {
 		return map[string]any{}
 	}
 	return userMap(session.State.User)
+}
+
+func memberMap(member *discordgo.Member) map[string]any {
+	if member == nil {
+		return map[string]any{}
+	}
+	ret := map[string]any{
+		"nick":    member.Nick,
+		"roles":   append([]string(nil), member.Roles...),
+		"pending": member.Pending,
+	}
+	if member.User != nil {
+		ret["user"] = userMap(member.User)
+		ret["id"] = member.User.ID
+	}
+	if !member.JoinedAt.IsZero() {
+		ret["joinedAt"] = member.JoinedAt.Format("2006-01-02T15:04:05Z07:00")
+	}
+	return ret
+}
+
+func emojiMap(emoji discordgo.Emoji) map[string]any {
+	return map[string]any{
+		"id":       emoji.ID,
+		"name":     emoji.Name,
+		"animated": emoji.Animated,
+	}
+}
+
+func reactionMap(reaction *discordgo.MessageReaction) map[string]any {
+	if reaction == nil {
+		return map[string]any{}
+	}
+	return map[string]any{
+		"userId":    reaction.UserID,
+		"messageId": reaction.MessageID,
+		"channelId": reaction.ChannelID,
+		"guildId":   reaction.GuildID,
+		"emoji":     emojiMap(reaction.Emoji),
+	}
 }
 
 func guildMap(guildID string) map[string]any {

@@ -22,3 +22,13 @@ Implemented Phase 1A of `DISCORD-BOT-009`: the live bot now forwards `messageUpd
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added regression coverage for `messageUpdate` and `messageDelete`
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example bot now demonstrates message lifecycle event logging
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention message lifecycle events
+
+Implemented Phase 1B of `DISCORD-BOT-009`: the live bot now forwards `reactionAdd` and `reactionRemove` into the JavaScript host, the runtime context exposes `ctx.reaction` and reaction-related actor/member payloads, and the moderation example bot now logs reaction activity alongside message lifecycle events.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Added discordgo session handlers and required reaction intent wiring
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Added reaction dispatch methods plus reaction/member/emoji normalization helpers
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added regression coverage for `reactionAdd` and `reactionRemove`
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example bot now demonstrates reaction event logging
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention reaction event coverage

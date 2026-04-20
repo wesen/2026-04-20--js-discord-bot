@@ -21,15 +21,15 @@
 - [x] Validate with focused and full Go test runs
 
 ### Phase 1B — reaction events
-- [ ] Add `reactionAdd` session handling in `internal/bot/bot.go`
-- [ ] Add `reactionRemove` session handling in `internal/bot/bot.go`
-- [ ] Add `Host.DispatchReactionAdd(...)`
-- [ ] Add `Host.DispatchReactionRemove(...)`
-- [ ] Normalize reaction payloads (emoji, user, message/channel/guild IDs, member where available)
-- [ ] Extend JS dispatch context with `ctx.reaction`
-- [ ] Add runtime tests for reaction events
-- [ ] Update one example bot to demonstrate reaction event usage
-- [ ] Validate with focused and full Go test runs
+- [x] Add `reactionAdd` session handling in `internal/bot/bot.go`
+- [x] Add `reactionRemove` session handling in `internal/bot/bot.go`
+- [x] Add `Host.DispatchReactionAdd(...)`
+- [x] Add `Host.DispatchReactionRemove(...)`
+- [x] Normalize reaction payloads (emoji, user, message/channel/guild IDs, member where available)
+- [x] Extend JS dispatch context with `ctx.reaction`
+- [x] Add runtime tests for reaction events
+- [x] Update one example bot to demonstrate reaction event usage
+- [x] Validate with focused and full Go test runs
 
 ### Phase 1C — guild member events
 - [ ] Add `guildMemberAdd` session handling in `internal/bot/bot.go`

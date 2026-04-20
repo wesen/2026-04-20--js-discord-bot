@@ -146,3 +146,52 @@ The core implementation path was straightforward but touched multiple seams. I a
 - Start with `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go` and `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go`.
 - Then inspect `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` for the new `before` wiring.
 - Finally validate the event behavior through `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` and `bots help moderation`.
+
+## Step 3: Implement Phase 1B reaction events
+
+After the message lifecycle slice was stable, I moved directly to reaction events. This was the next natural event family because it reuses most of the same host/event plumbing while introducing a new payload shape (`ctx.reaction`) and one additional privileged-but-still-common gateway intent.
+
+The main work was to add session handlers, host dispatch methods, and normalization helpers for reaction/member/emoji data. I also updated the moderation example so there is one visible example bot that now accumulates the first two DISCORD-BOT-009 event families.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go` to:
+  - add `IntentsGuildMessageReactions`
+  - register `handleReactionAdd(...)`
+  - register `handleReactionRemove(...)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to add:
+  - `DispatchReactionAdd(...)`
+  - `DispatchReactionRemove(...)`
+  - `userRefMap(...)`
+  - `memberMap(...)`
+  - `emojiMap(...)`
+  - `reactionMap(...)`
+- Reused the earlier dispatch-context expansion in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` so handlers can read `ctx.reaction` and `ctx.member`.
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving JavaScript can receive both `reactionAdd` and `reactionRemove` payloads.
+- Extended `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` to log reaction add/remove events.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to mention reaction event coverage.
+- Ran:
+  - `gofmt -w internal/bot/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### What didn't work
+- I hit one small `discordgo.Member` shape mistake during validation:
+  - `internal/jsdiscord/host.go:1951:24: invalid operation: member.JoinedAt != nil (mismatched types "time".Time and untyped nil)`
+- I fixed that by using `member.JoinedAt.IsZero()` instead of comparing against `nil`.
+
+### What worked
+- `bots help moderation` now lists:
+  - `reactionAdd`
+  - `reactionRemove`
+- Focused and full test runs both still pass.
+- The event context now carries reaction and member information in a way that can be reused for future moderation flows.
+
+### Why
+- Reaction events are a common moderation/automation primitive.
+- This slice was still low risk because it only extends event delivery and payload normalization, not destructive admin capabilities.
+- It also established the payload-shaping helpers that will help with guild member events next.
+
+### What should be done next
+- Continue with Phase 1C guild member events.
+- After that, move to explicit moderation/admin host methods under `ctx.discord.members`.

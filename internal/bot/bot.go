@@ -31,7 +31,7 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 		return nil, fmt.Errorf("create discord session: %w", err)
 	}
 
-	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
+	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMessageReactions | discordgo.IntentsMessageContent
 
 	script = strings.TrimSpace(script)
 	if script == "" {
@@ -64,6 +64,8 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 	session.AddHandler(b.handleMessageCreate)
 	session.AddHandler(b.handleMessageUpdate)
 	session.AddHandler(b.handleMessageDelete)
+	session.AddHandler(b.handleReactionAdd)
+	session.AddHandler(b.handleReactionRemove)
 	session.AddHandler(b.handleInteractionCreate)
 
 	return b, nil
@@ -218,6 +220,28 @@ func (b *Bot) handleMessageDelete(session *discordgo.Session, message *discordgo
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchMessageDelete(context.Background(), session, message); err != nil {
 			log.Error().Err(err).Msg("failed to dispatch messageDelete event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleReactionAdd(session *discordgo.Session, reaction *discordgo.MessageReactionAdd) {
+	if reaction == nil {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchReactionAdd(context.Background(), session, reaction); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch reactionAdd event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleReactionRemove(session *discordgo.Session, reaction *discordgo.MessageReactionRemove) {
+	if reaction == nil {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchReactionRemove(context.Background(), session, reaction); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch reactionRemove event to javascript bot")
 		}
 	}
 }

@@ -69,4 +69,22 @@ module.exports = defineBot(({ command, event, configure }) => {
     });
     return null;
   });
+
+  event("reactionAdd", async (ctx) => {
+    ctx.log.info("moderation observed reaction add", {
+      messageId: ctx.reaction && ctx.reaction.messageId,
+      emoji: ctx.reaction && ctx.reaction.emoji && ctx.reaction.emoji.name,
+      userId: ctx.user && ctx.user.id,
+    });
+    return null;
+  });
+
+  event("reactionRemove", async (ctx) => {
+    ctx.log.info("moderation observed reaction remove", {
+      messageId: ctx.reaction && ctx.reaction.messageId,
+      emoji: ctx.reaction && ctx.reaction.emoji && ctx.reaction.emoji.name,
+      userId: ctx.user && ctx.user.id,
+    });
+    return null;
+  });
 });

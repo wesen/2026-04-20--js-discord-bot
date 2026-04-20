@@ -351,6 +351,49 @@ func TestDiscordEventContextSupportsMessageUpdateAndDelete(t *testing.T) {
 	}
 }
 
+func TestDiscordEventContextSupportsReactionAddAndRemove(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ event }) => {
+			event("reactionAdd", async (ctx) => {
+				return "add:" + String(ctx.reaction && ctx.reaction.emoji && ctx.reaction.emoji.name || "") + ":user=" + String(ctx.user && ctx.user.id || "")
+			})
+			event("reactionRemove", async (ctx) => {
+				return "remove:" + String(ctx.reaction && ctx.reaction.emoji && ctx.reaction.emoji.name || "") + ":message=" + String(ctx.message && ctx.message.id || "")
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+
+	added, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:     "reactionAdd",
+		Message:  map[string]any{"id": "msg-1", "channelID": "chan-1"},
+		User:     map[string]any{"id": "user-1"},
+		Member:   map[string]any{"id": "user-1", "roles": []string{"mod"}},
+		Reaction: map[string]any{"messageId": "msg-1", "emoji": map[string]any{"name": "🔥"}},
+	})
+	if err != nil {
+		t.Fatalf("dispatch reactionAdd: %v", err)
+	}
+	if got := fmt.Sprint(added); got != "[add:🔥:user=user-1]" {
+		t.Fatalf("reactionAdd result = %s", got)
+	}
+
+	removed, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name:     "reactionRemove",
+		Message:  map[string]any{"id": "msg-2", "channelID": "chan-1"},
+		User:     map[string]any{"id": "user-2"},
+		Reaction: map[string]any{"messageId": "msg-2", "emoji": map[string]any{"name": "✅"}},
+	})
+	if err != nil {
+		t.Fatalf("dispatch reactionRemove: %v", err)
+	}
+	if got := fmt.Sprint(removed); got != "[remove:✅:message=msg-2]" {
+		t.Fatalf("reactionRemove result = %s", got)
+	}
+}
+
 func TestApplicationCommandFromSnapshotSupportsAutocompleteAndConstraints(t *testing.T) {
 	cmd, err := applicationCommandFromSnapshot(map[string]any{
 		"name": "echo",
