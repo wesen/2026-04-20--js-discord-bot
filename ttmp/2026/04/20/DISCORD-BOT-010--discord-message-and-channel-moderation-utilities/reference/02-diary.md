@@ -257,3 +257,41 @@ That gives useful moderation levers without yet turning the runtime into a gener
 
 ### What should be done in the future
 - Finish Phase 4 documentation and operator guidance.
+
+## Step 5: Finish Phase 4 docs and operator guidance
+
+After the code phases were complete, the remaining work was to make the new surfaces operable and reviewable without re-reading the code. That meant turning the reference doc from a planning sketch into an implemented API reference, updating the example README with concrete permission notes, and adding a dedicated playbook for debugging these new flows.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue through the remaining phase and complete the operator-facing documentation for the new ticket.
+
+**Inferred user intent:** Finish the ticket as a usable feature package, not just as a code change set.
+
+### What I did
+- Rewrote `/home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-010--discord-message-and-channel-moderation-utilities/reference/01-discord-message-and-channel-moderation-utilities-api-reference-and-planning-notes.md` so it documents the implemented API surface, normalized payloads, bulk-delete input forms, and operational caveats.
+- Added `/home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-010--discord-message-and-channel-moderation-utilities/playbook/01-debugging-message-and-channel-moderation-flows.md`.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` with permissions and failure-mode guidance for the new message/channel utilities.
+- Updated the ticket index, task list, and changelog.
+
+### Why
+- The message/channel moderation utilities are now broad enough that operators need a real runbook and a concrete reference.
+- Bulk delete in particular is the kind of feature that needs clear usage guidance, not just a function signature.
+
+### What worked
+- The ticket now reads as a complete package: plan, implementation, example usage, and debugging guidance.
+- The example README now reflects the real command and permission surface.
+
+### What didn't work
+- N/A in this slice.
+
+### What was tricky to build
+- The main challenge was keeping the docs concrete and implementation-focused rather than drifting back into future-planning language.
+
+### What warrants a second pair of eyes
+- Whether the current normalized message/channel shapes are sufficient for operators, or whether the next iteration should add one or two more fields before creating another ticket.
+
+### What should be done in the future
+- N/A for this ticket slice; the implemented phases are complete.

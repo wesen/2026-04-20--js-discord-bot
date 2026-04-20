@@ -41,3 +41,12 @@ Implemented Phase 3 of `DISCORD-BOT-010`: JavaScript can now fetch a channel and
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for channel fetch/topic/slowmode helpers
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/lib/register-channel-moderation-commands.js — Added example commands for the new channel utilities
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example notes to mention the new channel utility surface
+
+Completed Phase 4 of `DISCORD-BOT-010`: the reference doc now reflects the implemented APIs rather than only the original plan, the example README now explains message/channel permission expectations and bulk-delete input behavior, and the ticket has a dedicated operator playbook for debugging message and channel moderation flows.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-010--discord-message-and-channel-moderation-utilities/reference/01-discord-message-and-channel-moderation-utilities-api-reference-and-planning-notes.md — Updated reference with the implemented API surface and operational caveats
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-010--discord-message-and-channel-moderation-utilities/playbook/01-debugging-message-and-channel-moderation-flows.md — Operator/debug runbook for the implemented message and channel utility flows
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes with permission and failure-mode guidance
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-010--discord-message-and-channel-moderation-utilities/tasks.md — Marked the remaining docs/operator-guidance tasks complete

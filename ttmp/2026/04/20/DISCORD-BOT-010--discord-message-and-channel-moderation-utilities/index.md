@@ -46,5 +46,6 @@ This ticket captures the next admin-oriented Discord JS APIs after member modera
 - `design-doc/01-discord-message-and-channel-moderation-utilities-architecture-and-implementation-guide.md`
 - `reference/01-discord-message-and-channel-moderation-utilities-api-reference-and-planning-notes.md`
 - `reference/02-diary.md`
+- `playbook/01-debugging-message-and-channel-moderation-flows.md`
 - `tasks.md`
 - `changelog.md`

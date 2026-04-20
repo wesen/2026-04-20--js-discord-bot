@@ -55,5 +55,9 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - Moderation commands must be run in a guild context.
 - `mod-add-role`, `mod-timeout`, `mod-kick`, and `mod-ban` require the bot to have the corresponding Discord permissions and sufficient role hierarchy over the target member/role.
 - `mod-unban` requires unban permissions in the guild.
+- `mod-pin`, `mod-unpin`, and `mod-bulk-delete` require message-management permission in the target channel.
+- `mod-fetch-message` and `mod-list-pins` require read/message-history access in the target channel.
+- `mod-set-topic` and `mod-set-slowmode` require channel-management permission in the target channel.
 - The current `timeout(...)` slice supports `durationSeconds`, `until`, and `clear: true`; it does not yet send an audit-log reason.
 - The current `ban(...)` slice supports `reason` and `deleteMessageDays`.
+- `mod-bulk-delete` currently accepts comma-separated message IDs and normalizes them into a cleaned ID list before calling the host API.

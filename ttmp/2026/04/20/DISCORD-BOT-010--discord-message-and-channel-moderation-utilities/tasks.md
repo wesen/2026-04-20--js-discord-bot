@@ -37,6 +37,6 @@
 - [x] Validate with focused and full Go test runs
 
 ### Phase 4 — docs and operator guidance
-- [ ] Update reference docs with the implemented API surface and caveats
-- [ ] Update example README with permissions/failure-mode notes
-- [ ] Add a small playbook for debugging message/channel moderation flows
+- [x] Update reference docs with the implemented API surface and caveats
+- [x] Update example README with permissions/failure-mode notes
+- [x] Add a small playbook for debugging message/channel moderation flows
