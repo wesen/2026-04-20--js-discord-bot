@@ -22,3 +22,13 @@ Rewrote the `bots` command group around named bot implementations instead of jsv
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/multihost.go — Multi-bot runtime composition with command routing and event fan-out
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Live host now supports loading multiple bot scripts at once
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Example repository of named bot implementations
+
+## 2026-04-20
+
+Added more operator-facing visibility for `bots run`: a `--print-parsed-values` flag that prints the resolved Discord config plus selected bot descriptors and exits, plus startup/sync logs that show which bot implementations and slash commands were actually loaded.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command.go — `bots run` now accepts `--print-parsed-values`
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/runtime.go — Printed run-request summary includes redacted config and selected bot metadata
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/bot/bot.go — Startup logging now shows loaded bot implementations and synced command names

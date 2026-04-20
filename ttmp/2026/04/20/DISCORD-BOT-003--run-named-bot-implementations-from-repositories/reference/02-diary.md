@@ -132,3 +132,74 @@ This implementation also made the runtime model honest. Multiple selected bots c
   - `index.js` package entrypoints under subdirectories
 - Command routing is single-owner; event dispatch is fan-out.
 - Multi-bot command-name collisions are rejected at composition time.
+
+## Step 2: Add parsed-values output and more visible bot-loading logs
+
+After exercising the new runner by hand, it was clear the operator needed more visibility into what `bots run` had actually resolved. The root problem was that the bot runner is plain Cobra-based, not a Glazed command path, so Glazed’s built-in `--print-parsed-values` behavior was not automatically available here.
+
+Instead of trying to force the whole runner through a Glazed parser just to get that one debug feature, I added a bot-runner-native `--print-parsed-values` flag that prints the resolved Discord config and selected bot descriptors, then exits. I also added logs that explicitly show which bot implementations were loaded and which command names were synced.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can you add more logging? can you print some info about the loaded values (like would it be hard to add the glazed layers for print-parseed-values to the jsverb interpreter for example?"
+
+**Assistant interpretation:** Add more visibility to the bot runner, especially a way to inspect resolved inputs and loaded bot metadata before opening the Discord session.
+
+**Inferred user intent:** Make it easier to debug what `bots run` is really doing without guessing from Discord-side behavior.
+
+**Commit (code):** 9cf28e2 — "Add bot runner parsed-values output and logs"
+
+### What I did
+- Added `--print-parsed-values` to `discord-bot bots run`.
+- Made that flag print:
+  - redacted Discord config
+  - selected bot names
+  - script paths
+  - command names
+  - event names
+  - sync-on-start setting
+- Added startup logs in `internal/bot/bot.go` for each loaded bot implementation.
+- Added sync logs listing the command names that were bulk-overwritten to Discord.
+- Added a test covering the new `--print-parsed-values` behavior.
+- Verified the exact CLI path:
+  - `GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run knowledge-base --print-parsed-values`
+
+### Why
+- The runner needed a quick inspection mode that does not require opening the Discord gateway.
+- The previous lack of visibility made it harder to tell whether the right bot repository, bot name, and command set had been selected.
+- Adding a small runner-native flag was simpler and more appropriate than trying to retrofit the whole path into Glazed command-settings handling.
+
+### What worked
+- The new flag prints the resolved inputs clearly and exits cleanly.
+- The bot-loading logs now make it obvious which implementations were loaded.
+- The sync log now makes it obvious which command names were sent to Discord.
+
+### What didn't work
+- There was no actual bug in Glazed itself here; the earlier assumption was just wrong for this command path. `bots run` was never a Glazed command, so Glazed’s `--print-parsed-values` flag was not going to appear automatically.
+
+### What I learned
+- A focused debug/inspection mode is often more useful than trying to force a tool abstraction where it does not naturally fit.
+- For this runner, printing the selected bot descriptors is more valuable than only printing raw flag values.
+
+### What was tricky to build
+- The main design question was whether to bolt on full Glazed command-settings support or add a purpose-built debug output path. The simpler dedicated flag was the better option because the runner is descriptor-driven, not schema-driven in the Glazed sense.
+- I also needed to make sure secrets stayed redacted while still printing enough context to be useful.
+
+### What warrants a second pair of eyes
+- Whether the `--print-parsed-values` output should eventually grow into a fuller `bots inspect-run` or dry-run command.
+- Whether the sync log should include scope and selected bot names in even more detail.
+
+### What should be done in the future
+- Consider adding a dedicated inspect/dry-run command for the runner.
+- Consider whether `--sync-on-start` should eventually become the default.
+
+### Code review instructions
+- Start with `internal/botcli/command.go` and `internal/botcli/runtime.go`.
+- Then inspect `internal/bot/bot.go` for the new startup and sync logs.
+- Validate with:
+  - `GOWORK=off go test ./internal/botcli ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run knowledge-base --print-parsed-values`
+
+### Technical details
+- The new flag is runner-specific and not a borrowed Glazed command-settings section.
+- Tokens and client secrets remain redacted in printed output.
