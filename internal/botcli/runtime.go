@@ -2,6 +2,7 @@ package botcli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -14,15 +15,19 @@ import (
 )
 
 type RunRequest struct {
-	Config      appconfig.Settings
-	Bots        []DiscoveredBot
-	SyncOnStart bool
-	Out         io.Writer
+	Config            appconfig.Settings
+	Bots              []DiscoveredBot
+	SyncOnStart       bool
+	PrintParsedValues bool
+	Out               io.Writer
 }
 
 var runSelectedBotsFn = runSelectedBots
 
 func runSelectedBots(ctx context.Context, request RunRequest) error {
+	if request.PrintParsedValues {
+		return printRunRequest(request.Out, request)
+	}
 	scripts := make([]string, 0, len(request.Bots))
 	for _, bot := range request.Bots {
 		scripts = append(scripts, bot.ScriptPath())
@@ -63,4 +68,47 @@ func settingsFromValues(botToken, applicationID, guildID, publicKey, clientID, c
 		ClientSecret:  strings.TrimSpace(clientSecret),
 		BotScript:     "",
 	}
+}
+
+func printRunRequest(w io.Writer, request RunRequest) error {
+	if w == nil {
+		w = os.Stdout
+	}
+	payload := map[string]any{
+		"config": map[string]any{
+			"botToken":      request.Config.RedactedToken(),
+			"applicationID": request.Config.ApplicationID,
+			"guildID":       request.Config.GuildID,
+			"publicKey":     nonEmptyMask(request.Config.PublicKey),
+			"clientID":      request.Config.ClientID,
+			"clientSecret":  nonEmptyMask(request.Config.ClientSecret),
+		},
+		"syncOnStart": request.SyncOnStart,
+		"bots":        botDebugSummaries(request.Bots),
+	}
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(payload)
+}
+
+func botDebugSummaries(bots []DiscoveredBot) []map[string]any {
+	ret := make([]map[string]any, 0, len(bots))
+	for _, bot := range bots {
+		ret = append(ret, map[string]any{
+			"name":        bot.Name(),
+			"description": bot.Description(),
+			"scriptPath":  bot.ScriptPath(),
+			"sourceLabel": bot.SourceLabel(),
+			"commands":    bot.CommandNames(),
+			"events":      bot.EventNames(),
+		})
+	}
+	return ret
+}
+
+func nonEmptyMask(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return "***"
 }

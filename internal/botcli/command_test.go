@@ -74,6 +74,28 @@ func TestRunCommandResolvesMultipleNamedBots(t *testing.T) {
 	require.Equal(t, "123", captured.Config.GuildID)
 }
 
+func TestRunCommandPrintsParsedValues(t *testing.T) {
+	root := NewCommand()
+	var stdout bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stdout)
+	root.SetArgs([]string{
+		"run", "knowledge-base",
+		"--bot-repository", examplesFixtureDir(t),
+		"--bot-token", "test-token",
+		"--application-id", "test-app",
+		"--guild-id", "123",
+		"--print-parsed-values",
+	})
+
+	err := root.Execute()
+	require.NoError(t, err)
+	output := stdout.String()
+	require.Contains(t, output, "\"botToken\": \"test…oken\"")
+	require.Contains(t, output, "\"name\": \"knowledge-base\"")
+	require.Contains(t, output, "\"commands\": [")
+}
+
 func TestListCommandRejectsDuplicateBotNames(t *testing.T) {
 	root := NewCommand()
 	var stdout bytes.Buffer

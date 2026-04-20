@@ -121,13 +121,14 @@ func printBotHelp(cmd *cobra.Command, bot DiscoveredBot) error {
 
 func newRunCommand() *cobra.Command {
 	var (
-		botToken      string
-		applicationID string
-		guildID       string
-		publicKey     string
-		clientID      string
-		clientSecret  string
-		syncOnStart   bool
+		botToken          string
+		applicationID     string
+		guildID           string
+		publicKey         string
+		clientID          string
+		clientSecret      string
+		syncOnStart       bool
+		printParsedValues bool
 	)
 	cmd := &cobra.Command{
 		Use:   "run <bot...>",
@@ -152,7 +153,7 @@ func newRunCommand() *cobra.Command {
 			}
 			ctx, cancel := runContext(context.Background())
 			defer cancel()
-			return runSelectedBotsFn(ctx, RunRequest{Config: cfg, Bots: selected, SyncOnStart: syncOnStart, Out: cmd.OutOrStdout()})
+			return runSelectedBotsFn(ctx, RunRequest{Config: cfg, Bots: selected, SyncOnStart: syncOnStart, PrintParsedValues: printParsedValues, Out: cmd.OutOrStdout()})
 		},
 	}
 	cmd.Flags().StringVar(&botToken, "bot-token", os.Getenv("DISCORD_BOT_TOKEN"), "Discord bot token")
@@ -162,5 +163,6 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVar(&clientID, "client-id", os.Getenv("DISCORD_CLIENT_ID"), "Discord client ID")
 	cmd.Flags().StringVar(&clientSecret, "client-secret", os.Getenv("DISCORD_CLIENT_SECRET"), "Discord client secret")
 	cmd.Flags().BoolVar(&syncOnStart, "sync-on-start", false, "Sync slash commands for the selected bots before opening the gateway")
+	cmd.Flags().BoolVar(&printParsedValues, "print-parsed-values", false, "Print the resolved config and selected bots, then exit")
 	return cmd
 }

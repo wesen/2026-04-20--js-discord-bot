@@ -43,6 +43,17 @@ func NewWithScripts(cfg appconfig.Settings, scripts []string) (*Bot, error) {
 		if err != nil {
 			return nil, fmt.Errorf("load javascript bot scripts: %w", err)
 		}
+		for _, descriptor := range jsHost.Descriptors() {
+			if descriptor == nil {
+				continue
+			}
+			log.Info().
+				Str("bot", descriptor.Name).
+				Str("script", descriptor.ScriptPath).
+				Strs("commands", commandNames(descriptor.Commands)).
+				Strs("events", eventNames(descriptor.Events)).
+				Msg("loaded javascript bot implementation")
+		}
 	}
 
 	b := &Bot{
@@ -99,6 +110,18 @@ func (b *Bot) SyncCommands() ([]*discordgo.ApplicationCommand, error) {
 		return nil, fmt.Errorf("sync guild commands for %s: %w", guildID, err)
 	}
 
+	commandNames := make([]string, 0, len(created))
+	for _, command := range created {
+		if command == nil {
+			continue
+		}
+		commandNames = append(commandNames, command.Name)
+	}
+	log.Info().
+		Str("scope", syncScopeLabel(guildID)).
+		Strs("commands", commandNames).
+		Msg("synced discord application commands")
+
 	return created, nil
 }
 
@@ -124,6 +147,36 @@ func (b *Bot) applicationCommands() ([]*discordgo.ApplicationCommand, error) {
 			},
 		},
 	}, nil
+}
+
+func commandNames(commands []jsdiscord.CommandDescriptor) []string {
+	ret := make([]string, 0, len(commands))
+	for _, command := range commands {
+		if strings.TrimSpace(command.Name) == "" {
+			continue
+		}
+		ret = append(ret, command.Name)
+	}
+	return ret
+}
+
+func eventNames(events []jsdiscord.EventDescriptor) []string {
+	ret := make([]string, 0, len(events))
+	for _, event := range events {
+		if strings.TrimSpace(event.Name) == "" {
+			continue
+		}
+		ret = append(ret, event.Name)
+	}
+	return ret
+}
+
+func syncScopeLabel(guildID string) string {
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return "global"
+	}
+	return "guild:" + guildID
 }
 
 func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
