@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/dop251/goja_nodejs/require"
@@ -614,6 +615,61 @@ func sliceLen(value any) (int, bool) {
 	}
 }
 
+func normalizeTimeoutUntil(payload any) (*time.Time, error) {
+	switch v := payload.(type) {
+	case nil:
+		return nil, nil
+	case int:
+		return timeoutFromDurationSeconds(int64(v))
+	case int64:
+		return timeoutFromDurationSeconds(v)
+	case float64:
+		return timeoutFromDurationSeconds(int64(v))
+	case map[string]any:
+		if clear, ok := v["clear"].(bool); ok && clear {
+			return nil, nil
+		}
+		if untilRaw, ok := v["until"]; ok {
+			until := strings.TrimSpace(fmt.Sprint(untilRaw))
+			if until == "" {
+				return nil, fmt.Errorf("member timeout until value is empty")
+			}
+			parsed, err := time.Parse(time.RFC3339, until)
+			if err != nil {
+				return nil, fmt.Errorf("parse member timeout until: %w", err)
+			}
+			return &parsed, nil
+		}
+		if seconds, ok := int64Value(v["durationSeconds"]); ok {
+			return timeoutFromDurationSeconds(seconds)
+		}
+		return nil, fmt.Errorf("member timeout payload must include clear, until, or durationSeconds")
+	default:
+		return nil, fmt.Errorf("unsupported member timeout payload type %T", payload)
+	}
+}
+
+func timeoutFromDurationSeconds(seconds int64) (*time.Time, error) {
+	if seconds <= 0 {
+		return nil, nil
+	}
+	until := time.Now().UTC().Add(time.Duration(seconds) * time.Second)
+	return &until, nil
+}
+
+func int64Value(value any) (int64, bool) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), true
+	case int64:
+		return v, true
+	case float64:
+		return int64(v), true
+	default:
+		return 0, false
+	}
+}
+
 func truncateLogText(s string, max int) string {
 	s = strings.TrimSpace(s)
 	if max <= 0 || len(s) <= max {
@@ -913,6 +969,57 @@ func buildDiscordOps(scriptPath string, session *discordgo.Session) *DiscordOps 
 			err := session.MessageReactionAdd(channelID, messageID, emoji)
 			if err == nil {
 				logLifecycleDebug("reacted to discord channel message from javascript", map[string]any{"script": scriptPath, "channelId": channelID, "messageId": messageID, "emoji": emoji, "action": "discord.messages.react"})
+			}
+			return err
+		},
+		MemberAddRole: func(ctx context.Context, guildID, userID, roleID string) error {
+			_ = ctx
+			guildID = strings.TrimSpace(guildID)
+			userID = strings.TrimSpace(userID)
+			roleID = strings.TrimSpace(roleID)
+			if guildID == "" || userID == "" || roleID == "" {
+				return fmt.Errorf("member addRole requires guild ID, user ID, and role ID")
+			}
+			err := session.GuildMemberRoleAdd(guildID, userID, roleID)
+			if err == nil {
+				logLifecycleDebug("added discord guild member role from javascript", map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "roleId": roleID, "action": "discord.members.addRole"})
+			}
+			return err
+		},
+		MemberRemoveRole: func(ctx context.Context, guildID, userID, roleID string) error {
+			_ = ctx
+			guildID = strings.TrimSpace(guildID)
+			userID = strings.TrimSpace(userID)
+			roleID = strings.TrimSpace(roleID)
+			if guildID == "" || userID == "" || roleID == "" {
+				return fmt.Errorf("member removeRole requires guild ID, user ID, and role ID")
+			}
+			err := session.GuildMemberRoleRemove(guildID, userID, roleID)
+			if err == nil {
+				logLifecycleDebug("removed discord guild member role from javascript", map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "roleId": roleID, "action": "discord.members.removeRole"})
+			}
+			return err
+		},
+		MemberSetTimeout: func(ctx context.Context, guildID, userID string, payload any) error {
+			_ = ctx
+			guildID = strings.TrimSpace(guildID)
+			userID = strings.TrimSpace(userID)
+			if guildID == "" || userID == "" {
+				return fmt.Errorf("member timeout requires guild ID and user ID")
+			}
+			until, err := normalizeTimeoutUntil(payload)
+			if err != nil {
+				return err
+			}
+			err = session.GuildMemberTimeout(guildID, userID, until)
+			if err == nil {
+				fields := mergeLogFields(map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "action": "discord.members.timeout"}, payloadLogFields(payload))
+				if until == nil {
+					fields["cleared"] = true
+				} else {
+					fields["until"] = until.Format(time.RFC3339)
+				}
+				logLifecycleDebug("updated discord guild member timeout from javascript", fields)
 			}
 			return err
 		},

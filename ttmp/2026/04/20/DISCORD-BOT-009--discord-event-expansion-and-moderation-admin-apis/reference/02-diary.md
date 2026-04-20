@@ -238,3 +238,53 @@ The pattern stayed consistent with earlier slices: add live session handlers, ad
 ### What should be done next
 - Start Phase 2 moderation/admin host APIs.
 - Begin with `ctx.discord.members.addRole(...)`, `removeRole(...)`, and `timeout(...)` rather than jumping straight to `kick` and `ban`.
+
+## Step 5: Implement the first moderation/admin host API slice
+
+With event expansion complete, I moved on to the first actual moderation/admin host methods. I deliberately started with role assignment and member timeout rather than `kick` or `ban`, because these are operationally useful but a little less irreversible and easier to reason about in a first slice.
+
+The implementation reused the existing `ctx.discord` host-ops pattern from outbound message operations. I extended the runtime object model with a `members` namespace, implemented the actual discordgo calls in the host, added timeout payload normalization, and then updated the moderation example bot so the new capabilities are visible through help output rather than remaining test-only.
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go` to expose:
+  - `ctx.discord.members.addRole(guildID, userID, roleID)`
+  - `ctx.discord.members.removeRole(guildID, userID, roleID)`
+  - `ctx.discord.members.timeout(guildID, userID, payload)`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` to implement:
+  - `MemberAddRole`
+  - `MemberRemoveRole`
+  - `MemberSetTimeout`
+  - `normalizeTimeoutUntil(...)`
+  - structured debug logging for the new moderation/admin actions
+- Added runtime coverage in `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go` proving JavaScript commands can invoke the new member operations.
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js` with:
+  - `mod-add-role`
+  - `mod-timeout`
+- Updated `/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to mention the new moderation host APIs.
+- Ran:
+  - `gofmt -w internal/jsdiscord/bot.go internal/jsdiscord/host.go internal/jsdiscord/runtime_test.go`
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+  - `GOWORK=off go run ./cmd/discord-bot bots help moderation --bot-repository ./examples/discord-bots`
+
+### What didn't work
+- The first validation pass failed because I added timeout helpers in `host.go` but forgot to import `time`:
+  - `internal/jsdiscord/host.go:617:43: undefined: time`
+  - `internal/jsdiscord/host.go:636:19: undefined: time`
+  - `internal/jsdiscord/host.go:651:50: undefined: time`
+  - `internal/jsdiscord/host.go:655:11: undefined: time`
+  - `internal/jsdiscord/host.go:1019:37: undefined: time`
+- I fixed that by adding the missing import and rerunning all validation.
+
+### What worked
+- The moderation example now shows `mod-add-role` and `mod-timeout` in `bots help moderation` output.
+- The runtime can exercise member operations through the same host-ops seam already used for outbound message operations.
+- Focused and full test suites still pass after adding the new moderation/admin helpers.
+
+### Why
+- Role assignment and timeout are useful moderation primitives that fit naturally under `ctx.discord.members`.
+- Starting here keeps the first admin slice explicit and reviewable without introducing immediately destructive actions like bans.
+
+### What should be done next
+- Decide whether the next admin slice should add `kick`, `ban`, and `unban`, or whether the better next step is operator-facing permissions/failure-mode documentation.
+- Add documentation for privileged intents, required permissions, and expected Discord API failure modes.

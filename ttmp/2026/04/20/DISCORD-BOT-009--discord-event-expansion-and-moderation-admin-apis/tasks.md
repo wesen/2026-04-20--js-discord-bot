@@ -45,12 +45,12 @@
 - [x] Validate with focused and full Go test runs
 
 ### Phase 2 — moderation/admin host APIs
-- [ ] Add `ctx.discord.members.addRole(...)`
-- [ ] Add `ctx.discord.members.removeRole(...)`
-- [ ] Add `ctx.discord.members.timeout(...)`
+- [x] Add `ctx.discord.members.addRole(...)`
+- [x] Add `ctx.discord.members.removeRole(...)`
+- [x] Add `ctx.discord.members.timeout(...)`
 - [ ] Decide whether `kick`, `ban`, and `unban` belong in the first moderation slice
-- [ ] Add explicit structured logging around destructive/admin Discord operations
-- [ ] Add runtime tests for moderation/admin host methods
+- [x] Add explicit structured logging around destructive/admin Discord operations
+- [x] Add runtime tests for moderation/admin host methods
 - [ ] Document permissions, error surfaces, and safety expectations
 
 ### Phase 3 — examples and operator guidance

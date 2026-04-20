@@ -39,6 +39,36 @@ module.exports = defineBot(({ command, event, configure }) => {
     };
   });
 
+  command("mod-add-role", {
+    description: "Add a role to a guild member using the host moderation API",
+    options: {
+      user_id: { type: "string", description: "Target user ID", required: true },
+      role_id: { type: "string", description: "Role ID to add", required: true },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    await ctx.discord.members.addRole(guildId, ctx.args.user_id, ctx.args.role_id);
+    return { content: `Added role ${ctx.args.role_id} to ${ctx.args.user_id}.`, ephemeral: true };
+  });
+
+  command("mod-timeout", {
+    description: "Timeout a guild member for a number of seconds using the host moderation API",
+    options: {
+      user_id: { type: "string", description: "Target user ID", required: true },
+      duration_seconds: { type: "integer", description: "Timeout duration in seconds", required: true },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    await ctx.discord.members.timeout(guildId, ctx.args.user_id, { durationSeconds: ctx.args.duration_seconds });
+    return { content: `Timed out ${ctx.args.user_id} for ${ctx.args.duration_seconds} seconds.`, ephemeral: true };
+  });
+
   event("messageCreate", async (ctx) => {
     const content = (ctx.message && ctx.message.content || "").trim();
     if (content === "!modping") {

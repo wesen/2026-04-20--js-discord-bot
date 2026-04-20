@@ -42,3 +42,13 @@ Implemented Phase 1C of `DISCORD-BOT-009`: the live bot now forwards `guildMembe
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added regression coverage for guild member event delivery
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example bot now demonstrates guild member event logging
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention guild member event coverage
+
+Implemented the first moderation/admin host API slice for `DISCORD-BOT-009`: JavaScript can now call `ctx.discord.members.addRole(...)`, `removeRole(...)`, and `timeout(...)`, the live host routes those methods through discordgo with structured debug logging, runtime tests cover the new member operations, and the moderation example bot now includes `mod-add-role` and `mod-timeout` commands that demonstrate the new host capabilities.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/bot.go — Exposed `discord.members.*` operations into the JavaScript runtime context
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — Implemented member role/timeout host operations plus timeout payload normalization and structured logging
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/runtime_test.go — Added runtime coverage for outbound member moderation operations
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/moderation/index.js — Example moderation bot now demonstrates host-backed add-role and timeout commands
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Updated example repository notes to mention the first moderation/admin host APIs

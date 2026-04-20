@@ -53,10 +53,13 @@ type botDraft struct {
 }
 
 type DiscordOps struct {
-	ChannelSend   func(context.Context, string, any) error
-	MessageEdit   func(context.Context, string, string, any) error
-	MessageDelete func(context.Context, string, string) error
-	MessageReact  func(context.Context, string, string, string) error
+	ChannelSend      func(context.Context, string, any) error
+	MessageEdit      func(context.Context, string, string, any) error
+	MessageDelete    func(context.Context, string, string) error
+	MessageReact     func(context.Context, string, string, string) error
+	MemberAddRole    func(context.Context, string, string, string) error
+	MemberRemoveRole func(context.Context, string, string, string) error
+	MemberSetTimeout func(context.Context, string, string, any) error
 }
 
 type DispatchRequest struct {
@@ -864,11 +867,15 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 	root := vm.NewObject()
 	channels := vm.NewObject()
 	messages := vm.NewObject()
+	members := vm.NewObject()
 	if ops == nil {
 		_ = channels.Set("send", func(string, any) error { return nil })
 		_ = messages.Set("edit", func(string, string, any) error { return nil })
 		_ = messages.Set("delete", func(string, string) error { return nil })
 		_ = messages.Set("react", func(string, string, string) error { return nil })
+		_ = members.Set("addRole", func(string, string, string) error { return nil })
+		_ = members.Set("removeRole", func(string, string, string) error { return nil })
+		_ = members.Set("timeout", func(string, string, any) error { return nil })
 	} else {
 		_ = channels.Set("send", func(channelID string, payload any) error {
 			if ops.ChannelSend == nil {
@@ -894,9 +901,28 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 			}
 			return ops.MessageReact(ctx, channelID, messageID, emoji)
 		})
+		_ = members.Set("addRole", func(guildID, userID, roleID string) error {
+			if ops.MemberAddRole == nil {
+				return nil
+			}
+			return ops.MemberAddRole(ctx, guildID, userID, roleID)
+		})
+		_ = members.Set("removeRole", func(guildID, userID, roleID string) error {
+			if ops.MemberRemoveRole == nil {
+				return nil
+			}
+			return ops.MemberRemoveRole(ctx, guildID, userID, roleID)
+		})
+		_ = members.Set("timeout", func(guildID, userID string, payload any) error {
+			if ops.MemberSetTimeout == nil {
+				return nil
+			}
+			return ops.MemberSetTimeout(ctx, guildID, userID, payload)
+		})
 	}
 	_ = root.Set("channels", channels)
 	_ = root.Set("messages", messages)
+	_ = root.Set("members", members)
 	return root
 }
 

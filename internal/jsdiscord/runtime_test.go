@@ -651,6 +651,67 @@ func TestDiscordContextSupportsOutboundDiscordOps(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("moderate", async (ctx) => {
+				await ctx.discord.members.addRole("guild-1", "user-1", "role-1")
+				await ctx.discord.members.removeRole("guild-1", "user-1", "role-2")
+				await ctx.discord.members.timeout("guild-1", "user-1", { durationSeconds: 600 })
+				await ctx.discord.members.timeout("guild-1", "user-1", { clear: true })
+				return { content: "ok" }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var adds, removes, timeouts int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "moderate",
+		Discord: &DiscordOps{
+			MemberAddRole: func(_ context.Context, guildID, userID, roleID string) error {
+				adds++
+				if guildID != "guild-1" || userID != "user-1" || roleID != "role-1" {
+					t.Fatalf("addRole target = %s/%s/%s", guildID, userID, roleID)
+				}
+				return nil
+			},
+			MemberRemoveRole: func(_ context.Context, guildID, userID, roleID string) error {
+				removes++
+				if roleID != "role-2" {
+					t.Fatalf("removeRole role = %s", roleID)
+				}
+				return nil
+			},
+			MemberSetTimeout: func(_ context.Context, guildID, userID string, payload any) error {
+				timeouts++
+				mapping, _ := payload.(map[string]any)
+				if timeouts == 1 {
+					if mapping["durationSeconds"] != int64(600) && mapping["durationSeconds"] != 600 && mapping["durationSeconds"] != float64(600) {
+						t.Fatalf("timeout payload = %#v", payload)
+					}
+				}
+				if timeouts == 2 {
+					if clear, _ := mapping["clear"].(bool); !clear {
+						t.Fatalf("clear payload = %#v", payload)
+					}
+				}
+				return nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:ok]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if adds != 1 || removes != 1 || timeouts != 2 {
+		t.Fatalf("counts = add:%d remove:%d timeout:%d", adds, removes, timeouts)
+	}
+}
+
 func TestNormalizeMessageSendSupportsFilesAndReplyReference(t *testing.T) {
 	message, err := normalizeMessageSend(map[string]any{
 		"content": "report",
