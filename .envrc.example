@@ -1,0 +1,9 @@
+# Copy this file to .envrc and fill in the values locally.
+# Do not commit .envrc.
+
+export DISCORD_BOT_TOKEN=
+export DISCORD_APPLICATION_ID=
+export DISCORD_GUILD_ID=
+export DISCORD_PUBLIC_KEY=
+export DISCORD_CLIENT_ID=
+export DISCORD_CLIENT_SECRET=
