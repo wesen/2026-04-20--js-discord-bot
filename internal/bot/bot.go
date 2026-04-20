@@ -26,7 +26,7 @@ func New(cfg appconfig.Settings) (*Bot, error) {
 		return nil, fmt.Errorf("create discord session: %w", err)
 	}
 
-	session.Identify.Intents = discordgo.IntentsGuilds
+	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
 
 	var jsHost *jsdiscord.Host
 	if strings.TrimSpace(cfg.BotScript) != "" {
@@ -43,6 +43,8 @@ func New(cfg appconfig.Settings) (*Bot, error) {
 	}
 
 	session.AddHandler(b.handleReady)
+	session.AddHandler(b.handleGuildCreate)
+	session.AddHandler(b.handleMessageCreate)
 	session.AddHandler(b.handleInteractionCreate)
 
 	return b, nil
@@ -125,6 +127,25 @@ func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
 	if b.jsHost != nil {
 		if err := b.jsHost.DispatchReady(context.Background(), session, ready); err != nil {
 			log.Error().Err(err).Msg("failed to dispatch ready event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleGuildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchGuildCreate(context.Background(), session, guild); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch guildCreate event to javascript bot")
+		}
+	}
+}
+
+func (b *Bot) handleMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
+	if message == nil || message.Message == nil || message.Author == nil || message.Author.Bot {
+		return
+	}
+	if b.jsHost != nil {
+		if err := b.jsHost.DispatchMessageCreate(context.Background(), session, message); err != nil {
+			log.Error().Err(err).Msg("failed to dispatch messageCreate event to javascript bot")
 		}
 	}
 }

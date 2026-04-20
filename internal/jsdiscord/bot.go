@@ -38,13 +38,16 @@ type DispatchRequest struct {
 	Args        map[string]any
 	Command     map[string]any
 	Interaction map[string]any
+	Message     map[string]any
 	User        map[string]any
 	Guild       map[string]any
 	Channel     map[string]any
 	Me          map[string]any
 	Metadata    map[string]any
 	Reply       func(context.Context, any) error
-	Defer       func(context.Context) error
+	FollowUp    func(context.Context, any) error
+	Edit        func(context.Context, any) error
+	Defer       func(context.Context, any) error
 }
 
 type BotHandle struct {
@@ -429,6 +432,7 @@ func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchR
 	setObjectField(vm, input, "args", request.Args)
 	setObjectField(vm, input, "command", request.Command)
 	setObjectField(vm, input, "interaction", request.Interaction)
+	setObjectField(vm, input, "message", request.Message)
 	setObjectField(vm, input, "user", request.User)
 	setObjectField(vm, input, "guild", request.Guild)
 	setObjectField(vm, input, "channel", request.Channel)
@@ -439,10 +443,20 @@ func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchR
 	} else {
 		_ = input.Set("reply", func(any) error { return nil })
 	}
-	if request.Defer != nil {
-		_ = input.Set("defer", func() error { return request.Defer(ctx) })
+	if request.FollowUp != nil {
+		_ = input.Set("followUp", func(message any) error { return request.FollowUp(ctx, message) })
 	} else {
-		_ = input.Set("defer", func() error { return nil })
+		_ = input.Set("followUp", func(any) error { return nil })
+	}
+	if request.Edit != nil {
+		_ = input.Set("edit", func(message any) error { return request.Edit(ctx, message) })
+	} else {
+		_ = input.Set("edit", func(any) error { return nil })
+	}
+	if request.Defer != nil {
+		_ = input.Set("defer", func(message any) error { return request.Defer(ctx, message) })
+	} else {
+		_ = input.Set("defer", func(any) error { return nil })
 	}
 	return input
 }
@@ -453,6 +467,7 @@ func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind
 	setObjectField(vm, ctx, "options", input.Get("args"))
 	setObjectField(vm, ctx, "command", input.Get("command"))
 	setObjectField(vm, ctx, "interaction", input.Get("interaction"))
+	setObjectField(vm, ctx, "message", input.Get("message"))
 	setObjectField(vm, ctx, "user", input.Get("user"))
 	setObjectField(vm, ctx, "guild", input.Get("guild"))
 	setObjectField(vm, ctx, "channel", input.Get("channel"))
@@ -465,10 +480,20 @@ func buildContext(vm *goja.Runtime, store *MemoryStore, input *goja.Object, kind
 	} else {
 		_ = ctx.Set("reply", func(any) error { return nil })
 	}
+	if followUp := input.Get("followUp"); !goja.IsUndefined(followUp) && !goja.IsNull(followUp) {
+		_ = ctx.Set("followUp", followUp)
+	} else {
+		_ = ctx.Set("followUp", func(any) error { return nil })
+	}
+	if edit := input.Get("edit"); !goja.IsUndefined(edit) && !goja.IsNull(edit) {
+		_ = ctx.Set("edit", edit)
+	} else {
+		_ = ctx.Set("edit", func(any) error { return nil })
+	}
 	if def := input.Get("defer"); !goja.IsUndefined(def) && !goja.IsNull(def) {
 		_ = ctx.Set("defer", def)
 	} else {
-		_ = ctx.Set("defer", func() error { return nil })
+		_ = ctx.Set("defer", func(any) error { return nil })
 	}
 	return ctx
 }
