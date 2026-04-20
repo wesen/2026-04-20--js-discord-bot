@@ -11,42 +11,43 @@ func ResolveBot(selector string, discovered []DiscoveredBot) (DiscoveredBot, err
 	if selector == "" {
 		return DiscoveredBot{}, fmt.Errorf("bot selector is empty")
 	}
-
 	matches := make([]DiscoveredBot, 0, len(discovered))
 	for _, bot := range discovered {
-		fullPath := bot.FullPath()
-		if fullPath == selector || bot.Verb.Name == selector || bot.Verb.FunctionName == selector || strings.HasSuffix(fullPath, " "+selector) {
+		if bot.Name() == selector || bot.SourceLabel() == selector {
 			matches = append(matches, bot)
 		}
 	}
-
 	switch len(matches) {
 	case 0:
 		return DiscoveredBot{}, fmt.Errorf("bot %q not found", selector)
 	case 1:
 		return matches[0], nil
 	default:
-		paths := make([]string, 0, len(matches))
+		names := make([]string, 0, len(matches))
 		for _, bot := range matches {
-			paths = append(paths, bot.FullPath())
+			names = append(names, bot.Name())
 		}
-		sort.Strings(paths)
-		return DiscoveredBot{}, fmt.Errorf("bot selector %q is ambiguous: %s", selector, strings.Join(paths, ", "))
+		sort.Strings(names)
+		return DiscoveredBot{}, fmt.Errorf("bot selector %q is ambiguous: %s", selector, strings.Join(names, ", "))
 	}
 }
 
-func ResolveBotFromArgs(args []string, discovered []DiscoveredBot) (DiscoveredBot, []string, error) {
-	var lastErr error
-	for prefixLen := len(args); prefixLen >= 1; prefixLen-- {
-		selector := strings.Join(args[:prefixLen], " ")
+func ResolveBots(selectors []string, discovered []DiscoveredBot) ([]DiscoveredBot, error) {
+	ret := make([]DiscoveredBot, 0, len(selectors))
+	seen := map[string]struct{}{}
+	for _, selector := range selectors {
 		bot, err := ResolveBot(selector, discovered)
-		if err == nil {
-			return bot, args[prefixLen:], nil
+		if err != nil {
+			return nil, err
 		}
-		lastErr = err
+		if _, ok := seen[bot.Name()]; ok {
+			continue
+		}
+		seen[bot.Name()] = struct{}{}
+		ret = append(ret, bot)
 	}
-	if lastErr != nil {
-		return DiscoveredBot{}, nil, lastErr
+	if len(ret) == 0 {
+		return nil, fmt.Errorf("no bots selected")
 	}
-	return DiscoveredBot{}, nil, fmt.Errorf("no bot selector provided")
+	return ret, nil
 }

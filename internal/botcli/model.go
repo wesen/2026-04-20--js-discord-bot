@@ -3,8 +3,9 @@ package botcli
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
-	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
 const BotRepositoryFlag = "bot-repository"
@@ -20,49 +21,79 @@ type Repository struct {
 	RootDir   string
 }
 
-type ScannedRepository struct {
-	Repository Repository
-	Registry   *jsverbs.Registry
-}
-
 type DiscoveredBot struct {
-	Repository ScannedRepository
-	Verb       *jsverbs.VerbSpec
-}
-
-func (b DiscoveredBot) FullPath() string {
-	if b.Verb == nil {
-		return ""
-	}
-	return b.Verb.FullPath()
-}
-
-func (b DiscoveredBot) SourceRef() string {
-	if b.Verb == nil {
-		return b.Repository.Repository.Name
-	}
-	return b.Verb.SourceRef()
-}
-
-func (b DiscoveredBot) SourceLabel() string {
-	if b.Verb == nil || b.Verb.File == nil {
-		return b.Repository.Repository.Name
-	}
-	if b.Verb.File.AbsPath != "" {
-		if rel, err := filepath.Rel(b.Repository.Repository.RootDir, b.Verb.File.AbsPath); err == nil {
-			return filepath.ToSlash(rel)
-		}
-		return b.Verb.File.AbsPath
-	}
-	return b.Verb.File.RelPath
+	Repository Repository
+	Descriptor *jsdiscord.BotDescriptor
 }
 
 func (b DiscoveredBot) Validate() error {
-	if b.Repository.Registry == nil {
-		return fmt.Errorf("bot registry is nil")
+	if b.Descriptor == nil {
+		return fmt.Errorf("bot descriptor is nil")
 	}
-	if b.Verb == nil {
-		return fmt.Errorf("bot verb is nil")
+	if strings.TrimSpace(b.Descriptor.Name) == "" {
+		return fmt.Errorf("bot descriptor name is empty")
+	}
+	if strings.TrimSpace(b.Descriptor.ScriptPath) == "" {
+		return fmt.Errorf("bot descriptor script path is empty")
 	}
 	return nil
+}
+
+func (b DiscoveredBot) Name() string {
+	if b.Descriptor == nil {
+		return ""
+	}
+	return b.Descriptor.Name
+}
+
+func (b DiscoveredBot) Description() string {
+	if b.Descriptor == nil {
+		return ""
+	}
+	return b.Descriptor.Description
+}
+
+func (b DiscoveredBot) ScriptPath() string {
+	if b.Descriptor == nil {
+		return ""
+	}
+	return b.Descriptor.ScriptPath
+}
+
+func (b DiscoveredBot) SourceLabel() string {
+	if b.Descriptor == nil || strings.TrimSpace(b.Descriptor.ScriptPath) == "" {
+		return b.Repository.Name
+	}
+	if rel, err := filepath.Rel(b.Repository.RootDir, b.Descriptor.ScriptPath); err == nil {
+		return filepath.ToSlash(rel)
+	}
+	return b.Descriptor.ScriptPath
+}
+
+func (b DiscoveredBot) CommandNames() []string {
+	if b.Descriptor == nil {
+		return nil
+	}
+	ret := make([]string, 0, len(b.Descriptor.Commands))
+	for _, command := range b.Descriptor.Commands {
+		if strings.TrimSpace(command.Name) == "" {
+			continue
+		}
+		ret = append(ret, command.Name)
+	}
+	return ret
+}
+
+func (b DiscoveredBot) EventNames() []string {
+	if b.Descriptor == nil {
+		return nil
+	}
+	ret := make([]string, 0, len(b.Descriptor.Events))
+	for _, event := range b.Descriptor.Events {
+		if strings.TrimSpace(event.Name) == "" {
+			continue
+		}
+		ret = append(ret, event.Name)
+	}
+	return ret
 }

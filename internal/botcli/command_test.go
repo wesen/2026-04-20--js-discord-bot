@@ -2,14 +2,14 @@ package botcli
 
 import (
 	"bytes"
-	"os"
+	"context"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestListCommandOutputsDiscoveredBots(t *testing.T) {
+func TestListCommandOutputsNamedBots(t *testing.T) {
 	root := NewCommand()
 	var stdout bytes.Buffer
 	root.SetOut(&stdout)
@@ -19,116 +19,86 @@ func TestListCommandOutputsDiscoveredBots(t *testing.T) {
 	err := root.Execute()
 	require.NoError(t, err)
 	output := stdout.String()
-	require.Contains(t, output, "discord greet\tdiscord.js")
-	require.Contains(t, output, "issues list\tissues.js")
+	require.Contains(t, output, "knowledge-base")
+	require.Contains(t, output, "support")
+	require.Contains(t, output, "moderation")
+	require.Contains(t, output, "announcements")
 }
 
-func TestRunCommandExecutesStructuredBot(t *testing.T) {
+func TestHelpCommandShowsBotCommandsAndEvents(t *testing.T) {
 	root := NewCommand()
 	var stdout bytes.Buffer
 	root.SetOut(&stdout)
 	root.SetErr(&stdout)
-	root.SetArgs([]string{"run", "discord", "greet", "--bot-repository", examplesFixtureDir(t), "Manuel", "--excited"})
-
-	err := root.Execute()
-	require.NoError(t, err)
-	require.Contains(t, stdout.String(), "\"greeting\": \"Hello, Manuel!\"")
-}
-
-func TestRunCommandExecutesTextBot(t *testing.T) {
-	root := NewCommand()
-	var stdout bytes.Buffer
-	root.SetOut(&stdout)
-	root.SetErr(&stdout)
-	root.SetArgs([]string{"run", "discord", "banner", "--bot-repository", examplesFixtureDir(t), "Manuel"})
-
-	err := root.Execute()
-	require.NoError(t, err)
-	require.Equal(t, "*** Manuel ***\n", stdout.String())
-}
-
-func TestRunCommandSettlesAsyncBot(t *testing.T) {
-	root := NewCommand()
-	var stdout bytes.Buffer
-	root.SetOut(&stdout)
-	root.SetErr(&stdout)
-	root.SetArgs([]string{"run", "math", "multiply", "--bot-repository", examplesFixtureDir(t), "6", "7"})
-
-	err := root.Execute()
-	require.NoError(t, err)
-	require.Contains(t, stdout.String(), "\"product\": 42")
-}
-
-func TestRunCommandSupportsRelativeRequire(t *testing.T) {
-	root := NewCommand()
-	var stdout bytes.Buffer
-	root.SetOut(&stdout)
-	root.SetErr(&stdout)
-	root.SetArgs([]string{"run", "nested", "relay", "--bot-repository", examplesFixtureDir(t), "hi", "there"})
-
-	err := root.Execute()
-	require.NoError(t, err)
-	require.Contains(t, stdout.String(), "\"value\": \"hi:there\"")
-}
-
-func TestHelpCommandShowsVerbFlags(t *testing.T) {
-	root := NewCommand()
-	var stdout bytes.Buffer
-	root.SetOut(&stdout)
-	root.SetErr(&stdout)
-	root.SetArgs([]string{"help", "issues", "list", "--bot-repository", examplesFixtureDir(t)})
+	root.SetArgs([]string{"help", "knowledge-base", "--bot-repository", examplesFixtureDir(t)})
 
 	err := root.Execute()
 	require.NoError(t, err)
 	output := stdout.String()
-	require.Contains(t, output, "discord-bot bots run issues list")
-	require.Contains(t, output, "--state")
-	require.Contains(t, output, "--labels")
+	require.Contains(t, output, "Bot: knowledge-base")
+	require.Contains(t, output, "kb-search")
+	require.Contains(t, output, "messageCreate")
 }
 
-func TestListCommandAllowsEmptyRepository(t *testing.T) {
-	emptyDir := t.TempDir()
+func TestRunCommandResolvesMultipleNamedBots(t *testing.T) {
 	root := NewCommand()
 	var stdout bytes.Buffer
 	root.SetOut(&stdout)
 	root.SetErr(&stdout)
-	root.SetArgs([]string{"list", "--bot-repository", emptyDir})
+
+	var captured RunRequest
+	previous := runSelectedBotsFn
+	runSelectedBotsFn = func(ctx context.Context, request RunRequest) error {
+		captured = request
+		return nil
+	}
+	defer func() { runSelectedBotsFn = previous }()
+
+	root.SetArgs([]string{
+		"run", "knowledge-base", "support",
+		"--bot-repository", examplesFixtureDir(t),
+		"--bot-token", "test-token",
+		"--application-id", "test-app",
+		"--guild-id", "123",
+		"--sync-on-start",
+	})
 
 	err := root.Execute()
 	require.NoError(t, err)
-	require.Equal(t, "", stdout.String())
+	require.Len(t, captured.Bots, 2)
+	require.Equal(t, "knowledge-base", captured.Bots[0].Name())
+	require.Equal(t, "support", captured.Bots[1].Name())
+	require.True(t, captured.SyncOnStart)
+	require.Equal(t, "test-token", captured.Config.BotToken)
+	require.Equal(t, "test-app", captured.Config.ApplicationID)
+	require.Equal(t, "123", captured.Config.GuildID)
 }
 
-func TestListCommandRejectsDuplicateBotsAcrossRepositories(t *testing.T) {
+func TestListCommandRejectsDuplicateBotNames(t *testing.T) {
 	root := NewCommand()
 	var stdout bytes.Buffer
 	root.SetOut(&stdout)
 	root.SetErr(&stdout)
-	root.SetArgs([]string{"list", "--bot-repository", duplicateFixtureDir(t, "a"), "--bot-repository", duplicateFixtureDir(t, "b")})
+	root.SetArgs([]string{"list", "--bot-repository", duplicateNameFixtureDir(t, "a"), "--bot-repository", duplicateNameFixtureDir(t, "b")})
 
 	err := root.Execute()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "duplicate bot path")
-	require.Contains(t, err.Error(), "discord greet")
+	require.Contains(t, err.Error(), "duplicate bot name")
 }
 
 func examplesFixtureDir(t *testing.T) string {
 	t.Helper()
-	root := repoRoot(t)
-	return filepath.Join(root, "examples", "bots")
+	return filepath.Join(repoRoot(t), "examples", "discord-bots")
 }
 
-func duplicateFixtureDir(t *testing.T, suffix string) string {
+func duplicateNameFixtureDir(t *testing.T, suffix string) string {
 	t.Helper()
-	root := repoRoot(t)
-	return filepath.Join(root, "examples", "bots-dupe-"+suffix)
+	return filepath.Join(repoRoot(t), "testdata", "discord-bots-dupe-name-"+suffix)
 }
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
-	require.NoError(t, err)
-	_, err = os.Stat(root)
 	require.NoError(t, err)
 	return root
 }
