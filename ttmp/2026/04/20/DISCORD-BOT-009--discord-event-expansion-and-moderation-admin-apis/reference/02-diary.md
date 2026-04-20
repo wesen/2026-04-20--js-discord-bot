@@ -316,3 +316,19 @@ This step updated both the ticket reference doc and the example repository notes
 
 ### What should be done next
 - Decide whether Phase 2 should continue with `kick`, `ban`, and `unban`, or whether the next best step is the small operator/debug playbook task.
+
+## Step 7: Add an operator/debug playbook
+
+The last small planned documentation task for the current implementation scope was a playbook. By this point the ticket had enough real code that a maintainer or operator needed more than just architecture docs and changelog entries — they needed a concrete runbook for how to start the moderation example, what to test, and what logs to inspect.
+
+### What I did
+- Added `/home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/playbook/01-debugging-event-and-moderation-flows.md`.
+- Updated the ticket index to link to the new playbook.
+- Marked the playbook task complete in `tasks.md`.
+
+### Why
+- The ticket now has enough implemented event and moderation behavior that operators need a concise debugging guide, not just design/reference docs.
+- The playbook is also a good stopping point before deciding whether to add more destructive APIs.
+
+### What should be done next
+- Decide whether the next code slice should add `kick`, `ban`, and `unban`, or whether DISCORD-BOT-009 should pause here with the current safer moderation surface.

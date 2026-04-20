@@ -60,3 +60,11 @@ Added the operator-facing documentation slice for the newly implemented DISCORD-
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/reference/01-discord-event-expansion-and-moderation-admin-apis-api-reference-and-planning-notes.md — Updated API reference with implemented event and member-moderation surfaces plus operational caveats
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Added gateway-intent, permission, and timeout-surface notes for operators using the moderation example bot
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/tasks.md — Marked the documentation and operator-guidance tasks completed for the current slice
+
+Added a focused operator/debug playbook for the currently implemented DISCORD-BOT-009 surfaces. The playbook gives a concrete startup command, expected commands/events, event-testing checklist, moderation command debugging checklist, and a short escalation path to the most relevant files when dispatch or host moderation operations do not behave as expected.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/playbook/01-debugging-event-and-moderation-flows.md — Operator/debug runbook for event and moderation validation
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/index.md — Updated ticket index to link to the new playbook
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/ttmp/2026/04/20/DISCORD-BOT-009--discord-event-expansion-and-moderation-admin-apis/tasks.md — Marked the playbook task complete

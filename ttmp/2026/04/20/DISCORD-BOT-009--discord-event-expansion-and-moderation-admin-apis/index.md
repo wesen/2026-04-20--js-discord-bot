@@ -42,5 +42,6 @@ This ticket groups the next operationally important Discord surfaces after riche
 - `design-doc/01-discord-event-expansion-and-moderation-admin-apis-architecture-and-implementation-guide.md`
 - `reference/01-discord-event-expansion-and-moderation-admin-apis-api-reference-and-planning-notes.md`
 - `reference/02-diary.md`
+- `playbook/01-debugging-event-and-moderation-flows.md`
 - `tasks.md`
 - `changelog.md`

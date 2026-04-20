@@ -57,4 +57,4 @@
 - [x] Add one moderation-oriented example bot that uses the new event and admin surfaces
 - [x] Document privileged intent requirements (`GuildMembers`, reaction intents where needed)
 - [x] Document permission expectations and common failure modes
-- [ ] Add a small operator/debug playbook for tracing event and moderation flows
+- [x] Add a small operator/debug playbook for tracing event and moderation flows
