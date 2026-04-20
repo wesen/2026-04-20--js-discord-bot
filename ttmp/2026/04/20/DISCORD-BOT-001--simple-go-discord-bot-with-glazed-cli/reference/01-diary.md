@@ -167,6 +167,8 @@ THen work through the tasks, commit at appropriate intervals, keep a detailed di
 
 **Inferred user intent:** Move from design docs into a working Go codebase with validated env loading and a documented implementation trail.
 
+**Commit (code):** c2c1b6b — "Bootstrap Discord bot CLI and docs"
+
 ### What I did
 - Added detailed implementation tasks to the ticket.
 - Read the Glazed help topics for environment/config loading.
