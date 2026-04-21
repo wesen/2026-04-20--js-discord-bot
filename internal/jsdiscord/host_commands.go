@@ -177,6 +177,13 @@ func optionSpecToDiscord(name string, raw any) (*discordgo.ApplicationCommandOpt
 	if maxValue, ok := floatValue(mapping["maxValue"]); ok {
 		ret.MaxValue = maxValue
 	}
+	if optionType == discordgo.ApplicationCommandOptionSubCommand || optionType == discordgo.ApplicationCommandOptionSubCommandGroup {
+		nested, err := applicationCommandOptions(mapping)
+		if err != nil {
+			return nil, fmt.Errorf("option %s: %w", name, err)
+		}
+		ret.Options = nested
+	}
 	return ret, nil
 }
 
