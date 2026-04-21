@@ -9,6 +9,10 @@ topics:
       description: JavaScript runtime, APIs, and script-hosting work
     - slug: goja
       description: goja runtime integration and embedding work
+    - slug: go
+      description: Go language and Go implementation details
+    - slug: architecture
+      description: System architecture and structural design concerns
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
