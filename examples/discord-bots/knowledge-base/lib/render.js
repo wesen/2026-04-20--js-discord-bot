@@ -19,18 +19,37 @@ function formatTags(tags) {
 }
 
 function formatSource(entry) {
+  return formatSourceCitation(entry)
+}
+
+function formatSourceCitation(entry) {
   if (!entry || !entry.source) {
     return "(unknown)"
   }
   const source = entry.source
   const parts = []
   if (source.kind) parts.push(source.kind)
+  if (source.jumpUrl) parts.push(`[jump](${source.jumpUrl})`)
   if (source.guildId) parts.push(`guild ${source.guildId}`)
   if (source.channelId) parts.push(`channel ${source.channelId}`)
   if (source.messageId) parts.push(`message ${source.messageId}`)
-  if (source.jumpUrl) parts.push(source.jumpUrl)
-  if (source.note) parts.push(source.note)
   return parts.join(" • ") || "(unknown)"
+}
+
+function formatSourceDetails(entry) {
+  if (!entry || !entry.source) {
+    return "(unknown)"
+  }
+  const source = entry.source
+  const lines = []
+  if (source.kind) lines.push(`kind: ${source.kind}`)
+  if (source.guildId) lines.push(`guild: ${source.guildId}`)
+  if (source.channelId) lines.push(`channel: ${source.channelId}`)
+  if (source.messageId) lines.push(`message: ${source.messageId}`)
+  if (source.authorId) lines.push(`author: ${source.authorId}`)
+  if (source.jumpUrl) lines.push(`jump: ${source.jumpUrl}`)
+  if (source.note) lines.push(`note: ${source.note}`)
+  return lines.join("\n") || "(unknown)"
 }
 
 function knowledgeEmbed(entry) {
@@ -43,7 +62,8 @@ function knowledgeEmbed(entry) {
       { name: "Confidence", value: confidenceLabel(entry.confidence), inline: true },
       { name: "Tags", value: formatTags(entry.tags), inline: false },
       { name: "Aliases", value: formatAliases(entry.aliases), inline: false },
-      { name: "Source", value: formatSource(entry), inline: false },
+      { name: "Source citation", value: formatSourceCitation(entry), inline: false },
+      { name: "Source details", value: formatSourceDetails(entry), inline: false },
     ],
   }
 }
@@ -66,13 +86,11 @@ function searchResults(query, entries) {
   }
   return {
     content: `Found ${results.length} knowledge entr${results.length === 1 ? "y" : "ies"} for ${query}.`,
-    embeds: [
-      {
-        title: `Search results for ${query}`,
-        description: results.map((entry) => renderResultLine(entry)).join("\n"),
-        color: 0x5865F2,
-      },
-    ],
+    embeds: results.map((entry, index) => searchResultCard(entry, {
+      query,
+      total: results.length,
+      position: index + 1,
+    })),
     ephemeral: true,
   }
 }
@@ -89,6 +107,44 @@ function recentResults(title, entries) {
       },
     ],
     ephemeral: true,
+  }
+}
+
+function searchResultCard(entry, meta) {
+  const embed = knowledgeEmbed(entry)
+  const fields = Array.isArray(embed.fields) ? embed.fields.slice() : []
+  fields.unshift({ name: "Entry ID", value: String(entry && entry.id || "(unknown)"), inline: false })
+  const next = { ...embed, fields }
+  if (meta) {
+    const footerParts = []
+    if (meta.query) footerParts.push(`Search: ${meta.query}`)
+    if (meta.position && meta.total) footerParts.push(`Result ${meta.position}/${meta.total}`)
+    if (meta.position && !meta.total) footerParts.push(`Result ${meta.position}`)
+    if (meta.total && !meta.position) footerParts.push(`Total ${meta.total}`)
+    if (footerParts.length > 0) {
+      next.footer = { text: footerParts.join(" · ") }
+    }
+  }
+  return next
+}
+
+function sourceDetailsEmbed(entry, title) {
+  if (!entry) {
+    return {
+      title: title || "Source details",
+      description: "(unknown)",
+      color: 0x95A5A6,
+    }
+  }
+  return {
+    title: title || `${entry.title || "Untitled knowledge"} source`,
+    description: formatSourceDetails(entry),
+    color: statusColor(entry.status),
+    fields: [
+      { name: "Entry ID", value: String(entry.id || "(unknown)"), inline: false },
+      { name: "Status", value: String(entry.status || "draft"), inline: true },
+      { name: "Citation", value: formatSourceCitation(entry), inline: false },
+    ],
   }
 }
 
@@ -141,10 +197,14 @@ module.exports = {
   statusColor,
   formatTags,
   formatSource,
+  formatSourceCitation,
+  formatSourceDetails,
   knowledgeEmbed,
   knowledgeAnnouncement,
   searchResults,
   recentResults,
+  searchResultCard,
+  sourceDetailsEmbed,
   reviewQueue,
   confidenceLabel,
   formatAliases,

@@ -23,7 +23,12 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 		"trustedReviewerIds":    "user-2",
 	}
 
-	var replies []any
+	var (
+		replies          []any
+		searchDefers     []any
+		searchEdits      []any
+		searchFollowUps  []any
+	)
 	_, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name: "messageCreate",
 		Message: map[string]any{
@@ -70,6 +75,9 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	searchResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name:   "kb-search",
 		Args:   map[string]any{"query": "sqlite"},
+		User:   map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:  map[string]any{"id": "guild-1"},
+		Channel: map[string]any{"id": "channel-1"},
 		Config: config,
 	})
 	require.NoError(t, err)
@@ -77,7 +85,81 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	require.Contains(t, fmt.Sprint(searchMap["content"]), "sqlite")
 	searchEmbeds := searchMap["embeds"].([]any)
 	require.NotEmpty(t, searchEmbeds)
-	require.Contains(t, fmt.Sprint(searchEmbeds[0]), "Here is the fix")
+	searchEmbed := searchEmbeds[0].(map[string]any)
+	searchFields := searchEmbed["fields"].([]any)
+	require.NotEmpty(t, searchFields)
+	searchEntryID := extractFieldValue(searchFields, "Entry ID")
+	require.NotEmpty(t, searchEntryID)
+	require.Contains(t, extractFieldValue(searchFields, "Source citation"), "channel-1")
+	require.Contains(t, extractFieldValue(searchFields, "Source details"), "msg-1")
+	require.Contains(t, fmt.Sprint(searchEmbed["footer"]), "Search: sqlite")
+	searchComponents := searchMap["components"].([]any)
+	require.Len(t, searchComponents, 2)
+	require.Contains(t, fmt.Sprint(searchComponents[0]), "knowledge:search:select")
+	require.Contains(t, fmt.Sprint(searchComponents[1]), "knowledge:search:export")
+
+	searchSelectResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:        "knowledge:search:select",
+		Values:      []string{searchEntryID},
+		Config:      config,
+		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:       map[string]any{"id": "guild-1"},
+		Channel:     map[string]any{"id": "channel-1"},
+		Interaction: map[string]any{"id": "interaction-search-select"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, fmt.Sprint(searchSelectResult), "Selected")
+
+	searchSourceResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:        "knowledge:search:source",
+		Config:      config,
+		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:       map[string]any{"id": "guild-1"},
+		Channel:     map[string]any{"id": "channel-1"},
+		Interaction: map[string]any{"id": "interaction-search-source"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, fmt.Sprint(searchSourceResult), "source citation")
+	require.Contains(t, fmt.Sprint(searchSourceResult), "msg-1")
+
+	searchOpenResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:        "knowledge:search:open",
+		Config:      config,
+		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:       map[string]any{"id": "guild-1"},
+		Channel:     map[string]any{"id": "channel-1"},
+		Interaction: map[string]any{"id": "interaction-search-open"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, fmt.Sprint(searchOpenResult), "Opened knowledge entry")
+
+	_, err = handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:        "knowledge:search:export",
+		Config:      config,
+		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:       map[string]any{"id": "guild-1"},
+		Channel:     map[string]any{"id": "channel-1"},
+		Interaction: map[string]any{"id": "interaction-search-export"},
+		Defer: func(_ context.Context, value any) error {
+			searchDefers = append(searchDefers, value)
+			return nil
+		},
+		Edit: func(_ context.Context, value any) error {
+			searchEdits = append(searchEdits, value)
+			return nil
+		},
+		FollowUp: func(_ context.Context, value any) error {
+			searchFollowUps = append(searchFollowUps, value)
+			return nil
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, searchDefers, 1)
+	require.Len(t, searchFollowUps, 1)
+	require.Len(t, searchEdits, 1)
+	require.Contains(t, fmt.Sprint(searchFollowUps[0]), "Shared from /ask for sqlite")
+	require.Contains(t, fmt.Sprint(searchFollowUps[0]), "Here is the fix")
+	require.Contains(t, fmt.Sprint(searchEdits[0]), "Exported")
 
 	reviewResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name:   "kb-review",
@@ -92,7 +174,7 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	reviewFields := reviewEmbed["fields"].([]any)
 	require.NotEmpty(t, reviewFields)
 	entryID := extractFieldValue(reviewFields, "Entry ID")
-	require.NotEmpty(t, entryID)
+	require.Equal(t, searchEntryID, entryID)
 	statusBefore := extractFieldValue(reviewFields, "Status")
 	require.Equal(t, "review", statusBefore)
 	components := reviewMap["components"].([]any)

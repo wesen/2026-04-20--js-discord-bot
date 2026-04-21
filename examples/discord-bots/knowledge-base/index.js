@@ -3,6 +3,7 @@ const { createKnowledgeStore } = require("./lib/store")
 const capture = require("./lib/capture")
 const render = require("./lib/render")
 const review = require("./lib/review")
+const search = require("./lib/search")
 const reactions = require("./lib/reactions")
 
 const store = createKnowledgeStore()
@@ -119,8 +120,12 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
       },
     },
   }, async (ctx) => {
-    const results = store.search(ctx.config, (ctx.args || {}).query, 5)
-    return render.searchResults((ctx.args || {}).query, results)
+    store.ensure(ctx.config)
+    const query = String((ctx.args || {}).query || "").trim()
+    const limit = Number((ctx.config || {}).reviewLimit || 5)
+    const results = store.search(ctx.config, query, limit)
+    const state = search.stateFromSearchCommand(ctx, query, limit, results)
+    return search.buildSearchMessage(query, results, state)
   })
 
   command("kb-search", {
@@ -133,8 +138,12 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
       },
     },
   }, async (ctx) => {
-    const results = store.search(ctx.config, (ctx.args || {}).query, 5)
-    return render.searchResults((ctx.args || {}).query, results)
+    store.ensure(ctx.config)
+    const query = String((ctx.args || {}).query || "").trim()
+    const limit = Number((ctx.config || {}).reviewLimit || 5)
+    const results = store.search(ctx.config, query, limit)
+    const state = search.stateFromSearchCommand(ctx, query, limit, results)
+    return search.buildSearchMessage(query, results, state)
   })
 
   command("article", {
@@ -394,6 +403,53 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
     }
     review.setReviewSelection(ctx, updated.id)
     return render.knowledgeAnnouncement(updated, "Updated")
+  })
+
+  component(search.SEARCH_COMPONENTS.select, async (ctx) => {
+    store.ensure(ctx.config)
+    const selectedId = firstValue(ctx.values)
+    if (!selectedId) {
+      return { content: "Please choose a knowledge entry from the search dropdown.", ephemeral: true }
+    }
+    search.setSearchSelection(ctx, selectedId)
+    const state = search.loadSearchState(ctx)
+    const entries = search.searchEntries(ctx, store)
+    const current = entries.find((entry) => entry && entry.id === selectedId) || search.currentSearchEntry(ctx, store)
+    if (!current) {
+      return { content: "No search result is currently available.", ephemeral: true }
+    }
+    const position = entries.findIndex((entry) => entry && entry.id === current.id)
+    return search.searchReply(current, { query: state.query, total: entries.length, position: position >= 0 ? position + 1 : undefined })
+  })
+
+  component(search.SEARCH_COMPONENTS.open, async (ctx) => {
+    store.ensure(ctx.config)
+    const entry = search.currentSearchEntry(ctx, store)
+    if (!entry) {
+      return { content: "No search result is currently selected.", ephemeral: true }
+    }
+    return render.knowledgeAnnouncement(entry, "Opened")
+  })
+
+  component(search.SEARCH_COMPONENTS.source, async (ctx) => {
+    store.ensure(ctx.config)
+    const entry = search.currentSearchEntry(ctx, store)
+    return search.searchSourceReply(entry)
+  })
+
+  component(search.SEARCH_COMPONENTS.export, async (ctx) => {
+    store.ensure(ctx.config)
+    const entry = search.currentSearchEntry(ctx, store)
+    if (!entry) {
+      return { content: "No search result is currently selected.", ephemeral: true }
+    }
+    const state = search.loadSearchState(ctx)
+    await ctx.defer({ ephemeral: true })
+    await ctx.followUp(search.searchExportPayload(entry, state.query))
+    await ctx.edit({
+      content: `Exported **${entry.title || "knowledge entry"}** into the channel from ${state.query ? `search for ${state.query}` : "search results"}.`,
+      embeds: [search.renderSearchResultCard(entry, { query: state.query, total: 1, position: 1 })],
+    })
   })
 
   reactions.registerReactionPromotions({ event }, store, render)

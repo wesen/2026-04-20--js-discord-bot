@@ -261,13 +261,15 @@ function formatSource(entry) {
     return "(unknown)"
   }
   const source = entry.source
-  const parts = []
-  if (source.guildId) parts.push(`guild ${source.guildId}`)
-  if (source.channelId) parts.push(`channel ${source.channelId}`)
-  if (source.messageId) parts.push(`message ${source.messageId}`)
-  if (source.jumpUrl) parts.push(source.jumpUrl)
-  if (source.note) parts.push(source.note)
-  return parts.join(" • ") || "(unknown)"
+  const lines = []
+  if (source.kind) lines.push(`kind: ${source.kind}`)
+  if (source.guildId) lines.push(`guild: ${source.guildId}`)
+  if (source.channelId) lines.push(`channel: ${source.channelId}`)
+  if (source.messageId) lines.push(`message: ${source.messageId}`)
+  if (source.authorId) lines.push(`author: ${source.authorId}`)
+  if (source.jumpUrl) lines.push(`jump: ${source.jumpUrl}`)
+  if (source.note) lines.push(`note: ${source.note}`)
+  return lines.join("\n") || "(unknown)"
 }
 
 function buildReviewComponents(entries, state) {
