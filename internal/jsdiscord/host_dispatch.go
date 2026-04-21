@@ -8,22 +8,43 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func (h *Host) baseDispatchRequest(session *discordgo.Session) DispatchRequest {
+	return DispatchRequest{
+		Metadata: map[string]any{"scriptPath": h.scriptPath},
+		Config:   cloneMap(h.runtimeConfig),
+		Discord:  buildDiscordOps(h.scriptPath, session),
+		Me:       currentUserMap(session),
+	}
+}
+
+func withChannelResponder(req DispatchRequest, r *channelResponder) DispatchRequest {
+	req.Reply = r.Reply
+	req.FollowUp = r.FollowUp
+	req.Edit = r.Edit
+	req.Defer = r.Defer
+	return req
+}
+
+func withInteractionResponder(req DispatchRequest, r *interactionResponder) DispatchRequest {
+	req.Reply = r.Reply
+	req.FollowUp = r.FollowUp
+	req.Edit = r.Edit
+	req.Defer = r.Defer
+	req.ShowModal = r.ShowModal
+	return req
+}
+
 func (h *Host) DispatchReady(ctx context.Context, session *discordgo.Session, ready *discordgo.Ready) error {
 	_ = session
 	if h == nil || h.handle == nil || ready == nil {
 		return nil
 	}
-	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "ready",
-		Me:       userMap(ready.User),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Command:  map[string]any{"event": "ready"},
-		Interaction: map[string]any{
-			"type": "ready",
-		},
-		Discord: buildDiscordOps(h.scriptPath, session),
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "ready"
+	req.Me = userMap(ready.User)
+	req.Command = map[string]any{"event": "ready"}
+	req.Interaction = map[string]any{"type": "ready"}
+	_, err := h.handle.DispatchEvent(ctx, req)
 	return err
 }
 
@@ -32,15 +53,11 @@ func (h *Host) DispatchGuildCreate(ctx context.Context, session *discordgo.Sessi
 	if h == nil || h.handle == nil || guild == nil || guild.Guild == nil {
 		return nil
 	}
-	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "guildCreate",
-		Guild:    guildCreateMap(guild),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Command:  map[string]any{"event": "guildCreate"},
-		Discord:  buildDiscordOps(h.scriptPath, session),
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "guildCreate"
+	req.Guild = guildCreateMap(guild)
+	req.Command = map[string]any{"event": "guildCreate"}
+	_, err := h.handle.DispatchEvent(ctx, req)
 	return err
 }
 
@@ -48,17 +65,13 @@ func (h *Host) DispatchGuildMemberAdd(ctx context.Context, session *discordgo.Se
 	if h == nil || h.handle == nil || member == nil || member.Member == nil {
 		return nil
 	}
-	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "guildMemberAdd",
-		Member:   memberMap(member.Member),
-		User:     userMap(member.User),
-		Guild:    guildMap(member.GuildID),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Command:  map[string]any{"event": "guildMemberAdd"},
-		Discord:  buildDiscordOps(h.scriptPath, session),
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "guildMemberAdd"
+	req.Member = memberMap(member.Member)
+	req.User = userMap(member.User)
+	req.Guild = guildMap(member.GuildID)
+	req.Command = map[string]any{"event": "guildMemberAdd"}
+	_, err := h.handle.DispatchEvent(ctx, req)
 	return err
 }
 
@@ -66,18 +79,14 @@ func (h *Host) DispatchGuildMemberUpdate(ctx context.Context, session *discordgo
 	if h == nil || h.handle == nil || member == nil || member.Member == nil {
 		return nil
 	}
-	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "guildMemberUpdate",
-		Member:   memberMap(member.Member),
-		Before:   memberMap(member.BeforeUpdate),
-		User:     userMap(member.User),
-		Guild:    guildMap(member.GuildID),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Command:  map[string]any{"event": "guildMemberUpdate"},
-		Discord:  buildDiscordOps(h.scriptPath, session),
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "guildMemberUpdate"
+	req.Member = memberMap(member.Member)
+	req.Before = memberMap(member.BeforeUpdate)
+	req.User = userMap(member.User)
+	req.Guild = guildMap(member.GuildID)
+	req.Command = map[string]any{"event": "guildMemberUpdate"}
+	_, err := h.handle.DispatchEvent(ctx, req)
 	return err
 }
 
@@ -85,17 +94,13 @@ func (h *Host) DispatchGuildMemberRemove(ctx context.Context, session *discordgo
 	if h == nil || h.handle == nil || member == nil || member.Member == nil {
 		return nil
 	}
-	_, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "guildMemberRemove",
-		Member:   memberMap(member.Member),
-		User:     userMap(member.User),
-		Guild:    guildMap(member.GuildID),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Command:  map[string]any{"event": "guildMemberRemove"},
-		Discord:  buildDiscordOps(h.scriptPath, session),
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "guildMemberRemove"
+	req.Member = memberMap(member.Member)
+	req.User = userMap(member.User)
+	req.Guild = guildMap(member.GuildID)
+	req.Command = map[string]any{"event": "guildMemberRemove"}
+	_, err := h.handle.DispatchEvent(ctx, req)
 	return err
 }
 
@@ -104,21 +109,14 @@ func (h *Host) DispatchMessageCreate(ctx context.Context, session *discordgo.Ses
 		return nil
 	}
 	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
-	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "messageCreate",
-		Message:  messageMap(message.Message),
-		User:     userMap(message.Author),
-		Guild:    guildMap(message.GuildID),
-		Channel:  channelMap(message.ChannelID),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Discord:  buildDiscordOps(h.scriptPath, session),
-		Reply:    responder.Reply,
-		FollowUp: responder.FollowUp,
-		Edit:     responder.Edit,
-		Defer:    responder.Defer,
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "messageCreate"
+	req.Message = messageMap(message.Message)
+	req.User = userMap(message.Author)
+	req.Guild = guildMap(message.GuildID)
+	req.Channel = channelMap(message.ChannelID)
+	req = withChannelResponder(req, responder)
+	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -133,22 +131,15 @@ func (h *Host) DispatchMessageUpdate(ctx context.Context, session *discordgo.Ses
 		return nil
 	}
 	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
-	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "messageUpdate",
-		Message:  messageMap(message.Message),
-		Before:   messageMap(message.BeforeUpdate),
-		User:     userMap(message.Author),
-		Guild:    guildMap(message.GuildID),
-		Channel:  channelMap(message.ChannelID),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Discord:  buildDiscordOps(h.scriptPath, session),
-		Reply:    responder.Reply,
-		FollowUp: responder.FollowUp,
-		Edit:     responder.Edit,
-		Defer:    responder.Defer,
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "messageUpdate"
+	req.Message = messageMap(message.Message)
+	req.Before = messageMap(message.BeforeUpdate)
+	req.User = userMap(message.Author)
+	req.Guild = guildMap(message.GuildID)
+	req.Channel = channelMap(message.ChannelID)
+	req = withChannelResponder(req, responder)
+	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -163,21 +154,14 @@ func (h *Host) DispatchMessageDelete(ctx context.Context, session *discordgo.Ses
 		return nil
 	}
 	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
-	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "messageDelete",
-		Message:  messageDeleteMap(message),
-		Before:   messageMap(message.BeforeDelete),
-		Guild:    guildMap(message.GuildID),
-		Channel:  channelMap(message.ChannelID),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Discord:  buildDiscordOps(h.scriptPath, session),
-		Reply:    responder.Reply,
-		FollowUp: responder.FollowUp,
-		Edit:     responder.Edit,
-		Defer:    responder.Defer,
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "messageDelete"
+	req.Message = messageDeleteMap(message)
+	req.Before = messageMap(message.BeforeDelete)
+	req.Guild = guildMap(message.GuildID)
+	req.Channel = channelMap(message.ChannelID)
+	req = withChannelResponder(req, responder)
+	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -192,23 +176,16 @@ func (h *Host) DispatchReactionAdd(ctx context.Context, session *discordgo.Sessi
 		return nil
 	}
 	responder := newChannelResponder(session, reaction.ChannelID, h.scriptPath)
-	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "reactionAdd",
-		Message:  map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID},
-		User:     userRefMap(reaction.UserID),
-		Guild:    guildMap(reaction.GuildID),
-		Channel:  channelMap(reaction.ChannelID),
-		Member:   memberMap(reaction.Member),
-		Reaction: reactionMap(reaction.MessageReaction),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Discord:  buildDiscordOps(h.scriptPath, session),
-		Reply:    responder.Reply,
-		FollowUp: responder.FollowUp,
-		Edit:     responder.Edit,
-		Defer:    responder.Defer,
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "reactionAdd"
+	req.Message = map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID}
+	req.User = userRefMap(reaction.UserID)
+	req.Guild = guildMap(reaction.GuildID)
+	req.Channel = channelMap(reaction.ChannelID)
+	req.Member = memberMap(reaction.Member)
+	req.Reaction = reactionMap(reaction.MessageReaction)
+	req = withChannelResponder(req, responder)
+	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -223,22 +200,15 @@ func (h *Host) DispatchReactionRemove(ctx context.Context, session *discordgo.Se
 		return nil
 	}
 	responder := newChannelResponder(session, reaction.ChannelID, h.scriptPath)
-	result, err := h.handle.DispatchEvent(ctx, DispatchRequest{
-		Name:     "reactionRemove",
-		Message:  map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID},
-		User:     userRefMap(reaction.UserID),
-		Guild:    guildMap(reaction.GuildID),
-		Channel:  channelMap(reaction.ChannelID),
-		Reaction: reactionMap(reaction.MessageReaction),
-		Me:       currentUserMap(session),
-		Metadata: map[string]any{"scriptPath": h.scriptPath},
-		Config:   cloneMap(h.runtimeConfig),
-		Discord:  buildDiscordOps(h.scriptPath, session),
-		Reply:    responder.Reply,
-		FollowUp: responder.FollowUp,
-		Edit:     responder.Edit,
-		Defer:    responder.Defer,
-	})
+	req := h.baseDispatchRequest(session)
+	req.Name = "reactionRemove"
+	req.Message = map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID}
+	req.User = userRefMap(reaction.UserID)
+	req.Guild = guildMap(reaction.GuildID)
+	req.Channel = channelMap(reaction.ChannelID)
+	req.Reaction = reactionMap(reaction.MessageReaction)
+	req = withChannelResponder(req, responder)
+	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -275,25 +245,17 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 					args["target"] = userMap(targetUser)
 				}
 			}
-			result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
-				Name:        data.Name,
-				Args:        args,
-				Command:     map[string]any{"name": data.Name, "id": data.ID, "type": "user"},
-				Interaction: interactionMap(interaction),
-				Message:     messageMap(interaction.Message),
-				User:        interactionUserMap(interaction),
-				Guild:       guildMap(interaction.GuildID),
-				Channel:     channelMap(interaction.ChannelID),
-				Me:          currentUserMap(session),
-				Metadata:    map[string]any{"scriptPath": h.scriptPath},
-				Config:      cloneMap(h.runtimeConfig),
-				Discord:     buildDiscordOps(h.scriptPath, session),
-				Reply:       responder.Reply,
-				FollowUp:    responder.FollowUp,
-				Edit:        responder.Edit,
-				Defer:       responder.Defer,
-				ShowModal:   responder.ShowModal,
-			})
+			req := h.baseDispatchRequest(session)
+			req.Name = data.Name
+			req.Args = args
+			req.Command = map[string]any{"name": data.Name, "id": data.ID, "type": "user"}
+			req.Interaction = interactionMap(interaction)
+			req.Message = messageMap(interaction.Message)
+			req.User = interactionUserMap(interaction)
+			req.Guild = guildMap(interaction.GuildID)
+			req.Channel = channelMap(interaction.ChannelID)
+			req = withInteractionResponder(req, responder)
+			result, err := h.handle.DispatchCommand(ctx, req)
 			if err != nil {
 				if !responder.Acknowledged() {
 					_ = responder.Reply(ctx, map[string]any{"content": "user command failed: " + err.Error(), "ephemeral": true})
@@ -312,25 +274,17 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 					args["target"] = messageMap(targetMessage)
 				}
 			}
-			result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
-				Name:        data.Name,
-				Args:        args,
-				Command:     map[string]any{"name": data.Name, "id": data.ID, "type": "message"},
-				Interaction: interactionMap(interaction),
-				Message:     messageMap(interaction.Message),
-				User:        interactionUserMap(interaction),
-				Guild:       guildMap(interaction.GuildID),
-				Channel:     channelMap(interaction.ChannelID),
-				Me:          currentUserMap(session),
-				Metadata:    map[string]any{"scriptPath": h.scriptPath},
-				Config:      cloneMap(h.runtimeConfig),
-				Discord:     buildDiscordOps(h.scriptPath, session),
-				Reply:       responder.Reply,
-				FollowUp:    responder.FollowUp,
-				Edit:        responder.Edit,
-				Defer:       responder.Defer,
-				ShowModal:   responder.ShowModal,
-			})
+			req := h.baseDispatchRequest(session)
+			req.Name = data.Name
+			req.Args = args
+			req.Command = map[string]any{"name": data.Name, "id": data.ID, "type": "message"}
+			req.Interaction = interactionMap(interaction)
+			req.Message = messageMap(interaction.Message)
+			req.User = interactionUserMap(interaction)
+			req.Guild = guildMap(interaction.GuildID)
+			req.Channel = channelMap(interaction.ChannelID)
+			req = withInteractionResponder(req, responder)
+			result, err := h.handle.DispatchCommand(ctx, req)
 			if err != nil {
 				if !responder.Acknowledged() {
 					_ = responder.Reply(ctx, map[string]any{"content": "message command failed: " + err.Error(), "ephemeral": true})
@@ -348,27 +302,19 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			if len(data.Options) > 0 && data.Options[0].Type == discordgo.ApplicationCommandOptionSubCommand {
 				subName := data.Options[0].Name
 				subArgs := optionMap(data.Options[0].Options)
-				result, err := h.handle.DispatchSubcommand(ctx, DispatchRequest{
-					Name:        data.Name + "/" + subName,
-					RootName:    data.Name,
-					SubName:     subName,
-					Args:        subArgs,
-					Command:     map[string]any{"name": data.Name, "id": data.ID, "subName": subName},
-					Interaction: interactionMap(interaction),
-					Message:     messageMap(interaction.Message),
-					User:        interactionUserMap(interaction),
-					Guild:       guildMap(interaction.GuildID),
-					Channel:     channelMap(interaction.ChannelID),
-					Me:          currentUserMap(session),
-					Metadata:    map[string]any{"scriptPath": h.scriptPath},
-					Config:      cloneMap(h.runtimeConfig),
-					Discord:     buildDiscordOps(h.scriptPath, session),
-					Reply:       responder.Reply,
-					FollowUp:    responder.FollowUp,
-					Edit:        responder.Edit,
-					Defer:       responder.Defer,
-					ShowModal:   responder.ShowModal,
-				})
+				req := h.baseDispatchRequest(session)
+				req.Name = data.Name + "/" + subName
+				req.RootName = data.Name
+				req.SubName = subName
+				req.Args = subArgs
+				req.Command = map[string]any{"name": data.Name, "id": data.ID, "subName": subName}
+				req.Interaction = interactionMap(interaction)
+				req.Message = messageMap(interaction.Message)
+				req.User = interactionUserMap(interaction)
+				req.Guild = guildMap(interaction.GuildID)
+				req.Channel = channelMap(interaction.ChannelID)
+				req = withInteractionResponder(req, responder)
+				result, err := h.handle.DispatchSubcommand(ctx, req)
 				if err != nil {
 					if !responder.Acknowledged() {
 						_ = responder.Reply(ctx, map[string]any{"content": "subcommand failed: " + err.Error(), "ephemeral": true})
@@ -381,25 +327,17 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 				return nil
 			}
 
-			result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
-				Name:        data.Name,
-				Args:        args,
-				Command:     map[string]any{"name": data.Name, "id": data.ID},
-				Interaction: interactionMap(interaction),
-				Message:     messageMap(interaction.Message),
-				User:        interactionUserMap(interaction),
-				Guild:       guildMap(interaction.GuildID),
-				Channel:     channelMap(interaction.ChannelID),
-				Me:          currentUserMap(session),
-				Metadata:    map[string]any{"scriptPath": h.scriptPath},
-				Config:      cloneMap(h.runtimeConfig),
-				Discord:     buildDiscordOps(h.scriptPath, session),
-				Reply:       responder.Reply,
-				FollowUp:    responder.FollowUp,
-				Edit:        responder.Edit,
-				Defer:       responder.Defer,
-				ShowModal:   responder.ShowModal,
-			})
+			req := h.baseDispatchRequest(session)
+			req.Name = data.Name
+			req.Args = args
+			req.Command = map[string]any{"name": data.Name, "id": data.ID}
+			req.Interaction = interactionMap(interaction)
+			req.Message = messageMap(interaction.Message)
+			req.User = interactionUserMap(interaction)
+			req.Guild = guildMap(interaction.GuildID)
+			req.Channel = channelMap(interaction.ChannelID)
+			req = withInteractionResponder(req, responder)
+			result, err := h.handle.DispatchCommand(ctx, req)
 			if err != nil {
 				if !responder.Acknowledged() {
 					_ = responder.Reply(ctx, map[string]any{"content": "command failed: " + err.Error(), "ephemeral": true})
@@ -422,26 +360,18 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			Str("userId", interactionUserID(interaction)).
 			Msg("dispatching javascript interaction")
 		responder := newInteractionResponder(session, interaction, h.scriptPath)
-		result, err := h.handle.DispatchComponent(ctx, DispatchRequest{
-			Name:        data.CustomID,
-			Values:      componentValues(data),
-			Command:     map[string]any{"event": "component"},
-			Interaction: interactionMap(interaction),
-			Message:     messageMap(interaction.Message),
-			User:        interactionUserMap(interaction),
-			Guild:       guildMap(interaction.GuildID),
-			Channel:     channelMap(interaction.ChannelID),
-			Me:          currentUserMap(session),
-			Metadata:    map[string]any{"scriptPath": h.scriptPath},
-			Config:      cloneMap(h.runtimeConfig),
-			Discord:     buildDiscordOps(h.scriptPath, session),
-			Component:   componentMap(data),
-			Reply:       responder.Reply,
-			FollowUp:    responder.FollowUp,
-			Edit:        responder.Edit,
-			Defer:       responder.Defer,
-			ShowModal:   responder.ShowModal,
-		})
+		req := h.baseDispatchRequest(session)
+		req.Name = data.CustomID
+		req.Values = componentValues(data)
+		req.Command = map[string]any{"event": "component"}
+		req.Interaction = interactionMap(interaction)
+		req.Message = messageMap(interaction.Message)
+		req.User = interactionUserMap(interaction)
+		req.Guild = guildMap(interaction.GuildID)
+		req.Channel = channelMap(interaction.ChannelID)
+		req.Component = componentMap(data)
+		req = withInteractionResponder(req, responder)
+		result, err := h.handle.DispatchComponent(ctx, req)
 		if err != nil {
 			if !responder.Acknowledged() {
 				_ = responder.Reply(ctx, map[string]any{"content": "component failed: " + err.Error(), "ephemeral": true})
@@ -463,25 +393,21 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			Str("userId", interactionUserID(interaction)).
 			Msg("dispatching javascript interaction")
 		responder := newInteractionResponder(session, interaction, h.scriptPath)
-		result, err := h.handle.DispatchModal(ctx, DispatchRequest{
-			Name:        data.CustomID,
-			Values:      modalValues(data.Components),
-			Command:     map[string]any{"event": "modal"},
-			Interaction: interactionMap(interaction),
-			Message:     messageMap(interaction.Message),
-			User:        interactionUserMap(interaction),
-			Guild:       guildMap(interaction.GuildID),
-			Channel:     channelMap(interaction.ChannelID),
-			Me:          currentUserMap(session),
-			Metadata:    map[string]any{"scriptPath": h.scriptPath},
-			Config:      cloneMap(h.runtimeConfig),
-			Discord:     buildDiscordOps(h.scriptPath, session),
-			Modal:       map[string]any{"customId": data.CustomID},
-			Reply:       responder.Reply,
-			FollowUp:    responder.FollowUp,
-			Edit:        responder.Edit,
-			Defer:       responder.Defer,
-		})
+		req := h.baseDispatchRequest(session)
+		req.Name = data.CustomID
+		req.Values = modalValues(data.Components)
+		req.Command = map[string]any{"event": "modal"}
+		req.Interaction = interactionMap(interaction)
+		req.Message = messageMap(interaction.Message)
+		req.User = interactionUserMap(interaction)
+		req.Guild = guildMap(interaction.GuildID)
+		req.Channel = channelMap(interaction.ChannelID)
+		req.Modal = map[string]any{"customId": data.CustomID}
+		req.Reply = responder.Reply
+		req.FollowUp = responder.FollowUp
+		req.Edit = responder.Edit
+		req.Defer = responder.Defer
+		result, err := h.handle.DispatchModal(ctx, req)
 		if err != nil {
 			if !responder.Acknowledged() {
 				_ = responder.Reply(ctx, map[string]any{"content": "modal failed: " + err.Error(), "ephemeral": true})
@@ -506,20 +432,16 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 		if focused == nil {
 			return fmt.Errorf("autocomplete interaction for %q did not include a focused option", data.Name)
 		}
-		result, err := h.handle.DispatchAutocomplete(ctx, DispatchRequest{
-			Name:        data.Name,
-			Args:        optionMap(data.Options),
-			Command:     map[string]any{"name": data.Name, "id": data.ID},
-			Interaction: interactionMap(interaction),
-			User:        interactionUserMap(interaction),
-			Guild:       guildMap(interaction.GuildID),
-			Channel:     channelMap(interaction.ChannelID),
-			Me:          currentUserMap(session),
-			Metadata:    map[string]any{"scriptPath": h.scriptPath},
-			Config:      cloneMap(h.runtimeConfig),
-			Discord:     buildDiscordOps(h.scriptPath, session),
-			Focused:     focusedOptionMap(focused),
-		})
+		req := h.baseDispatchRequest(session)
+		req.Name = data.Name
+		req.Args = optionMap(data.Options)
+		req.Command = map[string]any{"name": data.Name, "id": data.ID}
+		req.Interaction = interactionMap(interaction)
+		req.User = interactionUserMap(interaction)
+		req.Guild = guildMap(interaction.GuildID)
+		req.Channel = channelMap(interaction.ChannelID)
+		req.Focused = focusedOptionMap(focused)
+		result, err := h.handle.DispatchAutocomplete(ctx, req)
 		if err != nil {
 			return fmt.Errorf("dispatch autocomplete %q for script %q: %w", data.Name, h.scriptPath, err)
 		}
