@@ -43,6 +43,13 @@ func applicationCommandFromSnapshot(snapshot map[string]any) (*discordgo.Applica
 	}
 }
 
+type optionDraft struct {
+	name     string
+	raw      any
+	required bool
+	order    int
+}
+
 func applicationCommandOptions(spec map[string]any) ([]*discordgo.ApplicationCommandOption, error) {
 	if len(spec) == 0 {
 		return nil, nil
@@ -50,12 +57,6 @@ func applicationCommandOptions(spec map[string]any) ([]*discordgo.ApplicationCom
 	rawOptions, ok := spec["options"]
 	if !ok || rawOptions == nil {
 		return nil, nil
-	}
-	type optionDraft struct {
-		name     string
-		raw      any
-		required bool
-		order    int
 	}
 	drafts := make([]optionDraft, 0)
 	appendDraft := func(name string, raw any, order int) error {
@@ -102,18 +103,8 @@ func applicationCommandOptions(spec map[string]any) ([]*discordgo.ApplicationCom
 			optional = append(optional, draft)
 		}
 	}
-	sort.SliceStable(required, func(i, j int) bool {
-		if required[i].name != required[j].name {
-			return required[i].name < required[j].name
-		}
-		return required[i].order < required[j].order
-	})
-	sort.SliceStable(optional, func(i, j int) bool {
-		if optional[i].name != optional[j].name {
-			return optional[i].name < optional[j].name
-		}
-		return optional[i].order < optional[j].order
-	})
+	sortOptionDrafts(required)
+	sortOptionDrafts(optional)
 	out := make([]*discordgo.ApplicationCommandOption, 0, len(drafts))
 	for _, draft := range append(required, optional...) {
 		child, err := optionSpecToDiscord(draft.name, draft.raw)
@@ -132,6 +123,15 @@ func optionRequired(raw any) bool {
 	}
 	required, _ := mapping["required"].(bool)
 	return required
+}
+
+func sortOptionDrafts(drafts []optionDraft) {
+	sort.SliceStable(drafts, func(i, j int) bool {
+		if drafts[i].name != drafts[j].name {
+			return drafts[i].name < drafts[j].name
+		}
+		return drafts[i].order < drafts[j].order
+	})
 }
 
 func optionSpecToDiscord(name string, raw any) (*discordgo.ApplicationCommandOption, error) {
