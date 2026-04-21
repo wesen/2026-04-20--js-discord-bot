@@ -24,21 +24,21 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	}
 
 	var (
-		replies          []any
-		searchDefers     []any
-		searchEdits      []any
-		searchFollowUps  []any
+		replies         []any
+		searchDefers    []any
+		searchEdits     []any
+		searchFollowUps []any
 	)
 	_, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name: "messageCreate",
-		Message: map[string]any{
-			"id":        "msg-1",
-			"content":   "Here is the fix:\n```js\ndb.configure(\"sqlite3\", \":memory:\")\n```\nUse /teach to save this knowledge.",
-			"guildID":   "guild-1",
-			"channelID": "channel-1",
-			"author":    map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Message: &MessageSnapshot{
+			ID:        "msg-1",
+			Content:   "Here is the fix:\n```js\ndb.configure(\"sqlite3\", \":memory:\")\n```\nUse /teach to save this knowledge.",
+			GuildID:   "guild-1",
+			ChannelID: "channel-1",
+			Author:    &UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		},
-		User:    map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 		Config:  config,
@@ -53,14 +53,14 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 
 	_, err = handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name: "messageCreate",
-		Message: map[string]any{
-			"id":        "msg-2",
-			"content":   "SQLite also stores the project notes for this bot so search can find them later.",
-			"guildID":   "guild-1",
-			"channelID": "channel-1",
-			"author":    map[string]any{"id": "user-3", "username": "Lin", "bot": false},
+		Message: &MessageSnapshot{
+			ID:        "msg-2",
+			Content:   "SQLite also stores the project notes for this bot so search can find them later.",
+			GuildID:   "guild-1",
+			ChannelID: "channel-1",
+			Author:    &UserSnapshot{ID: "user-3", Username: "Lin", Bot: false},
 		},
-		User:    map[string]any{"id": "user-3", "username": "Lin", "bot": false},
+		User:    UserSnapshot{ID: "user-3", Username: "Lin", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 		Config:  config,
@@ -74,16 +74,16 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 
 	_, err = handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name: "reactionAdd",
-		Message: map[string]any{
-			"id":        "msg-1",
-			"guildID":   "guild-1",
-			"channelID": "channel-1",
+		Message: &MessageSnapshot{
+			ID:        "msg-1",
+			GuildID:   "guild-1",
+			ChannelID: "channel-1",
 		},
-		User:    map[string]any{"id": "user-2", "username": "Reviewer", "bot": false},
+		User:    UserSnapshot{ID: "user-2", Username: "Reviewer", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Reaction: map[string]any{
-			"emoji": map[string]any{"name": "🧠", "animated": false},
+		Reaction: ReactionSnapshot{
+			Emoji: EmojiSnapshot{Name: "🧠", Animated: false},
 		},
 		Config: config,
 		Reply: func(_ context.Context, value any) error {
@@ -94,12 +94,12 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	require.NoError(t, err)
 
 	searchResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
-		Name:   "kb-search",
-		Args:   map[string]any{"query": "sqlite"},
-		User:   map[string]any{"id": "user-1", "username": "Ada", "bot": false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "kb-search",
+		Args:    map[string]any{"query": "sqlite"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 	searchMap := searchResult.(map[string]any)
@@ -126,10 +126,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 		Name:        "knowledge:search:select",
 		Values:      []string{searchEntryID},
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-search-select"},
+		Interaction: InteractionSnapshot{ID: "interaction-search-select"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(searchSelectResult), "Found")
@@ -138,10 +138,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	searchSourceResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
 		Name:        "knowledge:search:source",
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-search-source"},
+		Interaction: InteractionSnapshot{ID: "interaction-search-source"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(searchSourceResult), "source citation")
@@ -150,10 +150,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	searchOpenResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
 		Name:        "knowledge:search:open",
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-search-open"},
+		Interaction: InteractionSnapshot{ID: "interaction-search-open"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(searchOpenResult), "Opened knowledge entry")
@@ -161,10 +161,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	searchNextResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
 		Name:        "knowledge:search:next",
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-search-next"},
+		Interaction: InteractionSnapshot{ID: "interaction-search-next"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(searchNextResult), "Found")
@@ -172,10 +172,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	_, err = handle.DispatchComponent(context.Background(), DispatchRequest{
 		Name:        "knowledge:search:export",
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-search-export"},
+		Interaction: InteractionSnapshot{ID: "interaction-search-export"},
 		Defer: func(_ context.Context, value any) error {
 			searchDefers = append(searchDefers, value)
 			return nil
@@ -201,7 +201,7 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	askAutocomplete, err := handle.DispatchAutocomplete(context.Background(), DispatchRequest{
 		Name:    "ask",
 		Args:    map[string]any{"query": "sqlite"},
-		Focused: map[string]any{"name": "query", "value": "sqlite"},
+		Focused: FocusedOptionSnapshot{Name: "query", Value: "sqlite"},
 		Command: map[string]any{"name": "ask"},
 		Config:  config,
 	})
@@ -213,7 +213,7 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	articleAutocomplete, err := handle.DispatchAutocomplete(context.Background(), DispatchRequest{
 		Name:    "article",
 		Args:    map[string]any{"name": "kb_"},
-		Focused: map[string]any{"name": "name", "value": "kb_"},
+		Focused: FocusedOptionSnapshot{Name: "name", Value: "kb_"},
 		Command: map[string]any{"name": "article"},
 		Config:  config,
 	})
@@ -247,10 +247,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 		Name:        "knowledge:review:select",
 		Values:      []string{entryID},
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-select"},
+		Interaction: InteractionSnapshot{ID: "interaction-select"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(selectResult), "Selected")
@@ -258,10 +258,10 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	verifyResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
 		Name:        "knowledge:review:verify",
 		Config:      config,
-		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		User:        UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:       map[string]any{"id": "guild-1"},
 		Channel:     map[string]any{"id": "channel-1"},
-		Interaction: map[string]any{"id": "interaction-verify"},
+		Interaction: InteractionSnapshot{ID: "interaction-verify"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(verifyResult), "Verified")

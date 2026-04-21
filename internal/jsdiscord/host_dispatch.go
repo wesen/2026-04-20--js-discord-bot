@@ -13,7 +13,7 @@ func (h *Host) baseDispatchRequest(session *discordgo.Session) DispatchRequest {
 		Metadata: map[string]any{"scriptPath": h.scriptPath},
 		Config:   cloneMap(h.runtimeConfig),
 		Discord:  buildDiscordOps(h.scriptPath, session),
-		Me:       currentUserMap(session),
+		Me:       newCurrentUserSnapshot(session),
 	}
 }
 
@@ -41,9 +41,9 @@ func (h *Host) DispatchReady(ctx context.Context, session *discordgo.Session, re
 	}
 	req := h.baseDispatchRequest(session)
 	req.Name = "ready"
-	req.Me = userMap(ready.User)
+	req.Me = newUserSnapshot(ready.User)
 	req.Command = map[string]any{"event": "ready"}
-	req.Interaction = map[string]any{"type": "ready"}
+	req.Interaction = InteractionSnapshot{Type: "ready"}
 	_, err := h.handle.DispatchEvent(ctx, req)
 	return err
 }
@@ -67,8 +67,8 @@ func (h *Host) DispatchGuildMemberAdd(ctx context.Context, session *discordgo.Se
 	}
 	req := h.baseDispatchRequest(session)
 	req.Name = "guildMemberAdd"
-	req.Member = memberMap(member.Member)
-	req.User = userMap(member.User)
+	req.Member = newMemberSnapshot(member.Member)
+	req.User = newUserSnapshot(member.User)
 	req.Guild = guildMap(member.GuildID)
 	req.Command = map[string]any{"event": "guildMemberAdd"}
 	_, err := h.handle.DispatchEvent(ctx, req)
@@ -81,9 +81,9 @@ func (h *Host) DispatchGuildMemberUpdate(ctx context.Context, session *discordgo
 	}
 	req := h.baseDispatchRequest(session)
 	req.Name = "guildMemberUpdate"
-	req.Member = memberMap(member.Member)
+	req.Member = newMemberSnapshot(member.Member)
 	req.Before = memberMap(member.BeforeUpdate)
-	req.User = userMap(member.User)
+	req.User = newUserSnapshot(member.User)
 	req.Guild = guildMap(member.GuildID)
 	req.Command = map[string]any{"event": "guildMemberUpdate"}
 	_, err := h.handle.DispatchEvent(ctx, req)
@@ -96,8 +96,8 @@ func (h *Host) DispatchGuildMemberRemove(ctx context.Context, session *discordgo
 	}
 	req := h.baseDispatchRequest(session)
 	req.Name = "guildMemberRemove"
-	req.Member = memberMap(member.Member)
-	req.User = userMap(member.User)
+	req.Member = newMemberSnapshot(member.Member)
+	req.User = newUserSnapshot(member.User)
 	req.Guild = guildMap(member.GuildID)
 	req.Command = map[string]any{"event": "guildMemberRemove"}
 	_, err := h.handle.DispatchEvent(ctx, req)
@@ -111,8 +111,8 @@ func (h *Host) DispatchMessageCreate(ctx context.Context, session *discordgo.Ses
 	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
 	req := h.baseDispatchRequest(session)
 	req.Name = "messageCreate"
-	req.Message = messageMap(message.Message)
-	req.User = userMap(message.Author)
+	req.Message = newMessageSnapshot(message.Message)
+	req.User = newUserSnapshot(message.Author)
 	req.Guild = guildMap(message.GuildID)
 	req.Channel = channelMap(message.ChannelID)
 	req = withChannelResponder(req, responder)
@@ -133,9 +133,9 @@ func (h *Host) DispatchMessageUpdate(ctx context.Context, session *discordgo.Ses
 	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
 	req := h.baseDispatchRequest(session)
 	req.Name = "messageUpdate"
-	req.Message = messageMap(message.Message)
-	req.Before = messageMap(message.BeforeUpdate)
-	req.User = userMap(message.Author)
+	req.Message = newMessageSnapshot(message.Message)
+	req.Before = newMessageSnapshot(message.BeforeUpdate).ToMap()
+	req.User = newUserSnapshot(message.Author)
 	req.Guild = guildMap(message.GuildID)
 	req.Channel = channelMap(message.ChannelID)
 	req = withChannelResponder(req, responder)
@@ -156,8 +156,8 @@ func (h *Host) DispatchMessageDelete(ctx context.Context, session *discordgo.Ses
 	responder := newChannelResponder(session, message.ChannelID, h.scriptPath)
 	req := h.baseDispatchRequest(session)
 	req.Name = "messageDelete"
-	req.Message = messageDeleteMap(message)
-	req.Before = messageMap(message.BeforeDelete)
+	req.Message = newMessageDeleteSnapshot(message)
+	req.Before = newMessageSnapshot(message.BeforeDelete).ToMap()
 	req.Guild = guildMap(message.GuildID)
 	req.Channel = channelMap(message.ChannelID)
 	req = withChannelResponder(req, responder)
@@ -178,12 +178,12 @@ func (h *Host) DispatchReactionAdd(ctx context.Context, session *discordgo.Sessi
 	responder := newChannelResponder(session, reaction.ChannelID, h.scriptPath)
 	req := h.baseDispatchRequest(session)
 	req.Name = "reactionAdd"
-	req.Message = map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID}
-	req.User = userRefMap(reaction.UserID)
+	req.Message = &MessageSnapshot{ID: reaction.MessageID, ChannelID: reaction.ChannelID, GuildID: reaction.GuildID}
+	req.User = newUserRefSnapshot(reaction.UserID)
 	req.Guild = guildMap(reaction.GuildID)
 	req.Channel = channelMap(reaction.ChannelID)
-	req.Member = memberMap(reaction.Member)
-	req.Reaction = reactionMap(reaction.MessageReaction)
+	req.Member = newMemberSnapshot(reaction.Member)
+	req.Reaction = newReactionSnapshot(reaction.MessageReaction)
 	req = withChannelResponder(req, responder)
 	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
@@ -202,11 +202,11 @@ func (h *Host) DispatchReactionRemove(ctx context.Context, session *discordgo.Se
 	responder := newChannelResponder(session, reaction.ChannelID, h.scriptPath)
 	req := h.baseDispatchRequest(session)
 	req.Name = "reactionRemove"
-	req.Message = map[string]any{"id": reaction.MessageID, "channelID": reaction.ChannelID, "guildID": reaction.GuildID}
-	req.User = userRefMap(reaction.UserID)
+	req.Message = &MessageSnapshot{ID: reaction.MessageID, ChannelID: reaction.ChannelID, GuildID: reaction.GuildID}
+	req.User = newUserRefSnapshot(reaction.UserID)
 	req.Guild = guildMap(reaction.GuildID)
 	req.Channel = channelMap(reaction.ChannelID)
-	req.Reaction = reactionMap(reaction.MessageReaction)
+	req.Reaction = newReactionSnapshot(reaction.MessageReaction)
 	req = withChannelResponder(req, responder)
 	result, err := h.handle.DispatchEvent(ctx, req)
 	if err != nil {
@@ -249,9 +249,9 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			req.Name = data.Name
 			req.Args = args
 			req.Command = map[string]any{"name": data.Name, "id": data.ID, "type": "user"}
-			req.Interaction = interactionMap(interaction)
-			req.Message = messageMap(interaction.Message)
-			req.User = interactionUserMap(interaction)
+			req.Interaction = newInteractionSnapshot(interaction)
+			req.Message = newMessageSnapshot(interaction.Message)
+			req.User = newInteractionUserSnapshot(interaction)
 			req.Guild = guildMap(interaction.GuildID)
 			req.Channel = channelMap(interaction.ChannelID)
 			req = withInteractionResponder(req, responder)
@@ -278,9 +278,9 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			req.Name = data.Name
 			req.Args = args
 			req.Command = map[string]any{"name": data.Name, "id": data.ID, "type": "message"}
-			req.Interaction = interactionMap(interaction)
-			req.Message = messageMap(interaction.Message)
-			req.User = interactionUserMap(interaction)
+			req.Interaction = newInteractionSnapshot(interaction)
+			req.Message = newMessageSnapshot(interaction.Message)
+			req.User = newInteractionUserSnapshot(interaction)
 			req.Guild = guildMap(interaction.GuildID)
 			req.Channel = channelMap(interaction.ChannelID)
 			req = withInteractionResponder(req, responder)
@@ -308,9 +308,9 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 				req.SubName = subName
 				req.Args = subArgs
 				req.Command = map[string]any{"name": data.Name, "id": data.ID, "subName": subName}
-				req.Interaction = interactionMap(interaction)
-				req.Message = messageMap(interaction.Message)
-				req.User = interactionUserMap(interaction)
+				req.Interaction = newInteractionSnapshot(interaction)
+				req.Message = newMessageSnapshot(interaction.Message)
+				req.User = newInteractionUserSnapshot(interaction)
 				req.Guild = guildMap(interaction.GuildID)
 				req.Channel = channelMap(interaction.ChannelID)
 				req = withInteractionResponder(req, responder)
@@ -331,9 +331,9 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			req.Name = data.Name
 			req.Args = args
 			req.Command = map[string]any{"name": data.Name, "id": data.ID}
-			req.Interaction = interactionMap(interaction)
-			req.Message = messageMap(interaction.Message)
-			req.User = interactionUserMap(interaction)
+			req.Interaction = newInteractionSnapshot(interaction)
+			req.Message = newMessageSnapshot(interaction.Message)
+			req.User = newInteractionUserSnapshot(interaction)
 			req.Guild = guildMap(interaction.GuildID)
 			req.Channel = channelMap(interaction.ChannelID)
 			req = withInteractionResponder(req, responder)
@@ -364,12 +364,12 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 		req.Name = data.CustomID
 		req.Values = componentValues(data)
 		req.Command = map[string]any{"event": "component"}
-		req.Interaction = interactionMap(interaction)
-		req.Message = messageMap(interaction.Message)
-		req.User = interactionUserMap(interaction)
+		req.Interaction = newInteractionSnapshot(interaction)
+		req.Message = newMessageSnapshot(interaction.Message)
+		req.User = newInteractionUserSnapshot(interaction)
 		req.Guild = guildMap(interaction.GuildID)
 		req.Channel = channelMap(interaction.ChannelID)
-		req.Component = componentMap(data)
+		req.Component = newComponentSnapshot(data)
 		req = withInteractionResponder(req, responder)
 		result, err := h.handle.DispatchComponent(ctx, req)
 		if err != nil {
@@ -397,9 +397,9 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 		req.Name = data.CustomID
 		req.Values = modalValues(data.Components)
 		req.Command = map[string]any{"event": "modal"}
-		req.Interaction = interactionMap(interaction)
-		req.Message = messageMap(interaction.Message)
-		req.User = interactionUserMap(interaction)
+		req.Interaction = newInteractionSnapshot(interaction)
+		req.Message = newMessageSnapshot(interaction.Message)
+		req.User = newInteractionUserSnapshot(interaction)
 		req.Guild = guildMap(interaction.GuildID)
 		req.Channel = channelMap(interaction.ChannelID)
 		req.Modal = map[string]any{"customId": data.CustomID}
@@ -436,11 +436,11 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 		req.Name = data.Name
 		req.Args = optionMap(data.Options)
 		req.Command = map[string]any{"name": data.Name, "id": data.ID}
-		req.Interaction = interactionMap(interaction)
-		req.User = interactionUserMap(interaction)
+		req.Interaction = newInteractionSnapshot(interaction)
+		req.User = newInteractionUserSnapshot(interaction)
 		req.Guild = guildMap(interaction.GuildID)
 		req.Channel = channelMap(interaction.ChannelID)
-		req.Focused = focusedOptionMap(focused)
+		req.Focused = newFocusedOptionSnapshot(focused)
 		result, err := h.handle.DispatchAutocomplete(ctx, req)
 		if err != nil {
 			return fmt.Errorf("dispatch autocomplete %q for script %q: %w", data.Name, h.scriptPath, err)

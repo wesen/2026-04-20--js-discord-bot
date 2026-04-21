@@ -96,20 +96,20 @@ type DispatchRequest struct {
 	Args        map[string]any
 	Values      any
 	Command     map[string]any
-	Interaction map[string]any
-	Message     map[string]any
+	Interaction InteractionSnapshot
+	Message     *MessageSnapshot
 	Before      map[string]any
-	User        map[string]any
+	User        UserSnapshot
 	Guild       map[string]any
 	Channel     map[string]any
-	Member      map[string]any
-	Reaction    map[string]any
-	Me          map[string]any
+	Member      *MemberSnapshot
+	Reaction    ReactionSnapshot
+	Me          UserSnapshot
 	Metadata    map[string]any
 	Config      map[string]any
-	Component   map[string]any
+	Component   ComponentSnapshot
 	Modal       map[string]any
-	Focused     map[string]any
+	Focused     FocusedOptionSnapshot
 	Discord     *DiscordOps
 	Reply       func(context.Context, any) error
 	FollowUp    func(context.Context, any) error

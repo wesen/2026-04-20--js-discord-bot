@@ -211,7 +211,7 @@ func TestDiscordRuntimeSupportsComponentsModalsAndAutocomplete(t *testing.T) {
 	componentResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
 		Name:      "support:queue",
 		Values:    []string{"billing"},
-		Component: map[string]any{"customId": "support:queue", "type": "select"},
+		Component: ComponentSnapshot{CustomID: "support:queue", Type: "select"},
 	})
 	if err != nil {
 		t.Fatalf("dispatch component: %v", err)
@@ -235,7 +235,7 @@ func TestDiscordRuntimeSupportsComponentsModalsAndAutocomplete(t *testing.T) {
 	autocompleteResult, err := handle.DispatchAutocomplete(context.Background(), DispatchRequest{
 		Name:    "kb-search",
 		Args:    map[string]any{"query": "arch"},
-		Focused: map[string]any{"name": "query", "value": "arch"},
+		Focused: FocusedOptionSnapshot{Name: "query", Value: "arch"},
 		Command: map[string]any{"name": "kb-search"},
 	})
 	if err != nil {
