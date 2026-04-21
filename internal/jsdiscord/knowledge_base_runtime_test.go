@@ -14,11 +14,13 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	handle := loadTestBot(t, scriptPath)
 
 	config := map[string]any{
-		"dbPath":           filepath.Join(t.TempDir(), "knowledge.sqlite"),
-		"captureEnabled":   true,
-		"captureThreshold": 0.2,
-		"reviewLimit":      5,
-		"seedEntries":      false,
+		"dbPath":                filepath.Join(t.TempDir(), "knowledge.sqlite"),
+		"captureEnabled":        true,
+		"captureThreshold":      0.2,
+		"reviewLimit":           5,
+		"seedEntries":           false,
+		"reactionPromoteEmojis": "🧠",
+		"trustedReviewerIds":    "user-2",
 	}
 
 	var replies []any
@@ -44,6 +46,27 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	require.Len(t, replies, 1)
 	require.Contains(t, fmt.Sprint(replies[0]), "Captured knowledge entry")
 
+	_, err = handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name: "reactionAdd",
+		Message: map[string]any{
+			"id":        "msg-1",
+			"guildID":   "guild-1",
+			"channelID": "channel-1",
+		},
+		User:    map[string]any{"id": "user-2", "username": "Reviewer", "bot": false},
+		Guild:   map[string]any{"id": "guild-1"},
+		Channel: map[string]any{"id": "channel-1"},
+		Reaction: map[string]any{
+			"emoji": map[string]any{"name": "🧠", "animated": false},
+		},
+		Config: config,
+		Reply: func(_ context.Context, value any) error {
+			replies = append(replies, value)
+			return nil
+		},
+	})
+	require.NoError(t, err)
+
 	searchResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name:   "kb-search",
 		Args:   map[string]any{"query": "sqlite"},
@@ -58,6 +81,7 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 
 	reviewResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name:   "kb-review",
+		Args:   map[string]any{"status": "review"},
 		Config: config,
 	})
 	require.NoError(t, err)
@@ -70,7 +94,7 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	entryID := extractFieldValue(reviewFields, "Entry ID")
 	require.NotEmpty(t, entryID)
 	statusBefore := extractFieldValue(reviewFields, "Status")
-	require.Equal(t, "draft", statusBefore)
+	require.Equal(t, "review", statusBefore)
 	components := reviewMap["components"].([]any)
 	require.Len(t, components, 2)
 	require.Contains(t, fmt.Sprint(components[0]), "knowledge:review:select")

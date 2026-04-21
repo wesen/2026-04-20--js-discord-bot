@@ -41,6 +41,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
 - `knowledge-base` listens passively for knowledge candidates in opted-in channels, records them to SQLite, and adds `/remember`, `/teach`, `/ask`, `/kb-search`, `/article`, `/kb-article`, `/review`, `/kb-review`, `/kb-verify`, `/kb-stale`, `/kb-reject`, `/recent`, and `/kb-recent`.
+- The review queue now uses a select menu, action buttons, and an edit modal, and trusted reactions can promote a captured message into the review queue.
 - `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.

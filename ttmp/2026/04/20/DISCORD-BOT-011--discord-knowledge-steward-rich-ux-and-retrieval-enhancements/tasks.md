@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources: []
 Summary: >
   Work plan for the next knowledge steward bot slice: rich review UI, reaction-based promotion, source citation UX, rich search UI, and export from ask results.
-LastUpdated: 2026-04-20T22:56:00-04:00
+LastUpdated: 2026-04-20T23:10:00-04:00
 WhatFor: Track implementation tasks for the post-MVP UX and retrieval work.
 WhenToUse: Use when building the next interaction and retrieval layer for the bot.
 ---
@@ -24,23 +24,23 @@ WhenToUse: Use when building the next interaction and retrieval layer for the bo
 ## Ticket setup
 
 - [x] Create the ticket workspace
-- [ ] Add a design guide for the rich UX and retrieval slice
-- [ ] Add an implementation guide / API sketch doc
-- [ ] Add a short diary once implementation begins
+- [x] Add a design guide for the rich UX and retrieval slice
+- [x] Add an implementation guide / API sketch doc
+- [x] Add a short diary
 
 ## Review UI
 
-- [ ] Add a rich review queue card with action buttons
-- [ ] Support Verify / Edit / Stale / Reject / Merge / Open Source actions from the queue
-- [ ] Add a modal for editing existing entries, tags, and source attribution
+- [x] Add a rich review queue card with action buttons
+- [x] Support Verify / Edit / Stale / Reject / Merge / Open Source actions from the queue
+- [x] Add a modal for editing existing entries, tags, and source attribution
 - [ ] Add queue pagination and status filters
 
 ## Reaction-based promotion
 
-- [ ] Define trusted reaction signals for promoting candidate knowledge
-- [ ] Promote or queue candidates when trusted users react with the chosen emoji(s)
-- [ ] Make reaction promotion visible in the channel or review queue
-- [ ] Add runtime tests for the reaction-based promotion path
+- [x] Define trusted reaction signals for promoting candidate knowledge
+- [x] Promote or queue candidates when trusted users react with the chosen emoji(s)
+- [x] Make reaction promotion visible in the channel or review queue
+- [x] Add runtime tests for the reaction-based promotion path
 
 ## Source citation UX
 
@@ -65,10 +65,10 @@ WhenToUse: Use when building the next interaction and retrieval layer for the bo
 
 ## Validation and rollout
 
-- [ ] Update the example README and help text for the new interactions
-- [ ] Add runtime and CLI tests for the new flows
-- [ ] Validate with `go test ./...`
-- [ ] Validate named-bot help / run commands for the updated example
+- [x] Update the example README and help text for the new interactions
+- [x] Add runtime and CLI tests for the new flows
+- [x] Validate with `go test ./...`
+- [x] Validate named-bot help / run commands for the updated example
 
 ## Notes
 
