@@ -7,14 +7,17 @@ DocType: ""
 Intent: ""
 Owners: []
 RelatedFiles:
-    - Path: ttmp/2026/04/21/DISCORD-ARCHIVE-BOT--discord-archive-helper-bot-thread-message-markdown-downloader/design-doc/01-analysis-design-implementation-guide.md
-      Note: Primary design document for the archive bot
+    - Path: pkg/doc/topics/discord-js-bot-api-reference.md
+      Note: Updated with pagination example and runtime constraints
+    - Path: pkg/doc/tutorials/building-and-running-discord-js-bots.md
+      Note: Updated with runtime environment warning and framework overview
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Discord Archive Helper Bot — Analysis, Design & Implementation Guide
@@ -26,7 +29,7 @@ WhenToUse: ""
 
 ## Executive Summary
 
-We need a **helper bot** that connects to Discord, reads messages from channels and threads, and saves them as clean Markdown files on disk. Think of it as a "print to PDF" button, but for Discord conversations — producing structured, searchable, offline-readable archives. The bot runs from the command line, takes a channel or thread URL, fetches all messages (handling pagination automatically), renders them into Markdown with proper formatting for embeds, attachments, reactions, and timestamps, and writes them to a local folder tree.
+We need a **helper bot** that connects to Discord, reads messages from channels and threads, and produces clean Markdown archives. The bot is implemented as a JavaScript module that runs inside a Go-hosted runtime. Think of it as a "print to PDF" button for Discord conversations — producing structured, searchable, offline-readable archives delivered as file attachments in Discord.
 
 ---
 
@@ -51,20 +54,130 @@ Discord is a chat platform organized around **servers** (also called "guilds"). 
 | **Bot** | A special kind of Discord user that connects via API rather than the website. | Our archive helper is a bot. |
 | **Token** | A secret string that authenticates the bot. Like a password. | We need this to run the bot. **Never commit it to Git.** |
 | **Intents** | Permissions the bot declares when connecting. Discord uses these to decide what events to send. | We need the `MessageContent` intent to read message text. |
-| **Rate Limits** | Discord caps how many API calls we can make per second. | We must handle 429 errors and back off. |
-
-### The Discord API Landscape
-
-Discord offers two ways to interact programmatically:
-
-1. **REST API** — request/response, like a normal web API. Used for fetching historical messages, channels, guilds.
-2. **Gateway (WebSocket)** — persistent connection for real-time events (new messages, user joins, etc.).
-
-For an archive bot, we primarily use the **REST API** because we care about historical data, not real-time events. However, some Discord libraries (like `discord.js`) wrap both and make our lives easier.
+| **Rate Limits** | Discord caps how many API calls we can make per second. | The host handles this automatically, but we still paginate carefully. |
 
 ---
 
-## 2. Problem Statement
+## 2. How Our Discord Bot Framework Works
+
+This is the most important section. **We do not use raw Node.js or the `discord.js` npm package.** Our bots run inside a custom framework with a specific shape.
+
+### 2.1 The Big Picture: Go Host + JS Bot Script
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Go Host Process                                │
+│  (handles Discord gateway, rate limits, command sync, event dispatch)       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌──────────────────┐      ┌──────────────────┐      ┌─────────────────┐   │
+│   │  Go Discord      │─────▶│  Goja JS Runtime │─────▶│  Your Bot Script│   │
+│   │  Gateway Client  │      │  (loads + runs)  │      │  (index.js)     │   │
+│   └──────────────────┘      └──────────────────┘      └─────────────────┘   │
+│                                                                             │
+│        Discord events ──────▶ dispatched to JS handlers                     │
+│        Slash commands ──────▶ routed to JS command handlers                 │
+│        JS ctx.discord.* ────▶ outbound API calls via Go host                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+The Go host owns the process. It connects to Discord, syncs slash commands, receives gateway events, and exposes a JavaScript API. Your bot is just a JavaScript module that declares what it handles.
+
+### 2.2 Bot Script Structure
+
+Every bot lives at `examples/discord-bots/<bot-name>/index.js` and exports one bot definition:
+
+```javascript
+const { defineBot } = require("discord")
+
+module.exports = defineBot(({ command, event, configure }) => {
+  configure({
+    name: "archive-helper",
+    description: "Download channels and threads as Markdown archives",
+    category: "utilities",
+  })
+
+  // Your handlers go here
+})
+```
+
+The builder callback receives registration helpers. You destructure only the ones you need:
+
+| Helper | Purpose |
+|--------|---------|
+| `configure(options)` | Set bot name, description, category, runtime config fields |
+| `command(name, spec?, handler)` | Register a slash command |
+| `event(name, handler)` | Register a gateway event handler |
+| `component(customId, handler)` | Handle button/select-menu clicks |
+| `modal(customId, handler)` | Handle modal submissions |
+| `autocomplete(commandName, optionName, handler)` | Supply autocomplete suggestions |
+
+### 2.3 How the Bot Is Run
+
+You do **not** run the bot with `node`. You run it through the Go CLI:
+
+```bash
+go run ./cmd/discord-bot bots \
+  --bot-repository ./examples/discord-bots \
+  run archive-helper \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --sync-on-start
+```
+
+The `bots` subcommand:
+1. Scans `--bot-repository` for bot scripts
+2. Loads the one named `archive-helper`
+3. Reads its metadata and command registrations
+4. Syncs slash commands to Discord (if `--sync-on-start`)
+5. Opens the Discord gateway connection
+6. Dispatches events and commands to your JS handlers
+
+### 2.4 Runtime Config: Passing Settings to Your Bot
+
+If your bot needs settings at startup (like an output directory or file naming pattern), declare them in `configure({ run: { fields: ... }})`:
+
+```javascript
+configure({
+  name: "archive-helper",
+  description: "Download channels and threads as Markdown archives",
+  run: {
+    fields: {
+      output_prefix: {
+        type: "string",
+        help: "Filename prefix for generated archives",
+        default: "discord-archive",
+      },
+      include_threads: {
+        type: "bool",
+        help: "Whether to automatically include threads",
+        default: true,
+      },
+    },
+  },
+})
+```
+
+Each field becomes:
+- A key in `ctx.config` inside your handlers
+- A CLI flag when running the bot (e.g., `--output-prefix`, `--include-threads`)
+
+### 2.5 What Is NOT Available
+
+Because the JS runs inside a Goja runtime (not Node.js):
+
+- **No `fs` module** — you cannot write files to disk from JS.
+- **No `process.env`** — secrets come through CLI flags, not environment variables.
+- **No `npm install`** — the only modules available are what the host provides.
+- **No `fetch()` or HTTP clients** — all Discord API access goes through `ctx.discord.*`.
+
+**For file output**, you send the generated Markdown back to Discord as a file attachment using `ctx.discord.channels.send()` with a `files` payload.
+
+---
+
+## 3. Problem Statement
 
 ### The Pain Point
 
@@ -77,286 +190,269 @@ Manuel participates in many Discord servers with valuable discussions — techni
 
 ### What We Need
 
-A tool that, given a Discord channel or thread URL, produces a clean Markdown file (or folder of files) containing:
+A bot that, given a channel or thread, produces a clean Markdown file containing:
 
 - All messages in chronological order.
 - Proper author attribution with timestamps.
 - Formatted text (bold, italic, code blocks, links).
 - Embeds rendered as Markdown callouts or tables.
-- Attachment URLs preserved (or files downloaded).
+- Attachment URLs preserved.
 - Reactions summarized.
 - Reply chains indicated.
 
+The output is delivered as a Discord file attachment, which can then be saved locally.
+
 ---
 
-## 3. Proposed Solution
+## 4. Proposed Solution
 
-### 3.1 High-Level Architecture
+### 4.1 High-Level Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         Discord Archive Helper Bot                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ┌──────────────┐     ┌──────────────┐     ┌──────────────────────────┐   │
-│   │   CLI Input  │────▶│   Fetcher    │────▶│   Markdown Renderer      │   │
-│   │   (yargs)    │     │  (discord.js)│     │  (custom + marked)       │   │
-│   └──────────────┘     └──────────────┘     └──────────────────────────┘   │
-│          │                    │                        │                    │
-│          │                    │                        │                    │
-│          ▼                    ▼                        ▼                    │
-│   ┌──────────────┐     ┌──────────────┐     ┌──────────────────────────┐   │
-│   │ Config (.env)│     │  Rate Limiter│     │   File Writer            │   │
-│   │  DISCORD_    │     │  (built-in)  │     │  (fs + path)             │   │
-│   │  TOKEN, etc. │     │              │     │                          │   │
-│   └──────────────┘     └──────────────┘     └──────────────────────────┘   │
+│   User runs /archive-channel or /archive-thread in Discord                  │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Slash Command Handler  (JS)                                        │   │
+│   │  • Parse args (channel/thread ID, message limit, options)           │   │
+│   │  • Defer the interaction (acknowledge immediately)                  │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Message Fetcher  (JS → ctx.discord.messages.list)                  │   │
+│   │  • Paginate through messages (before cursor, limit 100)             │   │
+│   │  • Loop until no more messages or limit reached                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Thread Discovery  (JS → ctx.discord.threads.fetch)                 │   │
+│   │  • For channels with threads, enumerate and fetch each              │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Markdown Renderer  (JS, pure logic)                                │   │
+│   │  • Convert Discord markup → Markdown                                │   │
+│   │  • Format headers, embeds, attachments, reactions                   │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  File Delivery  (JS → ctx.discord.channels.send with files payload) │   │
+│   │  • Send the generated Markdown as a file attachment                 │   │
+│   │  • Edit the deferred interaction with a summary + download link     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Discord Servers                                │
-│                         (via HTTPS + WebSocket)                             │
-└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Data Flow
+### 4.2 Data Flow
 
 ```
-User runs:
-  node archive-bot.js --channel 123456789 --output ./archives/
+User types in Discord:
+  /archive-channel limit: 500
 
         │
         ▼
-  ┌─────────────┐
-  │ Parse args  │ ──▶ Validate channel ID format, check output dir exists
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Go host receives interaction        │
+  │ routes to JS command handler        │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Login      │ ──▶ Connect to Discord Gateway with bot token + intents
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ JS handler calls ctx.defer()        │
+  │ "Archiving channel..."              │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Resolve    │ ──▶ Fetch channel object from Discord API
-  │  Channel    │     (confirms it exists and bot can see it)
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Resolve channel from ctx.channel.id │
+  │ (the channel where cmd was run)     │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Fetch      │ ──▶ GET /channels/{id}/messages with pagination
-  │  Messages   │     (loop until no more messages)
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Fetch messages via                  │
+  │ ctx.discord.messages.list()         │
+  │ with pagination loop                │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Discover   │ ──▶ Check for active threads in channel
-  │  Threads    │     (forum channels: every post is a thread)
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ For each batch:                     │
+  │   • Append to message array         │
+  │   • Use last message ID as "before" │
+  │   • Repeat until empty or limit     │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  For each   │ ──▶ Recursively fetch messages from each thread
-  │  thread...  │
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Reverse to chronological order      │
+  │ (oldest first)                      │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Render     │ ──▶ Convert message objects to Markdown strings
-  │  Markdown   │
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Render to Markdown string           │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Write      │ ──▶ Save to disk: YYYY/MM/DD/channel-name--thread-name.md
-  │  Files      │
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Send file via                       │
+  │ ctx.discord.channels.send()         │
+  │ with files: [{name, content}]       │
+  └─────────────────────────────────────┘
         │
         ▼
-  ┌─────────────┐
-  │  Report     │ ──▶ Print summary: N messages, M threads, saved to path
-  │  Summary    │
-  └─────────────┘
+  ┌─────────────────────────────────────┐
+  │ Edit deferred reply with summary:   │
+  │ "Archived 347 messages."            │
+  └─────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Deep Dive: Discord API for Archiving
+## 5. Deep Dive: Framework APIs for Archiving
 
-### 4.1 Authentication
+### 5.1 Message Fetching (Pagination)
 
-Every request to Discord must include an `Authorization` header:
-
-```
-Authorization: Bot YOUR_BOT_TOKEN_HERE
-```
-
-**Critical security rule:** The token is a secret. Store it in a `.env` file, load it via `dotenv`, and **never** commit `.env` to version control. Add `.env` to `.gitignore` immediately.
-
-### 4.2 Required Intents
-
-When connecting a bot, you must declare which events you want. For archiving, you need:
-
-| Intent | Purpose |
-|--------|---------|
-| `Guilds` | Access to guild/channel structure. |
-| `GuildMessages` | Access to messages in guild channels. |
-| `MessageContent` | **Essential.** Without this, message text is empty. |
-| `GuildMessageReactions` | Access to reaction counts (optional but nice). |
-
-### 4.3 Fetching Messages (Pagination)
-
-Discord's `GET /channels/{channel.id}/messages` endpoint returns **up to 100 messages per request**. To get all messages, you paginate backwards using the `before` parameter:
+The framework provides `ctx.discord.messages.list(channelId, payload?)`. It returns up to 100 messages per call. To get all messages, you paginate backwards using the `before` parameter:
 
 ```
-GET /channels/123456789/messages?limit=100
+ctx.discord.messages.list(channelId, { limit: 100 })
   → returns messages [950..1049] (newest first)
 
-GET /channels/123456789/messages?limit=100&before=950
+ctx.discord.messages.list(channelId, { limit: 100, before: "950" })
   → returns messages [850..949]
 
-...repeat until response is empty...
+...repeat until response is empty or limit reached...
 ```
 
 **Pseudocode — Message Fetching Loop:**
 
-```
-function fetchAllMessages(channelId):
-    allMessages = []
-    lastMessageId = null
+```javascript
+async function fetchAllMessages(ctx, channelId, maxMessages) {
+  const allMessages = []
+  let lastMessageId = null
+  const limit = 100 // Discord max per request
 
-    loop:
-        if lastMessageId is null:
-            url = "/channels/{channelId}/messages?limit=100"
-        else:
-            url = "/channels/{channelId}/messages?limit=100&before={lastMessageId}"
-
-        batch = discordAPI.get(url)
-
-        if batch is empty:
-            break
-
-        allMessages.addAll(batch)
-        lastMessageId = batch.last().id
-
-        // Rate limit: Discord allows ~5 requests per second per channel
-        sleep(200ms)
-
-    // Messages arrive newest-first; reverse for chronological order
-    return reverse(allMessages)
-```
-
-### 4.4 Thread Discovery
-
-#### Regular Text Channels with Threads
-
-A text channel may have "active" and "archived" threads. Use:
-
-```
-GET /channels/{channel.id}/threads/archived/public
-GET /channels/{channel.id}/threads/archived/private
-GET /guilds/{guild.id}/threads/active
-```
-
-#### Forum Channels
-
-In a forum channel, **every post is a thread**. The channel itself contains no messages — only thread listings. Fetch the threads, then fetch messages from each thread.
-
-### 4.5 Rate Limiting
-
-Discord returns rate-limit headers on every response:
-
-```
-X-RateLimit-Limit: 5
-X-RateLimit-Remaining: 3
-X-RateLimit-Reset-After: 1.250
-X-RateLimit-Bucket: abc123...
-```
-
-If you hit the limit, Discord returns `429 Too Many Requests`. You **must** back off and retry. The `discord.js` library handles this automatically, which is why we use it.
-
----
-
-## 5. Message Object Structure
-
-Here is what a Discord message looks like when returned from the API. Understanding every field is critical because we must render each into Markdown.
-
-```json
-{
-  "id": "1234567890123456789",
-  "channel_id": "9876543210987654321",
-  "author": {
-    "id": "111222333444555666",
-    "username": "alice",
-    "global_name": "Alice",
-    "bot": false
-  },
-  "content": "Hey everyone, check out this design doc!",
-  "timestamp": "2024-03-15T14:32:01.123000+00:00",
-  "edited_timestamp": null,
-  "tts": false,
-  "mention_everyone": false,
-  "mentions": [],
-  "mention_roles": [],
-  "attachments": [
-    {
-      "id": "999888777666555444",
-      "filename": "design.png",
-      "size": 204800,
-      "url": "https://cdn.discordapp.com/attachments/.../design.png",
-      "content_type": "image/png",
-      "width": 1200,
-      "height": 800
+  while (true) {
+    const options = { limit: limit }
+    if (lastMessageId) {
+      options.before = lastMessageId
     }
-  ],
-  "embeds": [
-    {
-      "title": "Design System v2",
-      "description": "Updated color palette and typography...",
-      "url": "https://figma.com/file/...",
-      "color": 3447003,
-      "fields": [
-        { "name": "Status", "value": "In Review", "inline": true },
-        { "name": "Owner", "value": "Alice", "inline": true }
-      ]
+
+    const batch = await ctx.discord.messages.list(channelId, options)
+
+    if (!batch || batch.length === 0) {
+      break
     }
-  ],
-  "reactions": [
-    { "emoji": { "name": "👍" }, "count": 5, "me": false },
-    { "emoji": { "name": "🎉" }, "count": 2, "me": false }
-  ],
-  "pinned": false,
-  "type": 0,
-  "flags": 0,
-  "referenced_message": {
-    "id": "111222333444555666",
-    "author": { "username": "bob" },
-    "content": "We need a new design system..."
+
+    allMessages.push(...batch)
+    lastMessageId = batch[batch.length - 1].id
+
+    // Respect user-defined max
+    if (maxMessages && allMessages.length >= maxMessages) {
+      allMessages.splice(maxMessages)
+      break
+    }
   }
+
+  // Messages arrive newest-first; reverse for chronological order
+  return allMessages.reverse()
 }
 ```
 
-### 5.1 Rendering Map: API Field → Markdown
+**Important rules from the framework:**
+- You can use at most one anchor: `before`, `after`, or `around`.
+- `limit` defaults to 25 and is capped at 100.
+- The host handles rate limiting automatically.
+- Returns plain JavaScript objects (not class instances).
 
-| API Field | Markdown Output | Example |
-|-----------|-----------------|---------|
-| `author.username` | Bold username prefix | **`alice:`** Hey everyone... |
-| `timestamp` | Small timestamp in parentheses | **`alice`** *(2024-03-15 14:32)*: |
-| `content` | Main message body (Discord → MD conversion) | Hey everyone, check out... |
-| `attachments[]` | Image embed or link | `![design.png](URL)` or `[design.png](URL)` |
-| `embeds[]` | Blockquote / callout with title, fields, description | See section 7.3 |
-| `reactions[]` | Inline summary: 👍×5 🎉×2 | `👍 5  🎉 2` |
-| `referenced_message` | Quote block indicating reply | `> **bob:** We need a new...` |
-| `edited_timestamp` | "(edited)" suffix | ...design doc! *(edited)* |
+### 5.2 Thread Discovery
+
+For archiving threads, you need to discover them first. The current framework API for threads:
+
+```javascript
+// Fetch a thread snapshot by ID
+const thread = await ctx.discord.threads.fetch(threadId)
+// thread shape: { id, guildID, parentID, name, type, archived, locked, ... }
+
+// Start a thread (not needed for archive, but good to know)
+const started = await ctx.discord.threads.start(channelId, {
+  name: "...",
+  type: "public",
+})
+```
+
+**Note:** The current framework does not expose a "list all threads in channel" API. For our archive bot, we have two approaches:
+
+1. **Thread-as-target:** The user provides a thread ID directly (`/archive-thread thread_id: ...`).
+2. **Event-based capture:** Use `event("messageCreate", ...)` to capture messages passively, building an archive over time in SQLite via `require("database")`.
+
+For the initial implementation, we focus on **explicit slash commands** targeting a specific channel or thread.
+
+### 5.3 Channel Info
+
+```javascript
+const channel = await ctx.discord.channels.fetch(channelId)
+// channel shape: { id, guildID, name, type, topic, position, rateLimitPerUser }
+```
 
 ---
 
-## 6. Markdown Rendering in Detail
+## 6. Message Object Structure
 
-### 6.1 Discord Markup → Markdown
+Here is what a message looks like when returned from `ctx.discord.messages.list()` or `ctx.discord.messages.fetch()`:
 
-Discord uses a simplified markup language. We must convert it to standard Markdown:
+```js
+{
+  id: "1234567890123456789",
+  content: "Hey everyone, check out this design doc!",
+  guildID: "9876543210987654321",
+  channelID: "111222333444555666",
+  author: {
+    id: "444555666777888999",
+    username: "alice",
+    discriminator: "0",
+    bot: false,
+  },
+  // Note: the current framework returns a simplified shape.
+  // Full embeds, attachments, reactions may be available depending
+  // on the host implementation version. Check ctx.discord.messages.fetch
+  // for the richest single-message payload.
+}
+```
+
+**Current normalized message shape (what you can rely on):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Message snowflake ID |
+| `content` | string | Message text content |
+| `guildID` | string | Parent guild ID |
+| `channelID` | string | Parent channel ID |
+| `author.id` | string | Author user ID |
+| `author.username` | string | Author display name |
+| `author.discriminator` | string | Legacy discriminator (often "0") |
+| `author.bot` | boolean | Whether the author is a bot |
+
+**Note:** The framework's `messages.list` returns a simplified shape. For richer data (embeds, attachments, reactions), you may need to call `ctx.discord.messages.fetch(channelId, messageId)` for individual messages, or the host may enrich the list payload in future versions. Design your renderer defensively — check for field presence before using it.
+
+---
+
+## 7. Markdown Rendering in Detail
+
+### 7.1 Discord Markup → Markdown
+
+Discord uses a simplified markup language. We convert it to standard Markdown:
 
 | Discord Syntax | Markdown Equivalent | Notes |
 |----------------|---------------------|-------|
@@ -368,7 +464,7 @@ Discord uses a simplified markup language. We must convert it to standard Markdo
 | ```` ```lang\ncode\n``` ```` | Same | Same. |
 | `> quote` | `> quote` | Same. |
 | `>>> multi-line quote` | `> line 1\n> line 2` | Convert to multiple `>` lines. |
-| `<#channelId>` | `[#channel-name](discord://discord.com/channels/...)` | Resolve ID to name if possible. |
+| `<#channelId>` | `#channel-name` | Resolve ID to name if possible. |
 | `<@userId>` | `@username` | Resolve ID to username. |
 | `<@&roleId>` | `@role-name` | Resolve ID to role name. |
 | `<:emoji:123>` | `:emoji:` | Or use the CDN URL for custom emoji. |
@@ -376,45 +472,43 @@ Discord uses a simplified markup language. We must convert it to standard Markdo
 
 **Pseudocode — Content Converter:**
 
-```
-function discordToMarkdown(content, guildContext):
-    // Mentions: <@123> → @username
-    content = replaceRegex(content, /<@(\d+)>/g, (match, userId) => {
-        user = guildContext.resolveUser(userId)
-        return "@" + (user?.username || "unknown-user")
-    })
+```javascript
+function discordToMarkdown(content, ctx) {
+  // Mentions: <@123> → @username
+  content = content.replace(/<@(\d+)>/g, (match, userId) => {
+    return "@" + userId // Ideally resolved; fallback to raw ID
+  })
 
-    // Channel mentions: <#123> → #channel-name
-    content = replaceRegex(content, /<#(\d+)>/g, (match, channelId) => {
-        channel = guildContext.resolveChannel(channelId)
-        return "#" + (channel?.name || "unknown-channel")
-    })
+  // Channel mentions: <#123> → #channel-name
+  content = content.replace(/<#(\d+)>/g, (match, channelId) => {
+    return "#" + channelId // Ideally resolved
+  })
 
-    // Role mentions: <@&123> → @role-name
-    content = replaceRegex(content, /<@&(\d+)>/g, (match, roleId) => {
-        role = guildContext.resolveRole(roleId)
-        return "@" + (role?.name || "unknown-role")
-    })
+  // Role mentions: <@&123> → @role-name
+  content = content.replace(/<@&(\d+)>/g, (match, roleId) => {
+    return "@" + roleId
+  })
 
-    // Custom emoji: <:name:id> → :name: or image link
-    content = replaceRegex(content, /<:(\w+):(\d+)>/g, (match, name, id) => {
-        return `![:${name}:](https://cdn.discordapp.com/emojis/${id}.png)`
-    })
+  // Custom emoji: <:name:id> → :name:
+  content = content.replace(/<:(\w+):(\d+)>/g, (match, name, id) => {
+    return `:${name}:`
+  })
 
-    // Animated emoji: <a:name:id>
-    content = replaceRegex(content, /<a:(\w+):(\d+)>/g, (match, name, id) => {
-        return `![:${name}:](https://cdn.discordapp.com/emojis/${id}.gif)`
-    })
+  // Animated emoji: <a:name:id>
+  content = content.replace(/<a:(\w+):(\d+)>/g, (match, name, id) => {
+    return `:${name}:`
+  })
 
-    // Multi-line quotes: >>> \n... → > line1\n> line2
-    content = replaceRegex(content, /^>>>\s*\n((?:.|\n)*)/gm, (match, quote) => {
-        return quote.split("\n").map(line => "> " + line).join("\n")
-    })
+  // Multi-line quotes: >>> \n... → > line1\n> line2
+  content = content.replace(/^>>>(\s*)\n?((?:.|\n)*)/gm, (match, space, quote) => {
+    return quote.split("\n").map(line => "> " + line).join("\n")
+  })
 
-    return content
+  return content
+}
 ```
 
-### 6.2 Message Header Format
+### 7.2 Message Header Format
 
 Each message in the archive should have a consistent header:
 
@@ -422,7 +516,7 @@ Each message in the archive should have a consistent header:
 **alice** *(2024-03-15 14:32 UTC)*:
 ```
 
-For replies, prepend a quote block:
+For replies, prepend a quote block (if reply data is available):
 
 ```markdown
 > **bob** *(2024-03-15 14:28 UTC)*: We need a new design system...
@@ -430,130 +524,9 @@ For replies, prepend a quote block:
 **alice** *(2024-03-15 14:32 UTC)*: Hey everyone, check out this design doc!
 ```
 
-### 6.3 Embed Rendering
+### 7.3 File Output Format
 
-Embeds are rich cards that bots and link previews generate. They have:
-- `title` + `url`
-- `description`
-- `color` (integer RGB)
-- `fields[]` (name/value pairs, possibly inline)
-- `image`, `thumbnail`, `video`, `footer`
-
-**Markdown representation (callout style):**
-
-```markdown
-> **🔗 Design System v2**
-> Updated color palette and typography...
->
-> | Status | Owner |
-> |--------|-------|
-> | In Review | Alice |
->
-> [Open in Figma](https://figma.com/file/...)
-```
-
-**Pseudocode — Embed Renderer:**
-
-```
-function renderEmbed(embed):
-    lines = []
-
-    if embed.title:
-        if embed.url:
-            lines.push("> **🔗 [" + embed.title + "](" + embed.url + ")**")
-        else:
-            lines.push("> **🔗 " + embed.title + "**")
-
-    if embed.description:
-        lines.push("> " + embed.description.replace("\n", "\n> "))
-
-    if embed.fields and embed.fields.length > 0:
-        // Group inline fields side-by-side, non-inline fields full-width
-        tableRows = []
-        currentRow = []
-        for field in embed.fields:
-            if field.inline and currentRow.length < 3:
-                currentRow.push(field)
-            else:
-                if currentRow.length > 0:
-                    tableRows.push(currentRow)
-                currentRow = [field]
-        if currentRow.length > 0:
-            tableRows.push(currentRow)
-
-        for row in tableRows:
-            header = "| " + row.map(f => f.name).join(" | ") + " |"
-            separator = "|" + row.map(() => " --- ").join("|") + "|"
-            values = "| " + row.map(f => f.value).join(" | ") + " |"
-            lines.push("> " + header)
-            lines.push("> " + separator)
-            lines.push("> " + values)
-            lines.push("> ")
-
-    if embed.image:
-        lines.push("> ![embed image](" + embed.image.url + ")")
-
-    if embed.footer:
-        lines.push("> *" + embed.footer.text + "*")
-
-    return lines.join("\n")
-```
-
-### 6.4 Attachment Rendering
-
-```
-function renderAttachment(attachment):
-    if attachment.content_type starts with "image/":
-        return "![" + attachment.filename + "](" + attachment.url + ")"
-    else:
-        return "[📎 " + attachment.filename + "](" + attachment.url + ")"
-```
-
-### 6.5 Reaction Summary
-
-```
-function renderReactions(reactions):
-    if reactions.length == 0:
-        return ""
-    parts = reactions.map(r => r.emoji.name + " " + r.count)
-    return "*Reactions: " + parts.join("  ") + "*"
-```
-
----
-
-## 7. File Output Structure
-
-### 7.1 Directory Layout
-
-```
-archives/
-└── 2026/
-    └── 04/
-        └── 21/
-            ├── general-chat--2026-04-21.md
-            ├── design-discussion--2026-04-21.md
-            └── design-discussion/
-                ├── thread--color-palette-review--2026-04-21.md
-                ├── thread--typography-choices--2026-04-21.md
-                └── thread--mobile-layout--2026-04-21.md
-```
-
-### 7.2 Filename Convention
-
-```
-{sanitized-channel-name}--{YYYY-MM-DD}.md
-{sanitized-channel-name}/{thread|post}--{sanitized-thread-name}--{YYYY-MM-DD}.md
-```
-
-Sanitization rules:
-- Lowercase.
-- Replace spaces and special chars with `-`.
-- Collapse multiple `-` into one.
-- Max 80 characters.
-
-### 7.3 Frontmatter
-
-Each archive file should include YAML frontmatter for metadata:
+The generated Markdown is a single string delivered as a file attachment. It should include YAML frontmatter for metadata:
 
 ```yaml
 ---
@@ -566,370 +539,488 @@ thread: "color-palette-review"
 thread_id: "111222333444555666"
 archived_at: "2026-04-21T10:00:00Z"
 message_count: 147
-participant_count: 8
 bot_version: "1.0.0"
 ---
 ```
 
 ---
 
-## 8. Technology Stack
+## 8. Implementation Plan
+
+### Phase 0: Create the Bot File
+
+Create `examples/discord-bots/archive-helper/index.js`:
+
+```javascript
+const { defineBot } = require("discord")
+
+module.exports = defineBot(({ command, event, configure }) => {
+  configure({
+    name: "archive-helper",
+    description: "Download channels and threads as Markdown archives",
+    category: "utilities",
+    run: {
+      fields: {
+        default_limit: {
+          type: "integer",
+          help: "Default maximum messages to archive per request",
+          default: 500,
+        },
+      },
+    },
+  })
+
+  // Handlers defined in phases below
+})
+```
+
+### Phase 1: The `/archive-channel` Command
+
+```javascript
+command("archive-channel", {
+  description: "Archive messages from the current channel as Markdown",
+  options: {
+    limit: {
+      type: "integer",
+      description: "Maximum messages to archive (default: 500)",
+      required: false,
+    },
+  },
+}, async (ctx) => {
+  const channelId = ctx.channel && ctx.channel.id
+  if (!channelId) {
+    return { content: "This command must be run in a channel.", ephemeral: true }
+  }
+
+  await ctx.defer({ ephemeral: true })
+
+  const maxMessages = ctx.args.limit || ctx.config.default_limit || 500
+
+  // Fetch channel info for metadata
+  const channel = await ctx.discord.channels.fetch(channelId)
+
+  // Fetch all messages with pagination
+  const messages = await fetchAllMessages(ctx, channelId, maxMessages)
+
+  // Render to Markdown
+  const markdown = renderArchive(channel, null, messages)
+
+  // Send as file attachment
+  await ctx.discord.channels.send(channelId, {
+    content: `📄 Archive of #${channel.name}: ${messages.length} messages`,
+    files: [
+      {
+        name: `${sanitize(channel.name)}--archive.md`,
+        content: markdown,
+      },
+    ],
+  })
+
+  // Update the deferred reply
+  await ctx.edit({
+    content: `Archived ${messages.length} messages from #${channel.name}.`,
+    ephemeral: true,
+  })
+})
+```
+
+### Phase 2: The `/archive-thread` Command
+
+```javascript
+command("archive-thread", {
+  description: "Archive messages from a thread as Markdown",
+  options: {
+    thread_id: {
+      type: "string",
+      description: "Thread ID to archive",
+      required: true,
+    },
+    limit: {
+      type: "integer",
+      description: "Maximum messages to archive (default: 500)",
+      required: false,
+    },
+  },
+}, async (ctx) => {
+  const threadId = ctx.args.thread_id
+  const maxMessages = ctx.args.limit || ctx.config.default_limit || 500
+
+  await ctx.defer({ ephemeral: true })
+
+  // Fetch thread info
+  const thread = await ctx.discord.threads.fetch(threadId)
+
+  // Fetch parent channel for metadata
+  const channel = await ctx.discord.channels.fetch(thread.parentID)
+
+  // Fetch all messages from the thread
+  const messages = await fetchAllMessages(ctx, threadId, maxMessages)
+
+  // Render to Markdown
+  const markdown = renderArchive(channel, thread, messages)
+
+  // Send as file attachment to the current channel
+  const currentChannelId = ctx.channel && ctx.channel.id
+  await ctx.discord.channels.send(currentChannelId, {
+    content: `📄 Archive of thread "${thread.name}": ${messages.length} messages`,
+    files: [
+      {
+        name: `${sanitize(channel.name)}--${sanitize(thread.name)}--archive.md`,
+        content: markdown,
+      },
+    ],
+  })
+
+  await ctx.edit({
+    content: `Archived ${messages.length} messages from thread "${thread.name}".`,
+    ephemeral: true,
+  })
+})
+```
+
+### Phase 3: Helper Functions
+
+```javascript
+// Fetch all messages with pagination
+async function fetchAllMessages(ctx, channelId, maxMessages) {
+  const allMessages = []
+  let lastMessageId = null
+  const pageSize = 100
+
+  while (true) {
+    const options = { limit: pageSize }
+    if (lastMessageId) {
+      options.before = lastMessageId
+    }
+
+    const batch = await ctx.discord.messages.list(channelId, options)
+    if (!batch || batch.length === 0) {
+      break
+    }
+
+    allMessages.push(...batch)
+    lastMessageId = batch[batch.length - 1].id
+
+    if (maxMessages && allMessages.length >= maxMessages) {
+      allMessages.splice(maxMessages)
+      break
+    }
+  }
+
+  return allMessages.reverse()
+}
+
+// Render a full archive
+function renderArchive(channel, thread, messages) {
+  const lines = []
+
+  // Frontmatter
+  lines.push("---")
+  lines.push(`source: "discord"`)
+  lines.push(`channel: "${escapeYaml(channel.name || "unknown")}"`)
+  lines.push(`channel_id: "${channel.id}"`)
+  if (thread) {
+    lines.push(`thread: "${escapeYaml(thread.name || "unknown")}"`)
+    lines.push(`thread_id: "${thread.id}"`)
+  }
+  lines.push(`archived_at: "${new Date().toISOString()}"`)
+  lines.push(`message_count: ${messages.length}`)
+  lines.push("---")
+  lines.push("")
+
+  // Messages
+  for (const message of messages) {
+    lines.push(renderMessage(message))
+    lines.push("")
+  }
+
+  return lines.join("\n")
+}
+
+// Render a single message
+function renderMessage(message) {
+  const author = message.author && message.author.username || "unknown"
+  const timestamp = message.timestamp || new Date().toISOString()
+  const formattedTime = String(timestamp).replace("T", " ").slice(0, 19) + " UTC"
+
+  const header = `**${author}** *(${formattedTime})*:`
+  const body = discordToMarkdown(String(message.content || ""))
+
+  return [header, body].join("\n")
+}
+
+// Convert Discord markup to Markdown
+function discordToMarkdown(content) {
+  // Mentions
+  content = content.replace(/<@(\d+)>/g, "@user-$1")
+  content = content.replace(/<#(\d+)>/g, "#channel-$1")
+  content = content.replace(/<@&(\d+)>/g, "@role-$1")
+  content = content.replace(/<:(\w+):(\d+)>/g, ":$1:")
+  content = content.replace(/<a:(\w+):(\d+)>/g, ":$1:")
+
+  // Multi-line quotes
+  content = content.replace(/^>>>(\s*)\n?((?:.|\n)*)/gm, (m, s, quote) => {
+    return quote.split("\n").map(l => "> " + l).join("\n")
+  })
+
+  return content
+}
+
+// Sanitize a name for use in filenames
+function sanitize(name) {
+  return String(name || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+}
+
+function escapeYaml(value) {
+  return String(value || "").replace(/"/g, '\\"')
+}
+```
+
+### Phase 4: Running the Bot
+
+```bash
+# List available bots
+go run ./cmd/discord-bot bots \
+  --bot-repository ./examples/discord-bots list
+
+# Get help for our bot
+go run ./cmd/discord-bot bots \
+  --bot-repository ./examples/discord-bots help archive-helper
+
+# Run it (with sync)
+go run ./cmd/discord-bot bots \
+  --bot-repository ./examples/discord-bots \
+  run archive-helper \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --sync-on-start
+
+# Run with custom default limit
+go run ./cmd/discord-bot bots \
+  --bot-repository ./examples/discord-bots \
+  run archive-helper \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --default-limit 1000 \
+  --sync-on-start
+```
+
+### Phase 5: Testing
+
+1. **Start the bot** with `--sync-on-start` in a test server.
+2. **Run `/archive-channel`** in a text channel with a few messages.
+3. **Verify** the bot responds with an ephemeral "Archiving..." message, then delivers a `.md` file.
+4. **Open the file** and check: chronological order, correct usernames, timestamps, content.
+5. **Test `/archive-thread`** with a thread ID.
+6. **Test the `limit` option** — try `limit: 5` and verify only 5 messages are included.
+7. **Test edge cases:** empty channel, channel with only bot messages, very long messages.
+
+---
+
+## 9. File Delivery Strategy
+
+Since the JS runtime has **no `fs` module**, we deliver archives through Discord itself:
+
+### Option A: Channel Message with File Attachment (Recommended)
+
+```javascript
+await ctx.discord.channels.send(channelId, {
+  content: "Here is your archive:",
+  files: [
+    {
+      name: "general-chat--archive.md",
+      content: markdownString,
+    },
+  ],
+})
+```
+
+**Pros:** Simple, works today, user can download the file from Discord.
+**Cons:** File is public to the channel, limited by Discord's file size limits (25MB for bots).
+
+### Option B: Ephemeral Reply with File (Not Directly Supported)
+
+Discord ephemeral messages cannot have file attachments in the same way. Use Option A for the file, then send an ephemeral summary to the command invoker.
+
+### Option C: SQLite Storage via `require("database")`
+
+For incremental archiving, you could store messages in SQLite and export later:
+
+```javascript
+const database = require("database")
+
+event("messageCreate", async (ctx) => {
+  // Store every message in SQLite
+  database.exec(
+    "INSERT INTO archive_messages (id, channel_id, content, author, timestamp) VALUES (?, ?, ?, ?, ?)",
+    ctx.message.id,
+    ctx.message.channelID,
+    ctx.message.content,
+    ctx.message.author.username,
+    new Date().toISOString(),
+  )
+})
+```
+
+**Pros:** Passive capture, no manual command needed.
+**Cons:** Requires database setup, more complex, not the immediate goal.
+
+**For the initial implementation, use Option A.**
+
+---
+
+## 10. Technology Stack
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Language | Node.js (JavaScript/TypeScript) | Discord ecosystem is JS-heavy; excellent libraries exist. |
-| Discord Library | `discord.js` v14 | Most mature, well-documented, handles pagination and rate limits. |
-| CLI Framework | `yargs` or `commander` | Standard for Node CLI tools; good help generation. |
-| Environment | `dotenv` | Load secrets from `.env` file. |
-| Markdown Conversion | Custom + `marked` (optional) | Custom for Discord→MD; `marked` if we need parsing. |
-| File I/O | Native `fs/promises` | No extra dependency needed. |
-| Testing | `vitest` or `jest` | Unit tests for rendering functions. |
-| Formatting | `prettier` | Consistent code style. |
+| Host runtime | Go + Goja | The framework the whole repo uses. Handles Discord connectivity. |
+| Bot language | JavaScript (ES5-ish) | What the Goja runtime executes. |
+| Bot DSL | `require("discord")` | Framework-provided API for commands, events, config. |
+| Discord API | `ctx.discord.*` | Framework wrapper around Discord REST API. |
+| File output | `ctx.discord.channels.send()` with `files` payload | No `fs` in JS runtime; deliver via Discord. |
+| Optional storage | `require("database")` | SQLite module for incremental capture (future). |
+| Timing | `require("timer")` | `sleep()` for demos or rate-limit pacing. |
 
 ---
 
-## 9. Implementation Plan (Step by Step)
-
-### Phase 0: Setup (Day 1)
-
-1. **Create a Discord Application**
-   - Go to https://discord.com/developers/applications
-   - Click "New Application", name it "Archive Helper"
-   - Navigate to "Bot" tab, click "Add Bot"
-   - Under "Privileged Gateway Intents", enable **Message Content Intent**
-   - Copy the **Token** (you will only see it once; save it in `.env`)
-
-2. **Invite the Bot to Your Server**
-   - OAuth2 → URL Generator
-   - Scopes: `bot`
-   - Permissions: `Read Messages/View Channels`, `Read Message History`
-   - Copy the generated URL, open in browser, select your server
-
-3. **Project Scaffold**
-   ```
-   discord-archive-bot/
-   ├── .env                  # secrets (gitignored)
-   ├── .gitignore            # node_modules, .env, archives/
-   ├── package.json
-   ├── src/
-   │   ├── index.js          # CLI entry point
-   │   ├── client.js         # Discord client setup
-   │   ├── fetcher.js        # Message/thread fetching logic
-   │   ├── renderer.js       # Markdown rendering
-   │   ├── writer.js         # File output
-   │   └── utils.js          # Sanitization, date formatting
-   ├── tests/
-   │   └── renderer.test.js
-   └── README.md
-   ```
-
-### Phase 1: Core Connection (Day 1–2)
-
-Implement `src/client.js`:
-
-```javascript
-// src/client.js
-import { Client, GatewayIntentBits } from 'discord.js';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-export function createClient() {
-  const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent,
-    ],
-  });
-  return client;
-}
-
-export async function login(client) {
-  const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token) {
-    throw new Error('DISCORD_BOT_TOKEN not found in environment');
-  }
-  await client.login(token);
-  console.log(`Logged in as ${client.user.tag}`);
-}
-```
-
-### Phase 2: Fetching Messages (Day 2–3)
-
-Implement `src/fetcher.js`:
-
-```javascript
-// src/fetcher.js
-export async function fetchAllMessages(channel) {
-  const messages = [];
-  let lastId = null;
-
-  while (true) {
-    const options = { limit: 100 };
-    if (lastId) options.before = lastId;
-
-    const batch = await channel.messages.fetch(options);
-    if (batch.size === 0) break;
-
-    messages.push(...batch.values());
-    lastId = batch.last().id;
-
-    // Rate limit safety
-    await sleep(200);
-  }
-
-  // Reverse to chronological order (oldest first)
-  return messages.reverse();
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-```
-
-Implement thread discovery:
-
-```javascript
-export async function fetchThreads(channel) {
-  const threads = [];
-
-  // Active threads in guild
-  const active = await channel.guild.channels.fetchActiveThreads();
-  for (const thread of active.threads.values()) {
-    if (thread.parentId === channel.id) {
-      threads.push(thread);
-    }
-  }
-
-  // Archived threads
-  let archived = await channel.threads.fetchArchived({ fetchAll: true });
-  threads.push(...archived.threads.values());
-
-  return threads;
-}
-```
-
-### Phase 3: Rendering (Day 3–4)
-
-Implement `src/renderer.js` with the conversion logic from section 6.
-
-Key functions:
-- `renderMessage(message)` → string
-- `renderEmbed(embed)` → string
-- `renderAttachment(attachment)` → string
-- `discordToMarkdown(content, guild)` → string
-- `renderReactions(reactions)` → string
-
-### Phase 4: File Writing (Day 4)
-
-Implement `src/writer.js`:
-
-```javascript
-// src/writer.js
-import fs from 'fs/promises';
-import path from 'path';
-
-export async function writeArchive(outputDir, channel, thread, renderedMarkdown, meta) {
-  const dateStr = new Date().toISOString().split('T')[0];
-  const channelDir = path.join(outputDir, sanitize(channel.name));
-  await fs.mkdir(channelDir, { recursive: true });
-
-  let fileName;
-  if (thread) {
-    fileName = `thread--${sanitize(thread.name)}--${dateStr}.md`;
-  } else {
-    fileName = `${sanitize(channel.name)}--${dateStr}.md`;
-  }
-
-  const filePath = path.join(channelDir, fileName);
-  const frontmatter = buildFrontmatter(meta);
-  await fs.writeFile(filePath, frontmatter + '\n' + renderedMarkdown, 'utf-8');
-
-  return filePath;
-}
-
-function sanitize(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-}
-
-function buildFrontmatter(meta) {
-  return '---\n' + Object.entries(meta)
-    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-    .join('\n') + '\n---\n';
-}
-```
-
-### Phase 5: CLI Assembly (Day 4–5)
-
-Wire everything in `src/index.js` using `yargs`:
-
-```javascript
-// src/index.js
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-import { createClient, login } from './client.js';
-import { fetchAllMessages, fetchThreads } from './fetcher.js';
-import { renderChannel } from './renderer.js';
-import { writeArchive } from './writer.js';
-
-const argv = yargs(hideBin(process.argv))
-  .option('channel', { type: 'string', demandOption: true, describe: 'Channel ID or URL' })
-  .option('output', { type: 'string', default: './archives', describe: 'Output directory' })
-  .option('threads', { type: 'boolean', default: true, describe: 'Include threads' })
-  .option('download-attachments', { type: 'boolean', default: false, describe: 'Download attachment files' })
-  .help()
-  .argv;
-
-async function main() {
-  const client = createClient();
-  await login(client);
-
-  // Resolve channel from ID or URL
-  const channelId = extractChannelId(argv.channel);
-  const channel = await client.channels.fetch(channelId);
-
-  if (!channel || !channel.isTextBased()) {
-    throw new Error('Channel not found or not a text channel');
-  }
-
-  console.log(`Archiving #${channel.name}...`);
-
-  // Fetch and render main channel messages
-  const messages = await fetchAllMessages(channel);
-  const mainMarkdown = renderChannel(channel, messages);
-  await writeArchive(argv.output, channel, null, mainMarkdown, {
-    source: 'discord',
-    server: channel.guild.name,
-    server_id: channel.guild.id,
-    channel: channel.name,
-    channel_id: channel.id,
-    archived_at: new Date().toISOString(),
-    message_count: messages.length,
-  });
-
-  // Fetch and render threads
-  if (argv.threads) {
-    const threads = await fetchThreads(channel);
-    for (const thread of threads) {
-      console.log(`  Archiving thread: ${thread.name}...`);
-      const threadMessages = await fetchAllMessages(thread);
-      const threadMarkdown = renderChannel(thread, threadMessages);
-      await writeArchive(argv.output, channel, thread, threadMarkdown, {
-        source: 'discord',
-        server: channel.guild.name,
-        server_id: channel.guild.id,
-        channel: channel.name,
-        channel_id: channel.id,
-        thread: thread.name,
-        thread_id: thread.id,
-        archived_at: new Date().toISOString(),
-        message_count: threadMessages.length,
-      });
-    }
-  }
-
-  console.log('Done.');
-  await client.destroy();
-  process.exit(0);
-}
-
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
-```
-
-### Phase 6: Testing & Hardening (Day 5–6)
-
-- Write unit tests for `renderer.js` using sample message objects.
-- Test with a real Discord channel (use a private test server first).
-- Verify handling of:
-  - Empty channels.
-  - Channels with 10,000+ messages (rate limit behavior).
-  - Channels with many threads.
-  - Messages with complex embeds, multiple attachments, reactions.
-  - Deleted messages (should be skipped gracefully).
-  - Missing permissions (should produce clear error).
-
-### Phase 7: Documentation (Day 6)
-
-- Complete `README.md` with setup instructions, usage examples, and environment variables.
-- Document the archive file format for future consumers.
-
----
-
-## 10. Error Handling Strategy
+## 11. Error Handling Strategy
 
 | Scenario | Behavior |
 |----------|----------|
-| Invalid token | Clear error: "DISCORD_BOT_TOKEN invalid or missing" |
-| Channel not found | Error: "Channel {id} not found or bot lacks access" |
-| Missing Message Content Intent | Warning: "Messages will be empty; enable Message Content Intent in Developer Portal" |
-| Rate limited | `discord.js` auto-retries; we add a 200ms sleep between batches. |
-| Partial failure (one thread errors) | Log error, continue with remaining threads. |
-| Disk full | Error with path; do not truncate files. |
-| Network interruption | Retry up to 3 times with exponential backoff. |
+| Command run outside a channel | Return ephemeral: "This command must be run in a channel." |
+| Invalid thread ID | Catch error from `ctx.discord.threads.fetch()`, return ephemeral error. |
+| Channel/thread has no messages | Return ephemeral: "No messages found." |
+| Rate limited | `ctx.discord.messages.list()` handles this internally; we just paginate. |
+| Message content empty (bot messages, embed-only) | Render as "(empty)" or skip. |
+| File too large for Discord | Split into multiple files or truncate. |
 
 ---
 
-## 11. Security & Privacy Considerations
+## 12. Security & Privacy Considerations
 
-- **Token secrecy:** The bot token grants access to everything the bot can see. Treat it like a password. Use `.env`, never log it, never commit it.
-- **Data sensitivity:** Archives contain conversations. Store them in a secure location. Do not upload to public repositories.
-- **Bot permissions:** Request only the minimum permissions needed (`Read Messages/View Channels`, `Read Message History`). Do not request `Send Messages`, `Manage Messages`, or admin privileges.
-- **User data:** Be aware that Discord's Terms of Service and GDPR apply to user data. Do not redistribute archives without consent.
-
----
-
-## 12. API Reference Cheat Sheet
-
-### Discord.js v14 Key Classes
-
-| Class | Purpose | Key Methods |
-|-------|---------|-------------|
-| `Client` | Bot connection | `.login(token)`, `.channels.fetch(id)`, `.destroy()` |
-| `TextChannel` | Text channel | `.messages.fetch(options)`, `.threads.fetchArchived()` |
-| `ThreadChannel` | Thread | Same as TextChannel (inherits) |
-| `Message` | Single message | `.content`, `.author`, `.attachments`, `.embeds`, `.createdAt` |
-| `MessageManager` | Channel's messages | `.fetch({ limit, before })` |
-| `GuildChannelManager` | Guild channels | `.fetchActiveThreads()` |
-
-### REST Endpoints (if not using discord.js)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/channels/{id}` | Get channel info |
-| GET | `/channels/{id}/messages` | Get messages (paginated) |
-| GET | `/channels/{id}/threads/archived/public` | Get archived public threads |
-| GET | `/guilds/{id}/threads/active` | Get active threads |
-| GET | `/channels/{id}/messages/{message.id}` | Get single message |
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DISCORD_BOT_TOKEN` | Yes | Bot authentication token |
-| `DISCORD_GUILD_ID` | No | Default guild ID (optional) |
-| `ARCHIVE_OUTPUT_DIR` | No | Default output directory (default: `./archives`) |
+- **Token secrecy:** The bot token is passed as a CLI flag (`--bot-token`), not hardcoded. Never commit tokens.
+- **Data sensitivity:** Archives contain conversations. The bot should only operate in channels it has permission to read.
+- **Bot permissions:** Request only `Read Messages/View Channels` and `Read Message History`. Do not request `Send Messages` unless needed for delivery.
+- **User data:** Archives may contain personal data. Store downloaded files securely. Do not redistribute without consent.
 
 ---
 
-## 13. Open Questions
+## 13. API Reference Cheat Sheet
 
-1. Should we download attachment files locally, or only save URLs?
-2. Should we support incremental updates ("archive only new messages since last run")?
-3. How should we handle message edits — show original, latest, or both?
-4. Should we output HTML in addition to Markdown?
-5. What is the target reMarkable reading experience? (This affects line length, image sizing, etc.)
+### Framework Registration Helpers
+
+| Helper | Signature | Purpose |
+|--------|-----------|---------|
+| `defineBot(builderFn)` | `builderFn({ command, event, configure, ... })` | Entrypoint for every bot |
+| `configure(options)` | `options = { name, description, category, run? }` | Set metadata and runtime config |
+| `command(name, spec?, handler)` | `spec = { description, options }` | Register a slash command |
+| `event(name, handler)` | `name = "ready" \| "messageCreate" \| ...` | Register event handler |
+
+### Framework Context Fields (`ctx`)
+
+| Field | Purpose |
+|-------|---------|
+| `ctx.args` / `ctx.options` | Parsed command option values |
+| `ctx.config` | Runtime config values from `configure({ run: ... })` |
+| `ctx.channel.id` | ID of the channel where the interaction occurred |
+| `ctx.guild.id` | ID of the guild where the interaction occurred |
+| `ctx.user.id` | ID of the user who invoked the command |
+| `ctx.me` | Bot's own user record `{ id, username }` |
+| `ctx.defer({ ephemeral? })` | Acknowledge interaction for slow work |
+| `ctx.edit(payload)` | Edit the deferred/initial response |
+| `ctx.followUp(payload)` | Send an additional follow-up message |
+| `ctx.reply(payload)` | Send a response (for events or non-deferred) |
+| `ctx.log.info/debug/warn/error(msg, fields)` | Structured logging |
+| `ctx.store.get/set/delete/keys/namespace` | Per-runtime in-memory key/value store |
+
+### Discord Operations (`ctx.discord.*`)
+
+#### Messages
+
+```javascript
+// List messages (paginated)
+const messages = await ctx.discord.messages.list(channelId, {
+  before: "msg-id",  // optional
+  after: "msg-id",   // optional
+  around: "msg-id",  // optional
+  limit: 100,        // max 100
+})
+
+// Fetch one message
+const message = await ctx.discord.messages.fetch(channelId, messageId)
+```
+
+#### Channels
+
+```javascript
+const channel = await ctx.discord.channels.fetch(channelId)
+await ctx.discord.channels.send(channelId, {
+  content: "...",
+  files: [{ name: "file.md", content: "..." }],
+})
+```
+
+#### Threads
+
+```javascript
+const thread = await ctx.discord.threads.fetch(threadId)
+await ctx.discord.threads.join(threadId)
+await ctx.discord.threads.leave(threadId)
+const started = await ctx.discord.threads.start(channelId, {
+  name: "...",
+  type: "public",
+})
+```
+
+### Response Payload Shape
+
+```javascript
+// Simple text
+return { content: "Hello", ephemeral: true }
+
+// With embeds and components
+return {
+  content: "Hello",
+  embeds: [{ title: "...", description: "...", color: 0x5865F2 }],
+  components: [
+    {
+      type: "actionRow",
+      components: [
+        { type: "button", style: "primary", label: "Click", customId: "my:button" },
+      ],
+    },
+  ],
+  ephemeral: true,
+}
+
+// File attachment via channel send
+await ctx.discord.channels.send(channelId, {
+  content: "Here is a file",
+  files: [
+    { name: "report.md", content: "# Report\n\nHello world." },
+  ],
+})
+```
 
 ---
 
-## 14. Glossary
+## 14. Open Questions
+
+1. **Should we support incremental updates?** (e.g., "archive only new messages since last run") — This would require persistent storage (SQLite) and is a future enhancement.
+2. **How should we handle message edits?** — Show original, latest, or both? Currently we capture the state at archive time.
+3. **Should we render embeds and attachments?** — The current `messages.list` API returns a simplified shape. We may need `messages.fetch` for full richness.
+4. **What about forum channels?** — Every post is a thread. We may need a `/archive-forum` command that loops through all threads.
+5. **Should we add a passive capture mode?** — Using `event("messageCreate", ...)` to store all messages in SQLite automatically.
+
+---
+
+## 15. Glossary
 
 | Term | Definition |
 |------|-----------|
@@ -940,11 +1031,14 @@ main().catch(err => {
 | **Intent** | A permission declaration that tells Discord which events the bot needs. |
 | **Token** | A secret string used to authenticate API requests. |
 | **Snowflake** | Discord's ID format — a large integer encoding timestamp + worker ID + sequence. |
-| **Rate Limit** | A cap on API requests per time window. |
-| **CDN** | Content Delivery Network — where Discord hosts attachments and emoji images. |
+| **Goja** | The Go JavaScript engine used by our framework (not Node.js). |
+| **Native Module** | A JS module provided by the Go host, like `require("discord")` or `require("database")`. |
+| **Defer** | Acknowledging a Discord interaction immediately, then editing the response later. |
+| **Ephemeral** | A message visible only to the user who triggered it. |
 
 ---
 
-*Document version: 1.0*
+*Document version: 2.0*
 *Ticket: DISCORD-ARCHIVE-BOT*
 *Created: 2026-04-21*
+*Updated: 2026-04-21 (corrected for discord-js-bot framework)*

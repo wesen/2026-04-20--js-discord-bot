@@ -38,6 +38,12 @@ This repository lets you write Discord bots in JavaScript while the Go host hand
 
 The main idea is simple: the bot repository owns the process, but the bot behavior lives in JavaScript.
 
+> ⚠️ **Runtime Environment**
+> Bot scripts run inside a Goja JavaScript engine embedded in Go, **not Node.js**.
+> - **Available modules:** `require("discord")`, `require("timer")`, `require("database")`
+> - **Unavailable:** `fs`, `path`, `http`, `fetch`, `process`, npm packages, or any Node.js standard library
+> - **No file system access from JS.** Deliver generated content as Discord file attachments via `ctx.discord.channels.send()` with `files: [...]`
+
 ## The runtime model
 
 A bot repository is a directory tree full of bot scripts. Each script exports one bot definition through `require("discord")`.
@@ -624,6 +630,43 @@ The list helpers accept plain objects so you can pass the same shape from a comm
   - accepts `{ durationSeconds }`, `{ until }`, or `{ clear: true }`
 - `ctx.discord.members.ban(guildId, userId, payload)`
   - accepts a string reason or an object like `{ reason, deleteMessageDays }`
+
+### Message history pagination example
+
+To fetch more messages than a single call allows, paginate backwards with `before`:
+
+```js
+async function fetchAllMessages(ctx, channelId, maxMessages) {
+  const allMessages = []
+  let lastMessageId = null
+  const pageSize = 100 // Discord max per request
+
+  while (true) {
+    const options = { limit: pageSize }
+    if (lastMessageId) {
+      options.before = lastMessageId
+    }
+
+    const batch = await ctx.discord.messages.list(channelId, options)
+    if (!batch || batch.length === 0) {
+      break
+    }
+
+    allMessages.push(...batch)
+    lastMessageId = batch[batch.length - 1].id
+
+    if (maxMessages && allMessages.length >= maxMessages) {
+      allMessages.splice(maxMessages)
+      break
+    }
+  }
+
+  // Discord returns newest first; reverse to chronological order
+  return allMessages.reverse()
+}
+```
+
+Use this pattern when building archive, export, or backfill commands that need the full history of a channel or thread.
 
 ### What the returned snapshots look like
 

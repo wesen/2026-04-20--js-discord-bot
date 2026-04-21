@@ -41,6 +41,18 @@ This guide shows the full day-one path for a new bot developer:
 
 The goal is practical fluency. By the end, you should be able to build a complete bot from scratch, run it locally, and know where to look when something fails.
 
+> ⚠️ **Runtime Environment**
+> Bot scripts run inside a Goja JavaScript engine embedded in Go, **not Node.js**.
+> - **Available modules:** `require("discord")`, `require("timer")`, `require("database")`
+> - **Unavailable:** `fs`, `path`, `http`, `fetch`, `process`, npm packages, or any Node.js standard library
+> - **No file system access from JS.** Deliver generated content as Discord file attachments via `ctx.discord.channels.send()` with `files: [...]`
+
+## How this works (three sentences)
+
+1. You write a JavaScript module that calls `defineBot(...)` and registers commands, events, and handlers.
+2. The Go host loads your script, syncs slash commands to Discord, opens the gateway, and dispatches events.
+3. Your script uses `ctx.discord.*` to call Discord APIs; the host handles authentication, rate limits, and reconnections.
+
 ## 1. Understand the repository layout
 
 Bots in this repo are not individual ad hoc scripts. They are named bot implementations under `examples/discord-bots/`.
