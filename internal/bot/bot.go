@@ -296,43 +296,6 @@ func (b *Bot) handleInteractionCreate(session *discordgo.Session, interaction *d
 		if err := b.jsHost.DispatchInteraction(context.Background(), session, interaction); err != nil {
 			log.Error().Err(err).Msg("failed to dispatch interaction to javascript bot")
 		}
-		return
-	}
-
-	if interaction.Type != discordgo.InteractionApplicationCommand {
-		return
-	}
-
-	data := interaction.ApplicationCommandData()
-	switch data.Name {
-	case "ping":
-		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "pong"},
-		}); err != nil {
-			log.Error().Err(err).Msg("failed to respond to ping command")
-		}
-	case "echo":
-		text := ""
-		if len(data.Options) > 0 {
-			text = fmt.Sprint(data.Options[0].Value)
-		}
-		if strings.TrimSpace(text) == "" {
-			text = "(empty)"
-		}
-		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: text},
-		}); err != nil {
-			log.Error().Err(err).Msg("failed to respond to echo command")
-		}
-	default:
-		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "unknown command"},
-		}); err != nil {
-			log.Error().Err(err).Msg("failed to respond to unknown command")
-		}
 	}
 }
 
