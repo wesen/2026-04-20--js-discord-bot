@@ -11,12 +11,15 @@ RelatedFiles:
       Note: Updated with pagination example and runtime constraints
     - Path: pkg/doc/tutorials/building-and-running-discord-js-bots.md
       Note: Updated with runtime environment warning and framework overview
+    - Path: ttmp/2026/04/21/DISCORD-BOT-020--discord-interaction-types-demo-bot-with-user-commands-message-commands-and-subcommands/sources/discord-application-commands-docs.md
+      Note: Official Discord API reference for ApplicationCommandOptionType
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -108,6 +111,8 @@ The builder callback receives registration helpers. You destructure only the one
 |--------|---------|
 | `configure(options)` | Set bot name, description, category, runtime config fields |
 | `command(name, spec?, handler)` | Register a slash command |
+| `messageCommand(name, handler)` | Register a message context menu command (right-click message → Apps) |
+| `userCommand(name, handler)` | Register a user context menu command (right-click user → Apps) |
 | `event(name, handler)` | Register a gateway event handler |
 | `component(customId, handler)` | Handle button/select-menu clicks |
 | `modal(customId, handler)` | Handle modal submissions |
@@ -164,7 +169,64 @@ Each field becomes:
 - A key in `ctx.config` inside your handlers
 - A CLI flag when running the bot (e.g., `--output-prefix`, `--include-threads`)
 
-### 2.5 What Is NOT Available
+### 2.5 What Input Types Are Available (and What Is Not)
+
+#### Slash command option types (Discord's official API)
+
+Discord's API defines 11 option types. Our framework supports 10 of them:
+
+| Framework type | Discord API name | Value | What the user sees | Good for |
+| --- | --- | --- | --- | --- |
+| `string` | `STRING` | 3 | Free text input | Names, queries, message IDs, ISO date strings |
+| `int`, `integer` | `INTEGER` | 4 | Whole number input | Limits, counts, durations in hours/days |
+| `number`, `float` | `NUMBER` | 10 | Decimal number input | Less common for archives |
+| `bool`, `boolean` | `BOOLEAN` | 5 | True/false toggle | Flags like `include_pins` |
+| `user` | `USER` | 6 | @mention picker | Targeting a specific user |
+| `channel` | `CHANNEL` | 7 | #channel picker | Targeting a specific channel |
+| `role` | `ROLE` | 8 | @role picker | Filtering by role |
+| `mentionable` | `MENTIONABLE` | 9 | User or role picker | Flexible targeting |
+| `sub_command` | `SUB_COMMAND` | 1 | Nested command | `/archive channel` vs `/archive thread` |
+| `sub_command_group` | `SUB_COMMAND_GROUP` | 2 | Nested command group | Organizing subcommands |
+| ~~`attachment`~~ | ~~`ATTACHMENT`~~ | ~~11~~ | ~~File upload button~~ | ~~**Not yet supported by framework**~~ |
+
+**Source:** Official Discord API docs — `ApplicationCommandOptionType` enum. There are exactly 11 types defined by Discord; no more, no less.
+
+#### What is NOT available (and never will be)
+
+**Discord's API does not have and has never had:**
+- ❌ Date picker / calendar widget
+- ❌ DateTime selector
+- ❌ Time range slider
+- ❌ Dropdown with months/days/years
+- ❌ Any form of calendar or date UI component
+
+This is a Discord API limitation, not a framework limitation. There is no `DATE`, `DATETIME`, or `TIME` option type in Discord's `ApplicationCommandOptionType` enum.
+
+#### Modal (form) input types
+
+Modals only support **text inputs**:
+
+| Style | Use case |
+|-------|----------|
+| `style: "short"` | Single-line text: names, IDs, short queries |
+| `style: "paragraph"` | Multi-line text: long descriptions, pasted content |
+
+There are no date pickers, file uploads, or rich inputs in modals.
+
+#### Workarounds for time range selection
+
+Since Discord has no date UI, use these patterns:
+
+| Approach | Implementation | Best for |
+|----------|---------------|----------|
+| `before_message_id` string option | `ctx.discord.messages.list({ before: id })` | Precise cutoff at a known message |
+| `limit` integer option | Cap total messages fetched | Rough size control |
+| Relative hours/days as `integer` | `hours: 24` → compute snowflake cutoff | Relative time ranges |
+| Message as implicit anchor | `messageCommand` uses the message's timestamp | Natural UX for threads |
+
+**Recommendation for the archive bot:** Use `integer` for `limit` (max messages) and optionally `string` for `before_message_id` to archive up to a specific point. Message IDs are the most reliable time anchor because Discord snowflake IDs encode timestamps.
+
+### 2.6 What Is NOT Available
 
 Because the JS runs inside a Goja runtime (not Node.js):
 
@@ -172,6 +234,7 @@ Because the JS runs inside a Goja runtime (not Node.js):
 - **No `process.env`** — secrets come through CLI flags, not environment variables.
 - **No `npm install`** — the only modules available are what the host provides.
 - **No `fetch()` or HTTP clients** — all Discord API access goes through `ctx.discord.*`.
+- **No calendar / datepicker / time-range UI components** — Discord's API does not provide them.
 
 **For file output**, you send the generated Markdown back to Discord as a file attachment using `ctx.discord.channels.send()` with a `files` payload.
 
@@ -213,12 +276,12 @@ The output is delivered as a Discord file attachment, which can then be saved lo
 │                         Discord Archive Helper Bot                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   User runs /archive-channel or /archive-thread in Discord                  │
+│   User runs /archive-channel (slash) or "Archive Thread" (right-click msg) │
 │        │                                                                    │
 │        ▼                                                                    │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  Slash Command Handler  (JS)                                        │   │
-│   │  • Parse args (channel/thread ID, message limit, options)           │   │
+│   │  Command Handler  (JS)                                              │   │
+│   │  • Parse args (limit, before-msg-id) or resolve msg→thread          │   │
 │   │  • Defer the interaction (acknowledge immediately)                  │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │        │                                                                    │
@@ -252,11 +315,11 @@ The output is delivered as a Discord file attachment, which can then be saved lo
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Data Flow
+### 4.2 Data Flow — `/archive-channel`
 
 ```
 User types in Discord:
-  /archive-channel limit: 500
+  /archive-channel limit: 500 before_message_id: 111222333
 
         │
         ▼
@@ -314,6 +377,49 @@ User types in Discord:
   ┌─────────────────────────────────────┐
   │ Edit deferred reply with summary:   │
   │ "Archived 347 messages."            │
+  └─────────────────────────────────────┘
+```
+
+### 4.3 Data Flow — "Archive Thread" (Message Context Menu)
+
+```
+User right-clicks a message in a thread
+  → chooses Apps → "Archive Thread"
+
+        │
+        ▼
+  ┌─────────────────────────────────────┐
+  │ Go host receives interaction        │
+  │ routes to JS messageCommand handler │
+  └─────────────────────────────────────┘
+        │
+        ▼
+  ┌─────────────────────────────────────┐
+  │ ctx.args.target has the message     │
+  │ ctx.args.target.channelID = thread  │
+  └─────────────────────────────────────┘
+        │
+        ▼
+  ┌─────────────────────────────────────┐
+  │ ctx.defer({ ephemeral: true })      │
+  │ "Archiving thread..."               │
+  └─────────────────────────────────────┘
+        │
+        ▼
+  ┌─────────────────────────────────────┐
+  │ Fetch thread via                    │
+  │ ctx.discord.threads.fetch(threadId) │
+  └─────────────────────────────────────┘
+        │
+        ▼
+  ┌─────────────────────────────────────┐
+  │ Fetch all messages from thread      │
+  │ with pagination loop                │
+  └─────────────────────────────────────┘
+        │
+        ▼
+  ┌─────────────────────────────────────┐
+  │ Render + deliver file               │
   └─────────────────────────────────────┘
 ```
 
@@ -394,10 +500,10 @@ const started = await ctx.discord.threads.start(channelId, {
 
 **Note:** The current framework does not expose a "list all threads in channel" API. For our archive bot, we have two approaches:
 
-1. **Thread-as-target:** The user provides a thread ID directly (`/archive-thread thread_id: ...`).
+1. **Thread via message command:** The user right-clicks any message inside a thread and chooses **Apps → Archive Thread**. The bot infers the thread ID from `ctx.args.target.channelID`.
 2. **Event-based capture:** Use `event("messageCreate", ...)` to capture messages passively, building an archive over time in SQLite via `require("database")`.
 
-For the initial implementation, we focus on **explicit slash commands** targeting a specific channel or thread.
+For the initial implementation, we use a **slash command** for channels (`/archive-channel`) and a **message context menu command** for threads ("Archive Thread").
 
 ### 5.3 Channel Info
 
@@ -554,7 +660,7 @@ Create `examples/discord-bots/archive-helper/index.js`:
 ```javascript
 const { defineBot } = require("discord")
 
-module.exports = defineBot(({ command, event, configure }) => {
+module.exports = defineBot(({ command, messageCommand, event, configure }) => {
   configure({
     name: "archive-helper",
     description: "Download channels and threads as Markdown archives",
@@ -585,6 +691,11 @@ command("archive-channel", {
       description: "Maximum messages to archive (default: 500)",
       required: false,
     },
+    before_message_id: {
+      type: "string",
+      description: "Archive messages before this message ID (optional time anchor)",
+      required: false,
+    },
   },
 }, async (ctx) => {
   const channelId = ctx.channel && ctx.channel.id
@@ -595,12 +706,13 @@ command("archive-channel", {
   await ctx.defer({ ephemeral: true })
 
   const maxMessages = ctx.args.limit || ctx.config.default_limit || 500
+  const beforeId = ctx.args.before_message_id || null
 
   // Fetch channel info for metadata
   const channel = await ctx.discord.channels.fetch(channelId)
 
-  // Fetch all messages with pagination
-  const messages = await fetchAllMessages(ctx, channelId, maxMessages)
+  // Fetch messages with pagination (optionally bounded by before_id)
+  const messages = await fetchAllMessages(ctx, channelId, maxMessages, beforeId)
 
   // Render to Markdown
   const markdown = renderArchive(channel, null, messages)
@@ -624,26 +736,19 @@ command("archive-channel", {
 })
 ```
 
-### Phase 2: The `/archive-thread` Command
+### Phase 2: The "Archive Thread" Message Context Menu Command
+
+Instead of a slash command with a `thread_id` argument, we use a **message context menu command**. The user right-clicks any message inside a thread and chooses **Apps → Archive Thread**. The bot infers the thread ID from the message's `channelID`.
 
 ```javascript
-command("archive-thread", {
-  description: "Archive messages from a thread as Markdown",
-  options: {
-    thread_id: {
-      type: "string",
-      description: "Thread ID to archive",
-      required: true,
-    },
-    limit: {
-      type: "integer",
-      description: "Maximum messages to archive (default: 500)",
-      required: false,
-    },
-  },
-}, async (ctx) => {
-  const threadId = ctx.args.thread_id
-  const maxMessages = ctx.args.limit || ctx.config.default_limit || 500
+messageCommand("Archive Thread", async (ctx) => {
+  const targetMessage = ctx.args.target
+  if (!targetMessage || !targetMessage.id) {
+    return { content: "Could not resolve the target message.", ephemeral: true }
+  }
+
+  // The message's channelID IS the thread ID when invoked inside a thread
+  const threadId = targetMessage.channelID
 
   await ctx.defer({ ephemeral: true })
 
@@ -654,14 +759,14 @@ command("archive-thread", {
   const channel = await ctx.discord.channels.fetch(thread.parentID)
 
   // Fetch all messages from the thread
+  const maxMessages = ctx.config.default_limit || 500
   const messages = await fetchAllMessages(ctx, threadId, maxMessages)
 
   // Render to Markdown
   const markdown = renderArchive(channel, thread, messages)
 
-  // Send as file attachment to the current channel
-  const currentChannelId = ctx.channel && ctx.channel.id
-  await ctx.discord.channels.send(currentChannelId, {
+  // Send as file attachment to the current channel (the thread itself)
+  await ctx.discord.channels.send(threadId, {
     content: `📄 Archive of thread "${thread.name}": ${messages.length} messages`,
     files: [
       {
@@ -678,11 +783,18 @@ command("archive-thread", {
 })
 ```
 
+**Why a message command?**
+- No need to copy-paste a thread ID.
+- The user is already looking at the thread — just right-click any message.
+- Discord's API has no calendar widget; using a message as the implicit "anchor point" is more natural than typing a date.
+- `ctx.args.target` gives us the message object, and `targetMessage.channelID` is the thread ID when the message lives inside a thread. 
+
 ### Phase 3: Helper Functions
 
 ```javascript
 // Fetch all messages with pagination
-async function fetchAllMessages(ctx, channelId, maxMessages) {
+// Optional beforeId stops pagination when we reach that message
+async function fetchAllMessages(ctx, channelId, maxMessages, beforeId) {
   const allMessages = []
   let lastMessageId = null
   const pageSize = 100
@@ -698,7 +810,19 @@ async function fetchAllMessages(ctx, channelId, maxMessages) {
       break
     }
 
-    allMessages.push(...batch)
+    for (const msg of batch) {
+      // If we hit the beforeId, stop collecting (exclusive)
+      if (beforeId && msg.id === beforeId) {
+        break
+      }
+      allMessages.push(msg)
+    }
+
+    // Check if the batch contained beforeId (we need to stop)
+    if (beforeId && batch.some(m => m.id === beforeId)) {
+      break
+    }
+
     lastMessageId = batch[batch.length - 1].id
 
     if (maxMessages && allMessages.length >= maxMessages) {
@@ -817,9 +941,10 @@ go run ./cmd/discord-bot bots \
 2. **Run `/archive-channel`** in a text channel with a few messages.
 3. **Verify** the bot responds with an ephemeral "Archiving..." message, then delivers a `.md` file.
 4. **Open the file** and check: chronological order, correct usernames, timestamps, content.
-5. **Test `/archive-thread`** with a thread ID.
-6. **Test the `limit` option** — try `limit: 5` and verify only 5 messages are included.
-7. **Test edge cases:** empty channel, channel with only bot messages, very long messages.
+5. **Test `/archive-channel limit: 5`** — verify only 5 messages are included.
+6. **Test `/archive-channel before_message_id: <id>`** — verify pagination stops at that message.
+7. **Test "Archive Thread" message command:** right-click any message inside a thread, choose Apps → Archive Thread. Verify the file is delivered in the thread.
+8. **Test edge cases:** empty channel, channel with only bot messages, very long messages, message command in a non-thread channel (should fail gracefully).
 
 ---
 
@@ -917,9 +1042,11 @@ event("messageCreate", async (ctx) => {
 
 | Helper | Signature | Purpose |
 |--------|-----------|---------|
-| `defineBot(builderFn)` | `builderFn({ command, event, configure, ... })` | Entrypoint for every bot |
+| `defineBot(builderFn)` | `builderFn({ command, messageCommand, event, configure, ... })` | Entrypoint for every bot |
 | `configure(options)` | `options = { name, description, category, run? }` | Set metadata and runtime config |
 | `command(name, spec?, handler)` | `spec = { description, options }` | Register a slash command |
+| `messageCommand(name, handler)` | `name = "Archive Thread"` | Register a message context menu command |
+| `userCommand(name, handler)` | `name = "Show Avatar"` | Register a user context menu command |
 | `event(name, handler)` | `name = "ready" \| "messageCreate" \| ...` | Register event handler |
 
 ### Framework Context Fields (`ctx`)
@@ -1017,6 +1144,7 @@ await ctx.discord.channels.send(channelId, {
 3. **Should we render embeds and attachments?** — The current `messages.list` API returns a simplified shape. We may need `messages.fetch` for full richness.
 4. **What about forum channels?** — Every post is a thread. We may need a `/archive-forum` command that loops through all threads.
 5. **Should we add a passive capture mode?** — Using `event("messageCreate", ...)` to store all messages in SQLite automatically.
+6. **Time range selection without calendar widgets** — Discord has no date picker. We use `before_message_id` as an anchor. Could we add an `after_message_id` option too? Or a `hours` integer option for relative ranges?
 
 ---
 
@@ -1038,7 +1166,7 @@ await ctx.discord.channels.send(channelId, {
 
 ---
 
-*Document version: 2.0*
+*Document version: 3.0*
 *Ticket: DISCORD-ARCHIVE-BOT*
 *Created: 2026-04-21*
-*Updated: 2026-04-21 (corrected for discord-js-bot framework)*
+*Updated: 2026-04-21 (messageCommand for thread archive; input type reference; before_message_id anchor)*
