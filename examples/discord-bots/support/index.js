@@ -47,6 +47,111 @@ module.exports = defineBot(({ command, event, configure }) => {
     };
   });
 
+  command("support-fetch-thread", {
+    description: "Fetch one thread using the host thread utilities",
+    options: {
+      thread_id: {
+        type: "string",
+        description: "Target thread ID",
+        required: true,
+      }
+    }
+  }, async (ctx) => {
+    const thread = await ctx.discord.threads.fetch(ctx.args.thread_id);
+    return {
+      content: `Fetched thread ${thread.name || thread.id}.`,
+      ephemeral: true,
+      embeds: [{
+        title: "Thread info",
+        description: [
+          `ID: ${String(thread.id)}`,
+          `Parent: ${String(thread.parentID || "(unknown)")}`,
+          `Archived: ${String(Boolean(thread.archived))}`,
+          `Locked: ${String(Boolean(thread.locked))}`,
+        ].join("\n"),
+        color: 0x5865F2,
+      }]
+    };
+  });
+
+  command("support-join-thread", {
+    description: "Join a thread using the host thread utilities",
+    options: {
+      thread_id: {
+        type: "string",
+        description: "Target thread ID",
+        required: true,
+      }
+    }
+  }, async (ctx) => {
+    await ctx.discord.threads.join(ctx.args.thread_id);
+    return { content: `Joined thread ${ctx.args.thread_id}.`, ephemeral: true };
+  });
+
+  command("support-leave-thread", {
+    description: "Leave a thread using the host thread utilities",
+    options: {
+      thread_id: {
+        type: "string",
+        description: "Target thread ID",
+        required: true,
+      }
+    }
+  }, async (ctx) => {
+    await ctx.discord.threads.leave(ctx.args.thread_id);
+    return { content: `Left thread ${ctx.args.thread_id}.`, ephemeral: true };
+  });
+
+  command("support-start-thread", {
+    description: "Start a support thread from the current channel using the host thread utilities",
+    options: {
+      name: {
+        type: "string",
+        description: "Thread name",
+        required: true,
+      },
+      source_message_id: {
+        type: "string",
+        description: "Optional source message ID for message-thread creation",
+        required: false,
+      },
+      type: {
+        type: "string",
+        description: "Thread type: public, private, or news",
+        required: false,
+      },
+      auto_archive_duration: {
+        type: "integer",
+        description: "Auto archive duration in minutes",
+        required: false,
+      }
+    }
+  }, async (ctx) => {
+    const channelId = ctx.channel && ctx.channel.id;
+    if (!channelId) {
+      return { content: "This command requires a channel context.", ephemeral: true };
+    }
+    const thread = await ctx.discord.threads.start(channelId, {
+      name: ctx.args.name,
+      messageId: ctx.args.source_message_id || "",
+      type: ctx.args.type || "public",
+      autoArchiveDuration: ctx.args.auto_archive_duration || 1440,
+    });
+    return {
+      content: `Started thread ${thread.name || thread.id}.`,
+      ephemeral: true,
+      embeds: [{
+        title: "Thread created",
+        description: [
+          `ID: ${String(thread.id)}`,
+          `Parent: ${String(thread.parentID || channelId)}`,
+          `Archived: ${String(Boolean(thread.archived))}`,
+        ].join("\n"),
+        color: 0x57F287,
+      }]
+    };
+  });
+
   event("guildCreate", async (ctx) => {
     ctx.log.info("support bot saw guildCreate", { guild: ctx.guild && ctx.guild.name });
   });

@@ -56,6 +56,10 @@ type DiscordOps struct {
 	GuildFetch         func(context.Context, string) (map[string]any, error)
 	RoleList           func(context.Context, string) ([]map[string]any, error)
 	RoleFetch          func(context.Context, string, string) (map[string]any, error)
+	ThreadFetch        func(context.Context, string) (map[string]any, error)
+	ThreadJoin         func(context.Context, string) error
+	ThreadLeave        func(context.Context, string) error
+	ThreadStart        func(context.Context, string, any) (map[string]any, error)
 	ChannelSend        func(context.Context, string, any) error
 	ChannelFetch       func(context.Context, string) (map[string]any, error)
 	ChannelSetTopic    func(context.Context, string, string) error
@@ -884,6 +888,7 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 	root := vm.NewObject()
 	guilds := vm.NewObject()
 	roles := vm.NewObject()
+	threads := vm.NewObject()
 	channels := vm.NewObject()
 	messages := vm.NewObject()
 	members := vm.NewObject()
@@ -891,6 +896,10 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 		_ = guilds.Set("fetch", func(string) any { return map[string]any{} })
 		_ = roles.Set("list", func(string) any { return []map[string]any{} })
 		_ = roles.Set("fetch", func(string, string) any { return map[string]any{} })
+		_ = threads.Set("fetch", func(string) any { return map[string]any{} })
+		_ = threads.Set("join", func(string) error { return nil })
+		_ = threads.Set("leave", func(string) error { return nil })
+		_ = threads.Set("start", func(string, any) any { return map[string]any{} })
 		_ = channels.Set("send", func(string, any) error { return nil })
 		_ = channels.Set("fetch", func(string) any { return map[string]any{} })
 		_ = channels.Set("setTopic", func(string, string) error { return nil })
@@ -930,6 +939,30 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return map[string]any{}, nil
 			}
 			return ops.RoleFetch(ctx, guildID, roleID)
+		})
+		_ = threads.Set("fetch", func(threadID string) (any, error) {
+			if ops.ThreadFetch == nil {
+				return map[string]any{}, nil
+			}
+			return ops.ThreadFetch(ctx, threadID)
+		})
+		_ = threads.Set("join", func(threadID string) error {
+			if ops.ThreadJoin == nil {
+				return nil
+			}
+			return ops.ThreadJoin(ctx, threadID)
+		})
+		_ = threads.Set("leave", func(threadID string) error {
+			if ops.ThreadLeave == nil {
+				return nil
+			}
+			return ops.ThreadLeave(ctx, threadID)
+		})
+		_ = threads.Set("start", func(channelID string, payload any) (any, error) {
+			if ops.ThreadStart == nil {
+				return map[string]any{}, nil
+			}
+			return ops.ThreadStart(ctx, channelID, payload)
 		})
 		_ = channels.Set("send", func(channelID string, payload any) error {
 			if ops.ChannelSend == nil {
@@ -1060,6 +1093,7 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 	}
 	_ = root.Set("guilds", guilds)
 	_ = root.Set("roles", roles)
+	_ = root.Set("threads", threads)
 	_ = root.Set("channels", channels)
 	_ = root.Set("messages", messages)
 	_ = root.Set("members", members)

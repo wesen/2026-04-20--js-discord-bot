@@ -9,6 +9,7 @@ func buildDiscordOps(scriptPath string, session *discordgo.Session) *DiscordOps 
 	ops := &DiscordOps{}
 	buildGuildOps(ops, scriptPath, session)
 	buildRoleOps(ops, scriptPath, session)
+	buildThreadOps(ops, scriptPath, session)
 	buildChannelOps(ops, scriptPath, session)
 	buildMessageOps(ops, scriptPath, session)
 	buildMemberOps(ops, scriptPath, session)

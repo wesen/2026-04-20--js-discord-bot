@@ -10,13 +10,13 @@
 ## Planned implementation phases
 
 ### Phase 1 — thread lookup and membership core
-- [ ] Add `ctx.discord.threads.fetch(threadID)`
-- [ ] Add `ctx.discord.threads.join(threadID)`
-- [ ] Add `ctx.discord.threads.leave(threadID)`
-- [ ] Add runtime tests and example commands
-- [ ] Validate with focused and full Go test runs
+- [x] Add `ctx.discord.threads.fetch(threadID)`
+- [x] Add `ctx.discord.threads.join(threadID)`
+- [x] Add `ctx.discord.threads.leave(threadID)`
+- [x] Add runtime tests and example commands
+- [x] Validate with focused and full Go test runs
 
 ### Phase 2 — thread creation and lifecycle helpers
-- [ ] Add a small thread start helper
-- [ ] Decide whether archive/lock behavior belongs in this ticket or a follow-up
-- [ ] Update docs and diary/changelog
+- [x] Add a small thread start helper
+- [x] Decide whether archive/lock behavior belongs in this ticket or a follow-up
+- [x] Update docs and diary/changelog

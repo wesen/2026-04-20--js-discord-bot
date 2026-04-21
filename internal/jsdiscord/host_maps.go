@@ -293,6 +293,33 @@ func channelSnapshotMap(channel *discordgo.Channel) map[string]any {
 	if channel.LastPinTimestamp != nil {
 		ret["lastPinTimestamp"] = channel.LastPinTimestamp.Format(time.RFC3339)
 	}
+	if channel.OwnerID != "" {
+		ret["ownerID"] = channel.OwnerID
+	}
+	if channel.MessageCount != 0 {
+		ret["messageCount"] = channel.MessageCount
+	}
+	if channel.MemberCount != 0 {
+		ret["memberCount"] = channel.MemberCount
+	}
+	if channel.IsThread() {
+		ret["thread"] = true
+	}
+	if channel.ThreadMetadata != nil {
+		ret["archived"] = channel.ThreadMetadata.Archived
+		ret["autoArchiveDuration"] = channel.ThreadMetadata.AutoArchiveDuration
+		ret["locked"] = channel.ThreadMetadata.Locked
+		ret["invitable"] = channel.ThreadMetadata.Invitable
+		ret["archiveTimestamp"] = channel.ThreadMetadata.ArchiveTimestamp.Format(time.RFC3339)
+	}
+	if channel.Member != nil {
+		ret["currentMember"] = map[string]any{
+			"id":            channel.Member.ID,
+			"userID":        channel.Member.UserID,
+			"joinTimestamp": channel.Member.JoinTimestamp.Format(time.RFC3339),
+			"flags":         channel.Member.Flags,
+		}
+	}
 	return ret
 }
 

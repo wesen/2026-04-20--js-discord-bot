@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func normalizeTimeoutUntil(payload any) (*time.Time, error) {
@@ -101,7 +103,7 @@ func normalizeMemberListOptions(payload any) (memberListOptions, error) {
 	case nil:
 		return ret, nil
 	case map[string]any:
-		ret.After = strings.TrimSpace(fmt.Sprint(v["after"]))
+		ret.After = optionalStringValue(v, "after")
 		if limit, ok := int64Value(v["limit"]); ok {
 			ret.Limit = int(limit)
 		}
@@ -117,15 +119,103 @@ func normalizeMemberListOptions(payload any) (memberListOptions, error) {
 	}
 }
 
+type threadStartOptions struct {
+	MessageID string
+	Data      *discordgo.ThreadStart
+}
+
+func optionalStringValue(mapping map[string]any, key string) string {
+	raw, ok := mapping[key]
+	if !ok || raw == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(raw))
+}
+
+func normalizeThreadStartOptions(payload any) (threadStartOptions, error) {
+	switch v := payload.(type) {
+	case string:
+		name := strings.TrimSpace(v)
+		if name == "" {
+			return threadStartOptions{}, fmt.Errorf("thread start name is empty")
+		}
+		return threadStartOptions{Data: &discordgo.ThreadStart{Name: name, AutoArchiveDuration: 1440, Type: discordgo.ChannelTypeGuildPublicThread}}, nil
+	case map[string]any:
+		name := optionalStringValue(v, "name")
+		if name == "" {
+			return threadStartOptions{}, fmt.Errorf("thread start payload missing name")
+		}
+		messageID := optionalStringValue(v, "messageId")
+		autoArchive := 1440
+		if value, ok := int64Value(v["autoArchiveDuration"]); ok {
+			autoArchive = int(value)
+		}
+		threadType, err := threadTypeValue(v["type"], messageID != "")
+		if err != nil {
+			return threadStartOptions{}, err
+		}
+		ret := threadStartOptions{
+			MessageID: messageID,
+			Data: &discordgo.ThreadStart{
+				Name:                name,
+				AutoArchiveDuration: autoArchive,
+				Type:                threadType,
+				Invitable:           boolValue(v["invitable"]),
+				RateLimitPerUser:    intValueOrZero(v["rateLimitPerUser"]),
+			},
+		}
+		return ret, nil
+	default:
+		return threadStartOptions{}, fmt.Errorf("unsupported thread start payload type %T", payload)
+	}
+}
+
+func threadTypeValue(raw any, fromMessage bool) (discordgo.ChannelType, error) {
+	if fromMessage && raw == nil {
+		return 0, nil
+	}
+	if raw == nil {
+		return discordgo.ChannelTypeGuildPublicThread, nil
+	}
+	switch v := raw.(type) {
+	case string:
+		switch strings.TrimSpace(strings.ToLower(v)) {
+		case "", "public", "public-thread", "guild-public-thread":
+			return discordgo.ChannelTypeGuildPublicThread, nil
+		case "private", "private-thread", "guild-private-thread":
+			return discordgo.ChannelTypeGuildPrivateThread, nil
+		case "news", "news-thread", "guild-news-thread":
+			return discordgo.ChannelTypeGuildNewsThread, nil
+		default:
+			return 0, fmt.Errorf("unsupported thread type %q", v)
+		}
+	case int:
+		return discordgo.ChannelType(v), nil
+	case int64:
+		return discordgo.ChannelType(v), nil
+	case float64:
+		return discordgo.ChannelType(int(v)), nil
+	default:
+		return 0, fmt.Errorf("unsupported thread type value %T", raw)
+	}
+}
+
+func intValueOrZero(value any) int {
+	if n, ok := int64Value(value); ok {
+		return int(n)
+	}
+	return 0
+}
+
 func normalizeMessageListOptions(payload any) (messageListOptions, error) {
 	ret := messageListOptions{Limit: 25}
 	switch v := payload.(type) {
 	case nil:
 		return ret, nil
 	case map[string]any:
-		ret.Before = strings.TrimSpace(fmt.Sprint(v["before"]))
-		ret.After = strings.TrimSpace(fmt.Sprint(v["after"]))
-		ret.Around = strings.TrimSpace(fmt.Sprint(v["around"]))
+		ret.Before = optionalStringValue(v, "before")
+		ret.After = optionalStringValue(v, "after")
+		ret.Around = optionalStringValue(v, "around")
 		anchors := 0
 		if ret.Before != "" {
 			anchors++

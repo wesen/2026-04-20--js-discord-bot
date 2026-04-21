@@ -15,7 +15,7 @@ GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
 - `knowledge-base/` — relative `require()` helper, search/article commands, message event
-- `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event
+- `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event, and thread utility helpers
 - `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role/member lookup helpers, message history helpers, member moderation host APIs, message moderation utilities, and channel utility helpers
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `announcements.js` — root-level bot script to exercise direct file discovery
@@ -37,6 +37,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
 - `knowledge-base` now demonstrates bot startup config via `configure({ run: ... })`; for example `index_path` becomes the CLI flag `--index-path` and is exposed in JavaScript as `ctx.config.index_path`.
+- `support` now also includes `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` to demonstrate the DISCORD-BOT-014 thread utility helpers.
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
@@ -60,6 +61,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `mod-set-topic` and `mod-set-slowmode` require channel-management permission in the target channel.
 - `mod-fetch-guild`, `mod-list-roles`, and `mod-fetch-role` require the bot to be able to view the target guild and roles; they are read-only helpers but still depend on normal guild visibility.
 - `mod-fetch-member` and `mod-list-members` require the bot to be able to view guild member data; they are read-only helpers but still depend on guild/member visibility and any relevant member intent configuration.
+- `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` require the bot to be able to view and participate in the target thread/channel, plus any relevant thread creation or management permissions.
 - The current `timeout(...)` slice supports `durationSeconds`, `until`, and `clear: true`; it does not yet send an audit-log reason.
 - The current `ban(...)` slice supports `reason` and `deleteMessageDays`.
 - `mod-bulk-delete` currently accepts comma-separated message IDs and normalizes them into a cleaned ID list before calling the host API.

@@ -471,6 +471,15 @@ Any field object you pass is merged into the structured log output.
 | `ctx.discord.roles.list(guildId)` | List roles in a guild |
 | `ctx.discord.roles.fetch(guildId, roleId)` | Fetch one role by ID |
 
+#### `ctx.discord.threads`
+
+| Operation | Purpose |
+| --- | --- |
+| `ctx.discord.threads.fetch(threadId)` | Fetch a thread snapshot |
+| `ctx.discord.threads.join(threadId)` | Join a thread |
+| `ctx.discord.threads.leave(threadId)` | Leave a thread |
+| `ctx.discord.threads.start(channelId, payload)` | Start a thread from a channel or source message |
+
 #### `ctx.discord.channels`
 
 | Operation | Purpose |
@@ -530,6 +539,7 @@ The fetch/list helpers return plain JavaScript objects and arrays of objects. Th
 
 - guild snapshots: `id`, `name`, `ownerID`, `description`, `memberCount`, `features`
 - role snapshots: `id`, `guildID`, `name`, `position`, `permissions`, `mentionable`, `hoist`
+- thread snapshots: `id`, `parentID`, `name`, `type`, `archived`, `locked`, `autoArchiveDuration`
 - channel snapshots: `id`, `guildID`, `name`, `type`, `topic`, `position`, `rateLimitPerUser`
 - message snapshots: `id`, `content`, `guildID`, `channelID`, `author`
 - member snapshots: `id`, `guildId`, `nick`, `roles`, `pending`, `joinedAt`
