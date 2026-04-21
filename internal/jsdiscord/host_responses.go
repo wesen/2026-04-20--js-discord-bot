@@ -1,0 +1,217 @@
+package jsdiscord
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+func emitEventResult(ctx context.Context, reply func(context.Context, any) error, result any) error {
+	if reply == nil || result == nil {
+		return nil
+	}
+	switch v := result.(type) {
+	case []any:
+		for _, item := range v {
+			if item == nil {
+				continue
+			}
+			if err := reply(ctx, item); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		return reply(ctx, result)
+	}
+}
+
+type interactionResponder struct {
+	session     *discordgo.Session
+	interaction *discordgo.InteractionCreate
+	scriptPath  string
+	mu          sync.Mutex
+	acked       bool
+}
+
+func newInteractionResponder(session *discordgo.Session, interaction *discordgo.InteractionCreate, scriptPath string) *interactionResponder {
+	return &interactionResponder{session: session, interaction: interaction, scriptPath: scriptPath}
+}
+
+func (r *interactionResponder) Acknowledged() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.acked
+}
+
+func (r *interactionResponder) markAcked() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.acked {
+		return false
+	}
+	r.acked = true
+	return true
+}
+
+func (r *interactionResponder) Defer(ctx context.Context, payload any) error {
+	_ = ctx
+	if r == nil || r.session == nil || r.interaction == nil {
+		return nil
+	}
+	if !r.markAcked() {
+		return nil
+	}
+	data, err := normalizeResponsePayload(payload)
+	if err != nil {
+		return err
+	}
+	err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Flags: data.Flags},
+	})
+	if err == nil {
+		logLifecycleDebug("deferred javascript interaction response", mergeLogFields(interactionLogFields(r.scriptPath, r.interaction), payloadLogFields(payload), map[string]any{"action": "defer"}))
+	}
+	return err
+}
+
+func (r *interactionResponder) Reply(ctx context.Context, payload any) error {
+	if r == nil || r.session == nil || r.interaction == nil {
+		return nil
+	}
+	if !r.Acknowledged() {
+		if !r.markAcked() {
+			return nil
+		}
+		data, err := normalizeResponsePayload(payload)
+		if err != nil {
+			return err
+		}
+		err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: data,
+		})
+		if err == nil {
+			logLifecycleDebug("replied to javascript interaction", mergeLogFields(interactionLogFields(r.scriptPath, r.interaction), payloadLogFields(payload), map[string]any{"action": "reply"}))
+		}
+		return err
+	}
+	return r.FollowUp(ctx, payload)
+}
+
+func (r *interactionResponder) FollowUp(ctx context.Context, payload any) error {
+	_ = ctx
+	if r == nil || r.session == nil || r.interaction == nil {
+		return nil
+	}
+	params, err := normalizeWebhookParams(payload)
+	if err != nil {
+		return err
+	}
+	_, err = r.session.FollowupMessageCreate(r.interaction.Interaction, false, params)
+	if err == nil {
+		logLifecycleDebug("sent javascript interaction follow-up", mergeLogFields(interactionLogFields(r.scriptPath, r.interaction), payloadLogFields(payload), map[string]any{"action": "followUp"}))
+	}
+	return err
+}
+
+func (r *interactionResponder) Edit(ctx context.Context, payload any) error {
+	_ = ctx
+	if r == nil || r.session == nil || r.interaction == nil {
+		return nil
+	}
+	if !r.Acknowledged() {
+		return fmt.Errorf("cannot edit an interaction response before replying or deferring")
+	}
+	edit, err := normalizeWebhookEdit(payload)
+	if err != nil {
+		return err
+	}
+	_, err = r.session.InteractionResponseEdit(r.interaction.Interaction, edit)
+	if err == nil {
+		logLifecycleDebug("edited javascript interaction response", mergeLogFields(interactionLogFields(r.scriptPath, r.interaction), payloadLogFields(payload), map[string]any{"action": "edit"}))
+	}
+	return err
+}
+
+func (r *interactionResponder) ShowModal(ctx context.Context, payload any) error {
+	_ = ctx
+	if r == nil || r.session == nil || r.interaction == nil {
+		return nil
+	}
+	if !r.markAcked() {
+		return fmt.Errorf("cannot show a modal after the interaction has already been acknowledged")
+	}
+	data, err := normalizeModalPayload(payload)
+	if err != nil {
+		return err
+	}
+	err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: data,
+	})
+	if err == nil {
+		logLifecycleDebug("showed javascript interaction modal", mergeLogFields(interactionLogFields(r.scriptPath, r.interaction), payloadLogFields(payload), map[string]any{"action": "showModal"}))
+	}
+	return err
+}
+
+type channelResponder struct {
+	session    *discordgo.Session
+	channelID  string
+	scriptPath string
+	mu         sync.Mutex
+	replied    bool
+}
+
+func newChannelResponder(session *discordgo.Session, channelID, scriptPath string) *channelResponder {
+	return &channelResponder{session: session, channelID: channelID, scriptPath: scriptPath}
+}
+
+func (r *channelResponder) Acknowledged() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.replied
+}
+
+func (r *channelResponder) markReplied() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.replied = true
+}
+
+func (r *channelResponder) Reply(ctx context.Context, payload any) error {
+	_ = ctx
+	if r == nil || r.session == nil || strings.TrimSpace(r.channelID) == "" {
+		return nil
+	}
+	message, err := normalizeMessageSend(payload)
+	if err != nil {
+		return err
+	}
+	_, err = r.session.ChannelMessageSendComplex(r.channelID, message)
+	if err == nil {
+		r.markReplied()
+		logLifecycleDebug("sent javascript channel reply", mergeLogFields(map[string]any{"script": r.scriptPath, "channelId": r.channelID, "action": "reply"}, payloadLogFields(payload)))
+	}
+	return err
+}
+
+func (r *channelResponder) FollowUp(ctx context.Context, payload any) error {
+	return r.Reply(ctx, payload)
+}
+
+func (r *channelResponder) Edit(ctx context.Context, payload any) error {
+	_ = ctx
+	return fmt.Errorf("messageCreate event does not support editing the original triggering user message")
+}
+
+func (r *channelResponder) Defer(ctx context.Context, payload any) error {
+	_ = ctx
+	_ = payload
+	return nil
+}
