@@ -3,6 +3,7 @@ const { createKnowledgeStore } = require("./lib/store")
 const capture = require("./lib/capture")
 const render = require("./lib/render")
 const review = require("./lib/review")
+const reactions = require("./lib/reactions")
 
 const store = createKnowledgeStore()
 
@@ -42,6 +43,21 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
           type: "bool",
           help: "Seed onboarding entries the first time the SQLite store is created",
           default: true,
+        },
+        reactionPromoteEmojis: {
+          type: "string",
+          help: "Comma-separated emojis that promote a captured message into the review queue",
+          default: "🧠,📌",
+        },
+        trustedReviewerIds: {
+          type: "string",
+          help: "Optional comma-separated user IDs allowed to promote candidates with reactions",
+          default: "",
+        },
+        trustedReviewerRoleIds: {
+          type: "string",
+          help: "Optional comma-separated role IDs allowed to promote candidates with reactions",
+          default: "",
         },
       },
     },
@@ -379,6 +395,8 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
     review.setReviewSelection(ctx, updated.id)
     return render.knowledgeAnnouncement(updated, "Updated")
   })
+
+  reactions.registerReactionPromotions({ event }, store, render)
 })
 
 function buildTeachModal() {
