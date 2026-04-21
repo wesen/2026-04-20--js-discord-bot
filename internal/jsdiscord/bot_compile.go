@@ -426,7 +426,18 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 	metadata := cloneMap(d.metadata)
 	moduleName := d.moduleName
 
-	_ = bot.Set("describe", func(goja.FunctionCall) goja.Value {
+	_ = bot.Set("describe", d.describeClosure(vm, commands, userCommands, messageCommands, events, components, modals, autocompletes, metadata))
+	_ = bot.Set("dispatchCommand", d.dispatchCommandClosure(vm, commands, userCommands, messageCommands, store, metadata, moduleName))
+	_ = bot.Set("dispatchSubcommand", d.dispatchSubcommandClosure(vm, subcommands, store, metadata, moduleName))
+	_ = bot.Set("dispatchEvent", d.dispatchEventClosure(vm, events, store, metadata))
+	_ = bot.Set("dispatchComponent", d.dispatchComponentClosure(vm, components, store, metadata, moduleName))
+	_ = bot.Set("dispatchModal", d.dispatchModalClosure(vm, modals, store, metadata, moduleName))
+	_ = bot.Set("dispatchAutocomplete", d.dispatchAutocompleteClosure(vm, autocompletes, store, metadata, moduleName))
+	return bot
+}
+
+func (d *botDraft) describeClosure(vm *goja.Runtime, commands, userCommands, messageCommands []*commandDraft, events []*eventDraft, components []*componentDraft, modals []*modalDraft, autocompletes []*autocompleteDraft, metadata map[string]any) func(goja.FunctionCall) goja.Value {
+	return func(goja.FunctionCall) goja.Value {
 		return vm.ToValue(map[string]any{
 			"kind":          "discord.bot",
 			"metadata":      cloneMap(metadata),
@@ -436,8 +447,11 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			"modals":        modalSnapshotsFromDrafts(modals),
 			"autocompletes": autocompleteSnapshotsFromDrafts(autocompletes),
 		})
-	})
-	_ = bot.Set("dispatchCommand", func(call goja.FunctionCall) goja.Value {
+	}
+}
+
+func (d *botDraft) dispatchCommandClosure(vm *goja.Runtime, commands, userCommands, messageCommands []*commandDraft, store *MemoryStore, metadata map[string]any, moduleName string) func(goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
 			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchCommand expects one input object")))
 		}
@@ -462,8 +476,11 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			panic(vm.NewGoError(err))
 		}
 		return result
-	})
-	_ = bot.Set("dispatchSubcommand", func(call goja.FunctionCall) goja.Value {
+	}
+}
+
+func (d *botDraft) dispatchSubcommandClosure(vm *goja.Runtime, subcommands []*subcommandDraft, store *MemoryStore, metadata map[string]any, moduleName string) func(goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
 			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchSubcommand expects one input object")))
 		}
@@ -483,8 +500,11 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			panic(vm.NewGoError(err))
 		}
 		return result
-	})
-	_ = bot.Set("dispatchEvent", func(call goja.FunctionCall) goja.Value {
+	}
+}
+
+func (d *botDraft) dispatchEventClosure(vm *goja.Runtime, events []*eventDraft, store *MemoryStore, metadata map[string]any) func(goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
 			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchEvent expects one input object")))
 		}
@@ -510,8 +530,11 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			}
 		}
 		return vm.ToValue(results)
-	})
-	_ = bot.Set("dispatchComponent", func(call goja.FunctionCall) goja.Value {
+	}
+}
+
+func (d *botDraft) dispatchComponentClosure(vm *goja.Runtime, components []*componentDraft, store *MemoryStore, metadata map[string]any, moduleName string) func(goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
 			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchComponent expects one input object")))
 		}
@@ -530,8 +553,11 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			panic(vm.NewGoError(err))
 		}
 		return result
-	})
-	_ = bot.Set("dispatchModal", func(call goja.FunctionCall) goja.Value {
+	}
+}
+
+func (d *botDraft) dispatchModalClosure(vm *goja.Runtime, modals []*modalDraft, store *MemoryStore, metadata map[string]any, moduleName string) func(goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
 			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchModal expects one input object")))
 		}
@@ -550,8 +576,11 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			panic(vm.NewGoError(err))
 		}
 		return result
-	})
-	_ = bot.Set("dispatchAutocomplete", func(call goja.FunctionCall) goja.Value {
+	}
+}
+
+func (d *botDraft) dispatchAutocompleteClosure(vm *goja.Runtime, autocompletes []*autocompleteDraft, store *MemoryStore, metadata map[string]any, moduleName string) func(goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 1 {
 			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchAutocomplete expects one input object")))
 		}
@@ -572,8 +601,7 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 			panic(vm.NewGoError(err))
 		}
 		return result
-	})
-	return bot
+	}
 }
 
 func exportMap(value goja.Value) map[string]any {
