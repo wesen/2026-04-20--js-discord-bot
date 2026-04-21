@@ -32,11 +32,59 @@ function renderMessage(message) {
   const author = message.author && message.author.username || "unknown"
   const timestamp = message.timestamp || new Date().toISOString()
   const formattedTime = String(timestamp).replace("T", " ").slice(0, 19) + " UTC"
+  const edited = message.editedTimestamp ? " *(edited)*" : ""
 
-  const header = `**${author}** *(${formattedTime})*:`
-  const body = discordToMarkdown(String(message.content || ""))
+  const header = `**${author}** *(${formattedTime})*:${edited}`
+  let body = discordToMarkdown(String(message.content || ""))
 
-  return [header, body].join("\n")
+  // If content is empty and this is a thread starter placeholder, show a note
+  if (!body.trim() && message.type === 21) {
+    body = "*(thread starter — original message may be in parent channel)*"
+  }
+
+  // Render attachments
+  const attachmentLines = renderAttachments(message.attachments)
+
+  // Render embeds
+  const embedLines = renderEmbeds(message.embeds)
+
+  const parts = [header]
+  if (body.trim()) parts.push(body)
+  if (attachmentLines) parts.push(attachmentLines)
+  if (embedLines) parts.push(embedLines)
+
+  return parts.join("\n")
+}
+
+function renderAttachments(attachments) {
+  if (!attachments || attachments.length === 0) return null
+  const lines = attachments.map(att => {
+    if (att.contentType && att.contentType.startsWith("image/")) {
+      return `![${att.filename}](${att.url})`
+    }
+    return `[📎 ${att.filename}](${att.url})`
+  })
+  return lines.join("\n")
+}
+
+function renderEmbeds(embeds) {
+  if (!embeds || embeds.length === 0) return null
+  const lines = []
+  for (const embed of embeds) {
+    lines.push("> ---")
+    if (embed.title) {
+      if (embed.url) {
+        lines.push(`> **[${embed.title}](${embed.url})**`)
+      } else {
+        lines.push(`> **${embed.title}**`)
+      }
+    }
+    if (embed.description) {
+      lines.push("> " + embed.description.replace(/\n/g, "\n> "))
+    }
+    lines.push("> ---")
+  }
+  return lines.join("\n")
 }
 
 function discordToMarkdown(content) {

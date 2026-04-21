@@ -327,13 +327,67 @@ func messageMap(message *discordgo.Message) map[string]any {
 	if message == nil {
 		return map[string]any{}
 	}
-	return map[string]any{
+	ret := map[string]any{
 		"id":        message.ID,
 		"content":   message.Content,
 		"guildID":   message.GuildID,
 		"channelID": message.ChannelID,
 		"author":    userMap(message.Author),
+		"type":      int(message.Type),
 	}
+	if !message.Timestamp.IsZero() {
+		ret["timestamp"] = message.Timestamp.Format(time.RFC3339)
+	}
+	if message.EditedTimestamp != nil && !message.EditedTimestamp.IsZero() {
+		ret["editedTimestamp"] = message.EditedTimestamp.Format(time.RFC3339)
+	}
+	if message.MessageReference != nil {
+		ret["messageReference"] = map[string]any{
+			"messageID":       message.MessageReference.MessageID,
+			"channelID":       message.MessageReference.ChannelID,
+			"guildID":         message.MessageReference.GuildID,
+			"failIfNotExists": message.MessageReference.FailIfNotExists,
+		}
+	}
+	if len(message.Attachments) > 0 {
+		attachments := make([]map[string]any, 0, len(message.Attachments))
+		for _, att := range message.Attachments {
+			attachments = append(attachments, map[string]any{
+				"id":       att.ID,
+				"filename": att.Filename,
+				"size":     att.Size,
+				"url":      att.URL,
+				"proxyURL": att.ProxyURL,
+				"width":    att.Width,
+				"height":   att.Height,
+				"contentType": att.ContentType,
+			})
+		}
+		ret["attachments"] = attachments
+	}
+	if len(message.Embeds) > 0 {
+		embeds := make([]map[string]any, 0, len(message.Embeds))
+		for _, embed := range message.Embeds {
+			embeds = append(embeds, map[string]any{
+				"title":       embed.Title,
+				"description": embed.Description,
+				"url":         embed.URL,
+				"color":       embed.Color,
+			})
+		}
+		ret["embeds"] = embeds
+	}
+	if len(message.Mentions) > 0 {
+		mentions := make([]map[string]any, 0, len(message.Mentions))
+		for _, user := range message.Mentions {
+			mentions = append(mentions, userMap(user))
+		}
+		ret["mentions"] = mentions
+	}
+	if message.ReferencedMessage != nil {
+		ret["referencedMessage"] = messageMap(message.ReferencedMessage)
+	}
+	return ret
 }
 
 func messageDeleteMap(message *discordgo.MessageDelete) map[string]any {

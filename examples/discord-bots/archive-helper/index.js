@@ -131,6 +131,29 @@ module.exports = defineBot(({ command, messageCommand, event, configure }) => {
       return
     }
 
+    // Resolve thread starter messages (type 21) to their original content
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i]
+      if (msg.type === 21 && msg.messageReference) {
+        try {
+          const starter = await ctx.discord.messages.fetch(
+            msg.messageReference.channelID,
+            msg.messageReference.messageID
+          )
+          if (starter && starter.content) {
+            messages[i] = starter
+          }
+        } catch (err) {
+          ctx.log.debug("Could not resolve thread starter message", {
+            threadId,
+            messageId: msg.id,
+            reference: msg.messageReference,
+            error: String(err.message || err),
+          })
+        }
+      }
+    }
+
     if (messages.length === 0) {
       await ctx.edit({ content: "No messages found in this thread.", ephemeral: true })
       return
