@@ -8,7 +8,7 @@
 - [x] Write a detailed system-orientation guide
 - [x] Write a detailed code quality and organization review report
 - [x] Keep a diary while working
-- [ ] Upload the final bundle to reMarkable
+- [x] Upload the final bundle to reMarkable
 
 ## Review goals
 

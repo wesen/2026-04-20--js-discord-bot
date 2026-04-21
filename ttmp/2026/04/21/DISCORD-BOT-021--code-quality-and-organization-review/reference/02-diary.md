@@ -236,3 +236,67 @@ The most important result of this pass was that the architecture still looks coh
   - `internal/botcli/run_schema.go:45,198,263,312`
   - `examples/discord-bots/knowledge-base/index.js:113,132,151,173,195,218,241,255,338,352,362,372,382,388,412,426,436,446,455,461,499,576,580`
   - `examples/discord-bots/knowledge-base/lib/store.js:42,65,114,138,162,179,219,273,316,335,664`
+
+## Step 3: Upload the final report bundle to reMarkable
+
+Once the guide, report, and diary were in place, I switched to delivery mode. The user had explicitly asked for the final material to be stored in the ticket and uploaded to reMarkable, so the last step was to build a bundled markdown PDF, verify the upload plan in dry-run mode, perform the upload, and confirm the remote path.
+
+This step was straightforward, but I still treated it carefully because a ticket bundle is only useful if the remote artifact can be rediscovered later by ticket ID and date path.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Package the finished documentation into a reMarkable-friendly bundle and verify that it exists remotely.
+
+**Inferred user intent:** Make the review deliverable portable and easy to consume away from the terminal.
+
+### What I did
+- Ran `remarquee status` to confirm the uploader was available.
+- Ran a dry-run bundle upload covering:
+  - `index.md`
+  - the orientation guide
+  - the review report
+  - `tasks.md`
+  - `changelog.md`
+  - the diary
+- Uploaded the bundle to:
+  - `/ai/2026/04/21/DISCORD-BOT-021`
+- Verified the remote file with:
+  - `remarquee cloud ls /ai/2026/04/21/DISCORD-BOT-021 --long --non-interactive`
+
+### Why
+- A stable ticket path on reMarkable keeps the deliverable discoverable and consistent with earlier repo workflows.
+- The dry-run step is the safest default and makes sure the exact files and destination look right before upload.
+
+### What worked
+- `remarquee status` returned `remarquee: ok`.
+- The dry-run confirmed the expected bundle name and remote directory.
+- The upload succeeded and the cloud listing showed:
+  - `DISCORD-BOT-021 Code Quality and Organization Review`
+
+### What didn't work
+- N/A
+
+### What I learned
+- The current bundle shape works well for ticket delivery: index + main docs + tasks/changelog + diary gives a good reading sequence on reMarkable.
+
+### What was tricky to build
+- There was no technical blocker here, but the main subtlety was choosing a stable remote directory and bundle name so the report is easy to find later.
+- Using the ticket-aware path `/ai/2026/04/21/DISCORD-BOT-021` solved that cleanly.
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- If the report leads to implementation tickets, keep using the same ticket-aware upload pattern so related cleanup bundles stay easy to browse chronologically.
+
+### Code review instructions
+- On reMarkable, open `DISCORD-BOT-021 Code Quality and Organization Review` under `/ai/2026/04/21/DISCORD-BOT-021`.
+- Read the orientation guide first, then the detailed report, then the diary if you want process context.
+
+### Technical details
+- Bundle upload command shape:
+  - `remarquee upload bundle <docs...> --name "DISCORD-BOT-021 Code Quality and Organization Review" --remote-dir "/ai/2026/04/21/DISCORD-BOT-021" --toc-depth 2`
+- Verification command:
+  - `remarquee cloud ls /ai/2026/04/21/DISCORD-BOT-021 --long --non-interactive`
