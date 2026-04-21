@@ -29,6 +29,28 @@ func buildMessageOps(ops *DiscordOps, scriptPath string, session *discordgo.Sess
 		return ret, nil
 	}
 
+	ops.MessageList = func(ctx context.Context, channelID string, payload any) ([]map[string]any, error) {
+		_ = ctx
+		channelID = strings.TrimSpace(channelID)
+		if channelID == "" {
+			return nil, fmt.Errorf("message list requires channel ID")
+		}
+		options, err := normalizeMessageListOptions(payload)
+		if err != nil {
+			return nil, err
+		}
+		messages, err := session.ChannelMessages(channelID, options.Limit, options.Before, options.After, options.Around)
+		if err != nil {
+			return nil, err
+		}
+		ret := make([]map[string]any, 0, len(messages))
+		for _, message := range messages {
+			ret = append(ret, messageMap(message))
+		}
+		logLifecycleDebug("listed discord channel messages from javascript", map[string]any{"script": scriptPath, "channelId": channelID, "before": options.Before, "after": options.After, "around": options.Around, "limit": options.Limit, "count": len(ret), "action": "discord.messages.list"})
+		return ret, nil
+	}
+
 	ops.MessageEdit = func(ctx context.Context, channelID, messageID string, payload any) error {
 		_ = ctx
 		channelID = strings.TrimSpace(channelID)

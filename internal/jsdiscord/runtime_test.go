@@ -755,6 +755,49 @@ func TestDiscordContextSupportsMessageBulkDelete(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsMessageListing(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("message-list", async (ctx) => {
+				const messages = await ctx.discord.messages.list("chan-1", { around: "msg-2", limit: 2 })
+				return { content: String(messages.length) + ":" + String(messages[0].id) }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var lists int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "message-list",
+		Discord: &DiscordOps{
+			MessageList: func(_ context.Context, channelID string, payload any) ([]map[string]any, error) {
+				lists++
+				if channelID != "chan-1" {
+					t.Fatalf("message list channel = %s", channelID)
+				}
+				mapping, _ := payload.(map[string]any)
+				if fmt.Sprint(mapping["around"]) != "msg-2" {
+					t.Fatalf("message list around = %#v", payload)
+				}
+				if mapping["limit"] != int64(2) && mapping["limit"] != 2 && mapping["limit"] != float64(2) {
+					t.Fatalf("message list limit = %#v", payload)
+				}
+				return []map[string]any{{"id": "msg-2"}, {"id": "msg-3"}}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:2:msg-2]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if lists != 1 {
+		t.Fatalf("lists = %d", lists)
+	}
+}
+
 func TestDiscordContextSupportsMemberLookup(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")

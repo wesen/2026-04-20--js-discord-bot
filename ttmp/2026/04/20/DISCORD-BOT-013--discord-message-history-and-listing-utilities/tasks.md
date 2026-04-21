@@ -10,13 +10,13 @@
 ## Planned implementation phases
 
 ### Phase 1 — message history core
-- [ ] Add `ctx.discord.messages.list(channelID, payload?)`
-- [ ] Support a narrow payload shape with `before`, `after`, `around`, and `limit`
-- [ ] Add runtime tests for message listing helpers
-- [ ] Update the moderation example bot with message history commands
-- [ ] Validate with focused and full Go test runs
+- [x] Add `ctx.discord.messages.list(channelID, payload?)`
+- [x] Support a narrow payload shape with `before`, `after`, `around`, and `limit`
+- [x] Add runtime tests for message listing helpers
+- [x] Update the moderation example bot with message history commands
+- [x] Validate with focused and full Go test runs
 
 ### Phase 2 — operator docs and caveats
-- [ ] Update reference docs with the implemented API surface and caveats
-- [ ] Update example README with permission/failure-mode notes
-- [ ] Refresh the diary and changelog after implementation
+- [x] Update reference docs with the implemented API surface and caveats
+- [x] Update example README with permission/failure-mode notes
+- [x] Refresh the diary and changelog after implementation

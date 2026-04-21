@@ -11,22 +11,35 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: internal/jsdiscord/bot.go
-      Note: Request-scoped Discord capability object will grow with message history and listing helpers
-    - Path: internal/jsdiscord/host_ops_messages.go
-      Note: Message history/listing host operations will live alongside existing message moderation operations here
-    - Path: internal/jsdiscord/host_ops_helpers.go
-      Note: Message list option normalization will live here
-    - Path: internal/jsdiscord/runtime_test.go
-      Note: Runtime tests should validate the new message history/listing APIs here
+    - Path: examples/discord-bots/README.md
+      Note: Example repository notes mention the message history helper
     - Path: examples/discord-bots/moderation/lib/register-message-moderation-commands.js
-      Note: The moderation example should demonstrate message history/listing helpers here
+      Note: |-
+        The moderation example should demonstrate message history/listing helpers here
+        Example message history command lives here
+    - Path: internal/jsdiscord/bot.go
+      Note: |-
+        Request-scoped Discord capability object will grow with message history and listing helpers
+        Request-scoped Discord capability object exposes the message history/listing helper
+    - Path: internal/jsdiscord/host_ops_helpers.go
+      Note: |-
+        Message list option normalization will live here
+        Message list option normalization lives here
+    - Path: internal/jsdiscord/host_ops_messages.go
+      Note: |-
+        Message history/listing host operations will live alongside existing message moderation operations here
+        Message listing host operations live here
+    - Path: internal/jsdiscord/runtime_test.go
+      Note: |-
+        Runtime tests should validate the new message history/listing APIs here
+        Runtime tests validate message history/listing helpers
 ExternalSources: []
 Summary: Track the next Discord JS moderation/admin utilities after member lookup, focused on message history and bounded message listing helpers.
 LastUpdated: 2026-04-20T22:35:00-04:00
 WhatFor: Organize planning and implementation work for message history/listing APIs used by moderation/admin bots.
 WhenToUse: Use when implementing or reviewing the next Discord JS moderation helper slice after DISCORD-BOT-012.
 ---
+
 
 
 # Discord Message History and Listing Utilities

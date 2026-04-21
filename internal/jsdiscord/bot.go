@@ -61,6 +61,7 @@ type DiscordOps struct {
 	ChannelSetTopic    func(context.Context, string, string) error
 	ChannelSetSlowmode func(context.Context, string, int) error
 	MessageFetch       func(context.Context, string, string) (map[string]any, error)
+	MessageList        func(context.Context, string, any) ([]map[string]any, error)
 	MessageEdit        func(context.Context, string, string, any) error
 	MessageDelete      func(context.Context, string, string) error
 	MessageReact       func(context.Context, string, string, string) error
@@ -895,6 +896,7 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 		_ = channels.Set("setTopic", func(string, string) error { return nil })
 		_ = channels.Set("setSlowmode", func(string, int) error { return nil })
 		_ = messages.Set("fetch", func(string, string) any { return map[string]any{} })
+		_ = messages.Set("list", func(string, any) any { return []map[string]any{} })
 		_ = messages.Set("edit", func(string, string, any) error { return nil })
 		_ = messages.Set("delete", func(string, string) error { return nil })
 		_ = messages.Set("react", func(string, string, string) error { return nil })
@@ -958,6 +960,12 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return map[string]any{}, nil
 			}
 			return ops.MessageFetch(ctx, channelID, messageID)
+		})
+		_ = messages.Set("list", func(channelID string, payload any) (any, error) {
+			if ops.MessageList == nil {
+				return []map[string]any{}, nil
+			}
+			return ops.MessageList(ctx, channelID, payload)
 		})
 		_ = messages.Set("edit", func(channelID, messageID string, payload any) error {
 			if ops.MessageEdit == nil {

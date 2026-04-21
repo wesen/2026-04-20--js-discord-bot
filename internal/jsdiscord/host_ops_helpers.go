@@ -88,6 +88,13 @@ type memberListOptions struct {
 	Limit int
 }
 
+type messageListOptions struct {
+	Before string
+	After  string
+	Around string
+	Limit  int
+}
+
 func normalizeMemberListOptions(payload any) (memberListOptions, error) {
 	ret := memberListOptions{Limit: 25}
 	switch v := payload.(type) {
@@ -107,6 +114,43 @@ func normalizeMemberListOptions(payload any) (memberListOptions, error) {
 		return ret, nil
 	default:
 		return memberListOptions{}, fmt.Errorf("unsupported member list payload type %T", payload)
+	}
+}
+
+func normalizeMessageListOptions(payload any) (messageListOptions, error) {
+	ret := messageListOptions{Limit: 25}
+	switch v := payload.(type) {
+	case nil:
+		return ret, nil
+	case map[string]any:
+		ret.Before = strings.TrimSpace(fmt.Sprint(v["before"]))
+		ret.After = strings.TrimSpace(fmt.Sprint(v["after"]))
+		ret.Around = strings.TrimSpace(fmt.Sprint(v["around"]))
+		anchors := 0
+		if ret.Before != "" {
+			anchors++
+		}
+		if ret.After != "" {
+			anchors++
+		}
+		if ret.Around != "" {
+			anchors++
+		}
+		if anchors > 1 {
+			return messageListOptions{}, fmt.Errorf("message list payload may include only one of before, after, or around")
+		}
+		if limit, ok := int64Value(v["limit"]); ok {
+			ret.Limit = int(limit)
+		}
+		if ret.Limit <= 0 {
+			ret.Limit = 25
+		}
+		if ret.Limit > 100 {
+			ret.Limit = 100
+		}
+		return ret, nil
+	default:
+		return messageListOptions{}, fmt.Errorf("unsupported message list payload type %T", payload)
 	}
 }
 

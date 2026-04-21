@@ -454,27 +454,85 @@ Any field object you pass is merged into the structured log output.
 
 ## `ctx.discord`
 
-`ctx.discord` exposes outbound Discord operations for when a command or event needs to do more than answer the original interaction.
+`ctx.discord` exposes outbound Discord operations for when a command or event needs to do more than answer the original interaction. The same namespace is available from command, event, component, modal, and autocomplete handlers.
 
-### Channel and message operations
+### Discord operations by namespace
+
+#### `ctx.discord.guilds`
+
+| Operation | Purpose |
+| --- | --- |
+| `ctx.discord.guilds.fetch(guildId)` | Fetch a guild snapshot |
+
+#### `ctx.discord.roles`
+
+| Operation | Purpose |
+| --- | --- |
+| `ctx.discord.roles.list(guildId)` | List roles in a guild |
+| `ctx.discord.roles.fetch(guildId, roleId)` | Fetch one role by ID |
+
+#### `ctx.discord.channels`
 
 | Operation | Purpose |
 | --- | --- |
 | `ctx.discord.channels.send(channelId, payload)` | Send a normal message to a channel |
-| `ctx.discord.messages.edit(channelId, messageId, payload)` | Edit an existing channel message |
-| `ctx.discord.messages.delete(channelId, messageId)` | Delete a channel message |
-| `ctx.discord.messages.react(channelId, messageId, emoji)` | Add a reaction to a channel message |
+| `ctx.discord.channels.fetch(channelId)` | Fetch a channel snapshot |
+| `ctx.discord.channels.setTopic(channelId, topic)` | Update a channel topic |
+| `ctx.discord.channels.setSlowmode(channelId, seconds)` | Update channel slowmode |
 
-### Guild member operations
+#### `ctx.discord.messages`
 
 | Operation | Purpose |
 | --- | --- |
+| `ctx.discord.messages.fetch(channelId, messageId)` | Fetch one channel message |
+| `ctx.discord.messages.list(channelId, payload)` | List recent channel messages with `before`, `after`, `around`, and `limit` options |
+| `ctx.discord.messages.edit(channelId, messageId, payload)` | Edit an existing channel message |
+| `ctx.discord.messages.delete(channelId, messageId)` | Delete a channel message |
+| `ctx.discord.messages.react(channelId, messageId, emoji)` | Add a reaction to a channel message |
+| `ctx.discord.messages.pin(channelId, messageId)` | Pin a message |
+| `ctx.discord.messages.unpin(channelId, messageId)` | Unpin a message |
+| `ctx.discord.messages.listPinned(channelId)` | List pinned messages in a channel |
+| `ctx.discord.messages.bulkDelete(channelId, messageIds)` | Bulk-delete a list of messages |
+
+#### `ctx.discord.members`
+
+| Operation | Purpose |
+| --- | --- |
+| `ctx.discord.members.fetch(guildId, userId)` | Fetch one guild member |
+| `ctx.discord.members.list(guildId, payload)` | List guild members with pagination options |
 | `ctx.discord.members.addRole(guildId, userId, roleId)` | Add a role to a member |
 | `ctx.discord.members.removeRole(guildId, userId, roleId)` | Remove a role from a member |
 | `ctx.discord.members.timeout(guildId, userId, payload)` | Set or clear a member timeout |
 | `ctx.discord.members.kick(guildId, userId, payload)` | Kick a member |
 | `ctx.discord.members.ban(guildId, userId, payload)` | Ban a member |
 | `ctx.discord.members.unban(guildId, userId)` | Remove a ban |
+
+### List and action payloads
+
+The list helpers accept plain objects so you can pass the same shape from a command, a modal, or a helper function.
+
+- `ctx.discord.messages.list(channelId, { before, after, around, limit })`
+  - choose at most one of `before`, `after`, or `around`
+  - `limit` defaults to 25 and is capped at 100
+- `ctx.discord.members.list(guildId, { after, limit })`
+  - `limit` defaults to 25 and is capped at 1000
+- `ctx.discord.messages.bulkDelete(channelId, messageIds)`
+  - accepts an array of IDs or an object like `{ messageIds: [...] }`
+  - duplicate IDs are ignored
+- `ctx.discord.members.timeout(guildId, userId, payload)`
+  - accepts `{ durationSeconds }`, `{ until }`, or `{ clear: true }`
+- `ctx.discord.members.ban(guildId, userId, payload)`
+  - accepts a string reason or an object like `{ reason, deleteMessageDays }`
+
+### What the returned snapshots look like
+
+The fetch/list helpers return plain JavaScript objects and arrays of objects. They are intentionally easy to inspect and serialize. Common fields include:
+
+- guild snapshots: `id`, `name`, `ownerID`, `description`, `memberCount`, `features`
+- role snapshots: `id`, `guildID`, `name`, `position`, `permissions`, `mentionable`, `hoist`
+- channel snapshots: `id`, `guildID`, `name`, `type`, `topic`, `position`, `rateLimitPerUser`
+- message snapshots: `id`, `content`, `guildID`, `channelID`, `author`
+- member snapshots: `id`, `guildId`, `nick`, `roles`, `pending`, `joinedAt`
 
 ### Common payload shapes
 
@@ -511,6 +569,17 @@ replyTo: {
   channelId: "chan-1",
 }
 ```
+
+## Supporting utility modules
+
+The Discord bot runtime also exposes a small `timer` module that is useful for demos and deferred workflows.
+
+```js
+const { sleep } = require("timer")
+await sleep(2000)
+```
+
+Use this for simulated search, background work, or tests that need a visible pause. It is not a Discord API, but it is part of the runtime environment that the example bots use.
 
 ## Common mistakes and how to avoid them
 

@@ -128,6 +128,8 @@ Once this works, you can grow the bot safely.
 When a command needs to do work after submission, do not block without acknowledging the interaction. Use the defer/edit pattern.
 
 ```js
+const { sleep } = require("timer")
+
 command("search", {
   description: "Search for a topic",
   options: {
