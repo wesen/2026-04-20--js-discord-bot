@@ -28,14 +28,24 @@ RelatedFiles:
     - Path: internal/jsdiscord/descriptor.go
       Note: Typed parsing for bot run-schema metadata and normalized runtime field names
     - Path: internal/jsdiscord/host.go
-      Note: Injected runtime config into live dispatch requests
+      Note: The host implementation was later split into smaller same-package files while keeping behavior intact
+    - Path: internal/jsdiscord/host_dispatch.go
+      Note: Event and interaction dispatch entrypoints extracted from the former monolithic host.go
+    - Path: internal/jsdiscord/host_ops_messages.go
+      Note: Request-scoped Discord message operations now live in a dedicated file
+    - Path: internal/jsdiscord/host_ops_channels.go
+      Note: Request-scoped Discord channel operations now live in a dedicated file
+    - Path: internal/jsdiscord/host_ops_members.go
+      Note: Request-scoped Discord member operations now live in a dedicated file
+    - Path: internal/jsdiscord/host_payloads.go
+      Note: Response and payload normalization helpers now live in a dedicated file
     - Path: internal/jsdiscord/runtime_test.go
       Note: Coverage for ctx.config visibility and runtime host operations
     - Path: examples/discord-bots/ping/index.js
       Note: Example ping bot now uses the timer module for deferred search behavior
 ExternalSources: []
 Summary: Chronological implementation diary for the single-bot runtime simplification and startup-config work.
-LastUpdated: 2026-04-20T17:55:00-04:00
+LastUpdated: 2026-04-20T21:45:00-04:00
 WhatFor: Capture implementation steps, exact validation commands, failures, and review guidance for DISCORD-BOT-004.
 WhenToUse: Use when reviewing or resuming the DISCORD-BOT-004 implementation work.
 ---
@@ -484,3 +494,77 @@ This step had two goals that fit together well. First, remove code that represen
   - `discord.messages.delete`
   - `discord.messages.react`
 - The deletion rationale is now also recorded in `reference/01-single-bot-runner-reference-and-migration-notes.md`.
+
+## Step 6: Split the monolithic host implementation into concern-specific files
+
+After several more feature slices landed, `internal/jsdiscord/host.go` had become the main growth hotspot in the runtime. It was carrying constructor/setup code, event dispatch, interaction response helpers, request-scoped Discord operations, payload normalization, command-shape conversion, logging helpers, and object-mapping helpers all in one file. At that point, continuing to add new features there would have made every ticket slower to review and riskier to edit.
+
+I treated this as an enabling refactor rather than as cosmetic cleanup. The goal was not to redesign the runtime or introduce new packages. The goal was to keep the current `jsdiscord` package intact while splitting the host implementation into smaller files with clearer landing zones for future work.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, split files"
+
+**Assistant interpretation:** Perform a same-package structural refactor of the host implementation so future Discord JS feature work no longer accumulates in one giant file.
+
+**Inferred user intent:** Reduce future feature friction now that the host file has become large enough to slow down ongoing development.
+
+### What I did
+- Replaced the monolithic `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go` layout with a smaller same-package file set:
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_dispatch.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_logging.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_responses.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_ops.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_ops_channels.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_ops_messages.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_ops_members.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_ops_helpers.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_payloads.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_commands.go`
+  - `/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/jsdiscord/host_maps.go`
+- Kept the package boundary unchanged. Everything still lives under `internal/jsdiscord`.
+- Split request-scoped Discord ops by concern so future features have obvious homes:
+  - channel ops
+  - message ops
+  - member ops
+- Ran:
+  - `GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot`
+  - `GOWORK=off go test ./...`
+- Committed the refactor as:
+  - `6c1b87b` — `Split Discord JS host implementation by concern`
+
+### Why
+- The main development pain had become file size and navigability, not package architecture.
+- A same-package split reduces future feature friction without forcing premature export/package-boundary decisions.
+- Grouping Discord ops by concern gives the next feature tickets clearer insertion points.
+
+### What worked
+- Focused and full test suites still passed after the split.
+- The working tree was clean after the refactor commit.
+- The new file layout keeps behavior stable while making the host easier to review and extend.
+
+### What didn't work
+- My first automatic extraction pass left `host_payloads.go` missing the `normalizedResponse` type definition, which caused build failures:
+  - `internal/jsdiscord/host_payloads.go:173:38: undefined: normalizedResponse`
+  - `internal/jsdiscord/host_payloads.go:176:11: undefined: normalizedResponse`
+  - `internal/jsdiscord/host_payloads.go:178:11: undefined: normalizedResponse`
+  - `internal/jsdiscord/host_payloads.go:180:11: undefined: normalizedResponse`
+  - `internal/jsdiscord/host_payloads.go:217:11: undefined: normalizedResponse`
+- I fixed that by restoring the type declaration into `host_payloads.go` and rerunning the tests.
+
+### What I learned
+- The file split was justified once the host had become the default landing zone for almost every Discord runtime change.
+- Same-package structural refactors are a good intermediate move before any deeper package decisions, because they keep the behavior stable while making the codebase easier to evolve.
+
+### What was tricky to build
+- The trickiest part was keeping the extraction mechanical enough to preserve behavior, while still ending with files grouped by actual concern rather than arbitrary line ranges.
+- The Discord ops builder was especially worth splitting intentionally, because that is the seam future feature tickets will keep touching.
+
+### What warrants a second pair of eyes
+- Whether the current file boundaries are the most natural long-term grouping after the next few tickets land.
+- Whether one or two additional helper files should eventually be carved out if payload normalization continues to grow.
+
+### What should be done in the future
+- Continue feature work against the new `host_*.go` layout rather than letting one file become the dumping ground again.
+- Reassess package boundaries only after a few more feature slices make the stable seams more obvious.
