@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
+	appdoc "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/doc"
 )
 
 func newRootCommand() (*cobra.Command, error) {
@@ -27,6 +28,9 @@ func newRootCommand() (*cobra.Command, error) {
 	}
 
 	helpSystem := help.NewHelpSystem()
+	if err := appdoc.AddDocToHelpSystem(helpSystem); err != nil {
+		return nil, fmt.Errorf("load embedded help docs: %w", err)
+	}
 	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
 	runCmd, err := newRunCommand()
