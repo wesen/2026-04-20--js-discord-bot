@@ -209,7 +209,7 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVar(&publicKey, "public-key", "", "Discord public key")
 	cmd.Flags().StringVar(&clientID, "client-id", "", "Discord client ID")
 	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "Discord client secret")
-	cmd.Flags().BoolVar(&syncOnStart, "sync-on-start", false, "Sync slash commands for the selected bot before opening the gateway")
+	cmd.Flags().BoolVar(&syncOnStart, "sync-on-start", true, "Sync slash commands for the selected bot before opening the gateway")
 	cmd.Flags().BoolVar(&printParsedValues, "print-parsed-values", false, "Print the resolved config, selected bot, and runtime config, then exit")
 	return cmd
 }
