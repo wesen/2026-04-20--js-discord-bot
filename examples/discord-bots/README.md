@@ -16,7 +16,7 @@ GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
 - `knowledge-base/` — relative `require()` helper, search/article commands, message event
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event
-- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role lookup helpers, member moderation host APIs, message moderation utilities, and channel utility helpers
+- `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role/member lookup helpers, member moderation host APIs, message moderation utilities, and channel utility helpers
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
@@ -42,7 +42,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
-- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, and `mod-fetch-role` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities and the new DISCORD-BOT-011 guild/role lookup helpers.
+- `moderation` now also includes `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, `mod-fetch-role`, `mod-fetch-member`, and `mod-list-members` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities, the DISCORD-BOT-011 guild/role lookup helpers, and the new DISCORD-BOT-012 member lookup helpers.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
 
 ## Moderation / event prerequisites
@@ -59,6 +59,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `mod-fetch-message` and `mod-list-pins` require read/message-history access in the target channel.
 - `mod-set-topic` and `mod-set-slowmode` require channel-management permission in the target channel.
 - `mod-fetch-guild`, `mod-list-roles`, and `mod-fetch-role` require the bot to be able to view the target guild and roles; they are read-only helpers but still depend on normal guild visibility.
+- `mod-fetch-member` and `mod-list-members` require the bot to be able to view guild member data; they are read-only helpers but still depend on guild/member visibility and any relevant member intent configuration.
 - The current `timeout(...)` slice supports `durationSeconds`, `until`, and `clear: true`; it does not yet send an audit-log reason.
 - The current `ban(...)` slice supports `reason` and `deleteMessageDays`.
 - `mod-bulk-delete` currently accepts comma-separated message IDs and normalizes them into a cleaned ID list before calling the host API.

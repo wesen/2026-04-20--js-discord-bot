@@ -1,4 +1,61 @@
 module.exports = function registerMemberModerationCommands({ command }) {
+  command("mod-fetch-member", {
+    description: "Fetch one guild member using the host lookup utilities",
+    options: {
+      user_id: { type: "string", description: "Target user ID", required: true },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    const member = await ctx.discord.members.fetch(guildId, ctx.args.user_id);
+    return {
+      content: `Fetched member ${member.id}.`,
+      ephemeral: true,
+      embeds: [{
+        title: "Member info",
+        description: [
+          `ID: ${String(member.id || ctx.args.user_id)}`,
+          `Nick: ${String(member.nick || "(none)")}`,
+          `Roles: ${Array.isArray(member.roles) ? member.roles.length : 0}`,
+          `Pending: ${String(Boolean(member.pending))}`,
+        ].join("\n"),
+        color: 0x5865F2,
+      }],
+    };
+  });
+
+  command("mod-list-members", {
+    description: "List a small page of guild members using the host lookup utilities",
+    options: {
+      limit: { type: "integer", description: "Maximum members to list", required: false },
+      after_user_id: { type: "string", description: "Pagination cursor user ID", required: false },
+    }
+  }, async (ctx) => {
+    const guildId = ctx.guild && ctx.guild.id;
+    if (!guildId) {
+      return { content: "This command must be used in a guild.", ephemeral: true };
+    }
+    const members = await ctx.discord.members.list(guildId, {
+      after: ctx.args.after_user_id || "",
+      limit: ctx.args.limit || 10,
+    });
+    const preview = members.slice(0, 10).map((member) => {
+      const user = member.user || {};
+      return `${String(member.id || "(unknown)")} — ${String(user.username || member.nick || "(unknown)")}`;
+    }).join("\n");
+    return {
+      content: `Fetched ${members.length} member(s).`,
+      ephemeral: true,
+      embeds: [{
+        title: "Member preview",
+        description: preview || "No members returned.",
+        color: 0x57F287,
+      }],
+    };
+  });
+
   command("mod-add-role", {
     description: "Add a role to a guild member using the host moderation API",
     options: {

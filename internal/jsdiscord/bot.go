@@ -68,6 +68,8 @@ type DiscordOps struct {
 	MessageUnpin       func(context.Context, string, string) error
 	MessageListPinned  func(context.Context, string) ([]map[string]any, error)
 	MessageBulkDelete  func(context.Context, string, any) error
+	MemberFetch        func(context.Context, string, string) (map[string]any, error)
+	MemberList         func(context.Context, string, any) ([]map[string]any, error)
 	MemberAddRole      func(context.Context, string, string, string) error
 	MemberRemoveRole   func(context.Context, string, string, string) error
 	MemberSetTimeout   func(context.Context, string, string, any) error
@@ -900,6 +902,8 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 		_ = messages.Set("unpin", func(string, string) error { return nil })
 		_ = messages.Set("listPinned", func(string) any { return []map[string]any{} })
 		_ = messages.Set("bulkDelete", func(string, any) error { return nil })
+		_ = members.Set("fetch", func(string, string) any { return map[string]any{} })
+		_ = members.Set("list", func(string, any) any { return []map[string]any{} })
 		_ = members.Set("addRole", func(string, string, string) error { return nil })
 		_ = members.Set("removeRole", func(string, string, string) error { return nil })
 		_ = members.Set("timeout", func(string, string, any) error { return nil })
@@ -996,6 +1000,18 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 				return nil
 			}
 			return ops.MessageBulkDelete(ctx, channelID, messageIDs)
+		})
+		_ = members.Set("fetch", func(guildID, userID string) (any, error) {
+			if ops.MemberFetch == nil {
+				return map[string]any{}, nil
+			}
+			return ops.MemberFetch(ctx, guildID, userID)
+		})
+		_ = members.Set("list", func(guildID string, payload any) (any, error) {
+			if ops.MemberList == nil {
+				return []map[string]any{}, nil
+			}
+			return ops.MemberList(ctx, guildID, payload)
 		})
 		_ = members.Set("addRole", func(guildID, userID, roleID string) error {
 			if ops.MemberAddRole == nil {

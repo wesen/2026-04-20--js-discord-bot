@@ -755,6 +755,57 @@ func TestDiscordContextSupportsMessageBulkDelete(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsMemberLookup(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("member-lookup", async (ctx) => {
+				const member = await ctx.discord.members.fetch("guild-1", "user-1")
+				const members = await ctx.discord.members.list("guild-1", { after: "user-0", limit: 2 })
+				return { content: String(member.id) + ":" + String(members.length) }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var fetches, lists int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "member-lookup",
+		Discord: &DiscordOps{
+			MemberFetch: func(_ context.Context, guildID, userID string) (map[string]any, error) {
+				fetches++
+				if guildID != "guild-1" || userID != "user-1" {
+					t.Fatalf("member fetch = %s/%s", guildID, userID)
+				}
+				return map[string]any{"id": "user-1"}, nil
+			},
+			MemberList: func(_ context.Context, guildID string, payload any) ([]map[string]any, error) {
+				lists++
+				if guildID != "guild-1" {
+					t.Fatalf("member list guild = %s", guildID)
+				}
+				mapping, _ := payload.(map[string]any)
+				if fmt.Sprint(mapping["after"]) != "user-0" {
+					t.Fatalf("member list after = %#v", payload)
+				}
+				if mapping["limit"] != int64(2) && mapping["limit"] != 2 && mapping["limit"] != float64(2) {
+					t.Fatalf("member list limit = %#v", payload)
+				}
+				return []map[string]any{{"id": "user-1"}, {"id": "user-2"}}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:user-1:2]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if fetches != 1 || lists != 1 {
+		t.Fatalf("counts = fetch:%d list:%d", fetches, lists)
+	}
+}
+
 func TestDiscordContextSupportsGuildAndRoleLookup(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")

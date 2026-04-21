@@ -83,6 +83,33 @@ func normalizeBanOptions(payload any) (string, int, error) {
 	}
 }
 
+type memberListOptions struct {
+	After string
+	Limit int
+}
+
+func normalizeMemberListOptions(payload any) (memberListOptions, error) {
+	ret := memberListOptions{Limit: 25}
+	switch v := payload.(type) {
+	case nil:
+		return ret, nil
+	case map[string]any:
+		ret.After = strings.TrimSpace(fmt.Sprint(v["after"]))
+		if limit, ok := int64Value(v["limit"]); ok {
+			ret.Limit = int(limit)
+		}
+		if ret.Limit <= 0 {
+			ret.Limit = 25
+		}
+		if ret.Limit > 1000 {
+			ret.Limit = 1000
+		}
+		return ret, nil
+	default:
+		return memberListOptions{}, fmt.Errorf("unsupported member list payload type %T", payload)
+	}
+}
+
 func normalizeMessageIDList(payload any) ([]string, error) {
 	switch v := payload.(type) {
 	case nil:

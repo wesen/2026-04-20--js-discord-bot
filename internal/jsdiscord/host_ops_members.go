@@ -14,6 +14,44 @@ func buildMemberOps(ops *DiscordOps, scriptPath string, session *discordgo.Sessi
 		return
 	}
 
+	ops.MemberFetch = func(ctx context.Context, guildID, userID string) (map[string]any, error) {
+		_ = ctx
+		guildID = strings.TrimSpace(guildID)
+		userID = strings.TrimSpace(userID)
+		if guildID == "" || userID == "" {
+			return nil, fmt.Errorf("member fetch requires guild ID and user ID")
+		}
+		member, err := session.GuildMember(guildID, userID)
+		if err != nil {
+			return nil, err
+		}
+		ret := memberMap(member)
+		logLifecycleDebug("fetched discord guild member from javascript", map[string]any{"script": scriptPath, "guildId": guildID, "userId": userID, "action": "discord.members.fetch"})
+		return ret, nil
+	}
+
+	ops.MemberList = func(ctx context.Context, guildID string, payload any) ([]map[string]any, error) {
+		_ = ctx
+		guildID = strings.TrimSpace(guildID)
+		if guildID == "" {
+			return nil, fmt.Errorf("member list requires guild ID")
+		}
+		options, err := normalizeMemberListOptions(payload)
+		if err != nil {
+			return nil, err
+		}
+		members, err := session.GuildMembers(guildID, options.After, options.Limit)
+		if err != nil {
+			return nil, err
+		}
+		ret := make([]map[string]any, 0, len(members))
+		for _, member := range members {
+			ret = append(ret, memberMap(member))
+		}
+		logLifecycleDebug("listed discord guild members from javascript", map[string]any{"script": scriptPath, "guildId": guildID, "after": options.After, "limit": options.Limit, "count": len(ret), "action": "discord.members.list"})
+		return ret, nil
+	}
+
 	ops.MemberAddRole = func(ctx context.Context, guildID, userID, roleID string) error {
 		_ = ctx
 		guildID = strings.TrimSpace(guildID)
