@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -65,17 +64,37 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	reviewMap := reviewResult.(map[string]any)
 	reviewEmbeds := reviewMap["embeds"].([]any)
 	require.NotEmpty(t, reviewEmbeds)
-	reviewText := fmt.Sprint(reviewEmbeds[0])
-	require.Contains(t, reviewText, "draft")
-	re := regexp.MustCompile(`id: ([^\s·]+)`)
-	matches := re.FindStringSubmatch(reviewText)
-	require.Len(t, matches, 2)
-	entryID := matches[1]
+	reviewEmbed := reviewEmbeds[0].(map[string]any)
+	reviewFields := reviewEmbed["fields"].([]any)
+	require.NotEmpty(t, reviewFields)
+	entryID := extractFieldValue(reviewFields, "Entry ID")
+	require.NotEmpty(t, entryID)
+	statusBefore := extractFieldValue(reviewFields, "Status")
+	require.Equal(t, "draft", statusBefore)
+	components := reviewMap["components"].([]any)
+	require.Len(t, components, 2)
+	require.Contains(t, fmt.Sprint(components[0]), "knowledge:review:select")
+	require.Contains(t, fmt.Sprint(components[1]), "knowledge:review:verify")
 
-	verifyResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
-		Name:   "kb-verify",
-		Args:   map[string]any{"entry": entryID, "note": "verified in runtime test"},
-		Config: config,
+	selectResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:        "knowledge:review:select",
+		Values:      []string{entryID},
+		Config:      config,
+		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:       map[string]any{"id": "guild-1"},
+		Channel:     map[string]any{"id": "channel-1"},
+		Interaction: map[string]any{"id": "interaction-select"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, fmt.Sprint(selectResult), "Selected")
+
+	verifyResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+		Name:        "knowledge:review:verify",
+		Config:      config,
+		User:        map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:       map[string]any{"id": "guild-1"},
+		Channel:     map[string]any{"id": "channel-1"},
+		Interaction: map[string]any{"id": "interaction-verify"},
 	})
 	require.NoError(t, err)
 	require.Contains(t, fmt.Sprint(verifyResult), "Verified")
@@ -89,6 +108,19 @@ func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) 
 	articleMap := articleResult.(map[string]any)
 	require.Contains(t, fmt.Sprint(articleMap["content"]), "Opened knowledge entry")
 	require.Contains(t, fmt.Sprint(articleMap["embeds"]), "verified")
+}
+
+func extractFieldValue(fields []any, name string) string {
+	for _, item := range fields {
+		field, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if fmt.Sprint(field["name"]) == name {
+			return fmt.Sprint(field["value"])
+		}
+	}
+	return ""
 }
 
 func repoRootJSDiscord(t *testing.T) string {
