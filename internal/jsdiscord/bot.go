@@ -15,9 +15,10 @@ import (
 )
 
 type commandDraft struct {
-	name    string
-	spec    map[string]any
-	handler goja.Callable
+	name        string
+	commandType string
+	spec        map[string]any
+	handler     goja.Callable
 }
 
 type eventDraft struct {
@@ -41,15 +42,25 @@ type autocompleteDraft struct {
 	handler     goja.Callable
 }
 
+type subcommandDraft struct {
+	rootName string
+	name     string
+	spec     map[string]any
+	handler  goja.Callable
+}
+
 type botDraft struct {
-	moduleName    string
-	store         *MemoryStore
-	metadata      map[string]any
-	commands      []*commandDraft
-	events        []*eventDraft
-	components    []*componentDraft
-	modals        []*modalDraft
-	autocompletes []*autocompleteDraft
+	moduleName      string
+	store           *MemoryStore
+	metadata        map[string]any
+	commands        []*commandDraft
+	userCommands    []*commandDraft
+	messageCommands []*commandDraft
+	subcommands     []*subcommandDraft
+	events          []*eventDraft
+	components      []*componentDraft
+	modals          []*modalDraft
+	autocompletes   []*autocompleteDraft
 }
 
 type DiscordOps struct {
@@ -113,6 +124,7 @@ type DispatchRequest struct {
 type BotHandle struct {
 	vm                   *goja.Runtime
 	dispatchCommand      goja.Callable
+	dispatchSubcommand   goja.Callable
 	dispatchEvent        goja.Callable
 	dispatchComponent    goja.Callable
 	dispatchModal        goja.Callable
@@ -134,6 +146,10 @@ func CompileBot(vm *goja.Runtime, value goja.Value) (*BotHandle, error) {
 	dispatchCommand, ok := goja.AssertFunction(obj.Get("dispatchCommand"))
 	if !ok {
 		return nil, fmt.Errorf("discord bot compile: missing dispatchCommand method")
+	}
+	dispatchSubcommand, ok := goja.AssertFunction(obj.Get("dispatchSubcommand"))
+	if !ok {
+		return nil, fmt.Errorf("discord bot compile: missing dispatchSubcommand method")
 	}
 	dispatchEvent, ok := goja.AssertFunction(obj.Get("dispatchEvent"))
 	if !ok {
@@ -158,6 +174,7 @@ func CompileBot(vm *goja.Runtime, value goja.Value) (*BotHandle, error) {
 	return &BotHandle{
 		vm:                   vm,
 		dispatchCommand:      dispatchCommand,
+		dispatchSubcommand:   dispatchSubcommand,
 		dispatchEvent:        dispatchEvent,
 		dispatchComponent:    dispatchComponent,
 		dispatchModal:        dispatchModal,
@@ -196,6 +213,10 @@ func (h *BotHandle) Describe(ctx context.Context) (map[string]any, error) {
 
 func (h *BotHandle) DispatchCommand(ctx context.Context, request DispatchRequest) (any, error) {
 	return h.dispatch(ctx, h.dispatchCommand, request)
+}
+
+func (h *BotHandle) DispatchSubcommand(ctx context.Context, request DispatchRequest) (any, error) {
+	return h.dispatch(ctx, h.dispatchSubcommand, request)
 }
 
 func (h *BotHandle) DispatchEvent(ctx context.Context, request DispatchRequest) (any, error) {
@@ -357,14 +378,17 @@ func safeValueString(vm *goja.Runtime, value goja.Value) string {
 
 func newBotDraft(state *RuntimeState) *botDraft {
 	return &botDraft{
-		moduleName:    state.ModuleName(),
-		store:         state.Store(),
-		metadata:      map[string]any{},
-		commands:      []*commandDraft{},
-		events:        []*eventDraft{},
-		components:    []*componentDraft{},
-		modals:        []*modalDraft{},
-		autocompletes: []*autocompleteDraft{},
+		moduleName:      state.ModuleName(),
+		store:           state.Store(),
+		metadata:        map[string]any{},
+		commands:        []*commandDraft{},
+		userCommands:    []*commandDraft{},
+		messageCommands: []*commandDraft{},
+		subcommands:     []*subcommandDraft{},
+		events:          []*eventDraft{},
+		components:      []*componentDraft{},
+		modals:          []*modalDraft{},
+		autocompletes:   []*autocompleteDraft{},
 	}
 }
 
@@ -391,7 +415,81 @@ func (d *botDraft) command(vm *goja.Runtime, call goja.FunctionCall) goja.Value 
 			panic(vm.NewGoError(fmt.Errorf("discord.command %q handler is not a function", name)))
 		}
 	}
-	d.commands = append(d.commands, &commandDraft{name: name, spec: spec, handler: handler})
+	cmdType := ""
+	if spec != nil {
+		cmdType = strings.TrimSpace(fmt.Sprint(spec["type"]))
+	}
+	switch strings.ToLower(cmdType) {
+	case "user":
+		d.userCommands = append(d.userCommands, &commandDraft{name: name, commandType: "user", spec: spec, handler: handler})
+	case "message":
+		d.messageCommands = append(d.messageCommands, &commandDraft{name: name, commandType: "message", spec: spec, handler: handler})
+	default:
+		d.commands = append(d.commands, &commandDraft{name: name, commandType: "chat_input", spec: spec, handler: handler})
+	}
+	return goja.Undefined()
+}
+
+func (d *botDraft) userCommand(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 2 {
+		panic(vm.NewGoError(fmt.Errorf("discord.userCommand expects userCommand(name, handler)")))
+	}
+	name := strings.TrimSpace(call.Arguments[0].String())
+	if name == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.userCommand name is empty")))
+	}
+	handler, ok := goja.AssertFunction(call.Arguments[1])
+	if !ok {
+		panic(vm.NewGoError(fmt.Errorf("discord.userCommand %q handler is not a function", name)))
+	}
+	d.userCommands = append(d.userCommands, &commandDraft{name: name, commandType: "user", handler: handler})
+	return goja.Undefined()
+}
+
+func (d *botDraft) messageCommand(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) != 2 {
+		panic(vm.NewGoError(fmt.Errorf("discord.messageCommand expects messageCommand(name, handler)")))
+	}
+	name := strings.TrimSpace(call.Arguments[0].String())
+	if name == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.messageCommand name is empty")))
+	}
+	handler, ok := goja.AssertFunction(call.Arguments[1])
+	if !ok {
+		panic(vm.NewGoError(fmt.Errorf("discord.messageCommand %q handler is not a function", name)))
+	}
+	d.messageCommands = append(d.messageCommands, &commandDraft{name: name, commandType: "message", handler: handler})
+	return goja.Undefined()
+}
+
+func (d *botDraft) subcommand(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
+	if len(call.Arguments) < 3 || len(call.Arguments) > 4 {
+		panic(vm.NewGoError(fmt.Errorf("discord.subcommand expects subcommand(rootName, name, [spec], handler)")))
+	}
+	rootName := strings.TrimSpace(call.Arguments[0].String())
+	if rootName == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.subcommand rootName is empty")))
+	}
+	name := strings.TrimSpace(call.Arguments[1].String())
+	if name == "" {
+		panic(vm.NewGoError(fmt.Errorf("discord.subcommand name is empty")))
+	}
+	var spec map[string]any
+	var handler goja.Callable
+	var ok bool
+	if len(call.Arguments) == 3 {
+		handler, ok = goja.AssertFunction(call.Arguments[2])
+		if !ok {
+			panic(vm.NewGoError(fmt.Errorf("discord.subcommand %q/%q handler is not a function", rootName, name)))
+		}
+	} else {
+		spec = exportMap(call.Arguments[2])
+		handler, ok = goja.AssertFunction(call.Arguments[3])
+		if !ok {
+			panic(vm.NewGoError(fmt.Errorf("discord.subcommand %q/%q handler is not a function", rootName, name)))
+		}
+	}
+	d.subcommands = append(d.subcommands, &subcommandDraft{rootName: rootName, name: name, spec: spec, handler: handler})
 	return goja.Undefined()
 }
 
@@ -478,13 +576,16 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 	bot := vm.NewObject()
 	_ = bot.Set("kind", "discord.bot")
 	_ = bot.Set("metadata", cloneMap(d.metadata))
-	_ = bot.Set("commands", commandSnapshotsFromDrafts(d.commands))
+	_ = bot.Set("commands", commandSnapshotsFromDrafts(append(append(append([]*commandDraft(nil), d.commands...), d.userCommands...), d.messageCommands...)))
 	_ = bot.Set("events", eventSnapshotsFromDrafts(d.events))
 	_ = bot.Set("components", componentSnapshotsFromDrafts(d.components))
 	_ = bot.Set("modals", modalSnapshotsFromDrafts(d.modals))
 	_ = bot.Set("autocompletes", autocompleteSnapshotsFromDrafts(d.autocompletes))
 
 	commands := append([]*commandDraft(nil), d.commands...)
+	userCommands := append([]*commandDraft(nil), d.userCommands...)
+	messageCommands := append([]*commandDraft(nil), d.messageCommands...)
+	subcommands := append([]*subcommandDraft(nil), d.subcommands...)
 	events := append([]*eventDraft(nil), d.events...)
 	components := append([]*componentDraft(nil), d.components...)
 	modals := append([]*modalDraft(nil), d.modals...)
@@ -497,7 +598,7 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 		return vm.ToValue(map[string]any{
 			"kind":          "discord.bot",
 			"metadata":      cloneMap(metadata),
-			"commands":      commandSnapshotsFromDrafts(commands),
+			"commands":      commandSnapshotsFromDrafts(append(append(append([]*commandDraft(nil), commands...), userCommands...), messageCommands...)),
 			"events":        eventSnapshotsFromDrafts(events),
 			"components":    componentSnapshotsFromDrafts(components),
 			"modals":        modalSnapshotsFromDrafts(modals),
@@ -515,10 +616,37 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 		}
 		command := findCommand(commands, name)
 		if command == nil {
+			command = findCommand(userCommands, name)
+		}
+		if command == nil {
+			command = findCommand(messageCommands, name)
+		}
+		if command == nil {
 			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no command named %q", moduleName, name)))
 		}
 		ctx := buildContext(vm, store, input, "command", name, metadata)
 		result, err := command.handler(goja.Undefined(), ctx)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return result
+	})
+	_ = bot.Set("dispatchSubcommand", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 1 {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchSubcommand expects one input object")))
+		}
+		input := objectFromValue(vm, call.Arguments[0])
+		rootName := strings.TrimSpace(input.Get("rootName").String())
+		subName := strings.TrimSpace(input.Get("subName").String())
+		if rootName == "" || subName == "" {
+			panic(vm.NewGoError(fmt.Errorf("discord.bot.dispatchSubcommand input rootName and subName are required")))
+		}
+		sub := findSubcommand(subcommands, rootName, subName)
+		if sub == nil {
+			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no subcommand %q/%q", moduleName, rootName, subName)))
+		}
+		ctx := buildContext(vm, store, input, "subcommand", rootName+"/"+subName, metadata)
+		result, err := sub.handler(goja.Undefined(), ctx)
 		if err != nil {
 			panic(vm.NewGoError(err))
 		}
@@ -684,6 +812,15 @@ func findCommand(commands []*commandDraft, name string) *commandDraft {
 	for _, command := range commands {
 		if command != nil && command.name == name {
 			return command
+		}
+	}
+	return nil
+}
+
+func findSubcommand(subcommands []*subcommandDraft, rootName, name string) *subcommandDraft {
+	for _, sub := range subcommands {
+		if sub != nil && sub.rootName == rootName && sub.name == name {
+			return sub
 		}
 	}
 	return nil

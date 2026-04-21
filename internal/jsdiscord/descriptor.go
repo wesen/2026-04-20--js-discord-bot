@@ -14,6 +14,7 @@ type BotDescriptor struct {
 	ScriptPath    string
 	Metadata      map[string]any
 	Commands      []CommandDescriptor
+	Subcommands   []SubcommandDescriptor
 	Events        []EventDescriptor
 	Components    []ComponentDescriptor
 	Modals        []ModalDescriptor
@@ -42,6 +43,14 @@ type RunFieldDescriptor struct {
 }
 
 type CommandDescriptor struct {
+	Name        string
+	Description string
+	Type        string
+	Spec        map[string]any
+}
+
+type SubcommandDescriptor struct {
+	RootName    string
 	Name        string
 	Description string
 	Spec        map[string]any
@@ -117,6 +126,7 @@ func descriptorFromDescribe(scriptPath string, desc map[string]any) (*BotDescrip
 		ScriptPath:    scriptPath,
 		Metadata:      metadata,
 		Commands:      parseCommandDescriptors(desc["commands"]),
+		Subcommands:   parseSubcommandDescriptors(desc["subcommands"]),
 		Events:        parseEventDescriptors(desc["events"]),
 		Components:    parseComponentDescriptors(desc["components"]),
 		Modals:        parseModalDescriptors(desc["modals"]),
@@ -149,13 +159,43 @@ func parseCommandDescriptors(raw any) []CommandDescriptor {
 			continue
 		}
 		spec, _ := mapping["spec"].(map[string]any)
+		cmdType := ""
+		if spec != nil {
+			cmdType = strings.TrimSpace(fmt.Sprint(spec["type"]))
+		}
 		ret = append(ret, CommandDescriptor{
+			Name:        mapString(mapping, "name"),
+			Description: mapString(spec, "description"),
+			Type:        cmdType,
+			Spec:        cloneMap(spec),
+		})
+	}
+	sort.Slice(ret, func(i, j int) bool { return ret[i].Name < ret[j].Name })
+	return ret
+}
+
+func parseSubcommandDescriptors(raw any) []SubcommandDescriptor {
+	snapshots := commandSnapshots(raw)
+	ret := make([]SubcommandDescriptor, 0, len(snapshots))
+	for _, item := range snapshots {
+		mapping, _ := item.(map[string]any)
+		if len(mapping) == 0 {
+			continue
+		}
+		spec, _ := mapping["spec"].(map[string]any)
+		ret = append(ret, SubcommandDescriptor{
+			RootName:    mapString(mapping, "rootName"),
 			Name:        mapString(mapping, "name"),
 			Description: mapString(spec, "description"),
 			Spec:        cloneMap(spec),
 		})
 	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i].Name < ret[j].Name })
+	sort.Slice(ret, func(i, j int) bool {
+		if ret[i].RootName != ret[j].RootName {
+			return ret[i].RootName < ret[j].RootName
+		}
+		return ret[i].Name < ret[j].Name
+	})
 	return ret
 }
 
