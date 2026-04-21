@@ -665,7 +665,8 @@ func (d *botDraft) finalize(vm *goja.Runtime) goja.Value {
 		}
 		matches := findEvents(events, name)
 		if len(matches) == 0 {
-			panic(vm.NewGoError(fmt.Errorf("discord bot %q has no event named %q", moduleName, name)))
+			// Bot didn't register this event; silently skip (not an error)
+			return vm.ToValue([]any{})
 		}
 		ctx := buildContext(vm, store, input, "event", name, metadata)
 		results := make([]any, 0, len(matches))
