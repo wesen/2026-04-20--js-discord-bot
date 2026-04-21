@@ -58,3 +58,8 @@ Step 5: Updated docs and finalized design document with implementation log (comm
 
 Step 6: Uploaded final docs and demo bot source to reMarkable at /ai/2026/04/21/DISCORD-BOT-020
 
+
+## 2026-04-21
+
+Changed subcommands from admin/kick/ban to fun/roll/coin for safer demo; committed all ticket docs (commit eaf8258)
+
