@@ -44,3 +44,12 @@ func writeBotScript(t *testing.T, content string) string {
 	}
 	return path
 }
+
+func repoRootJSDiscord(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	return root
+}

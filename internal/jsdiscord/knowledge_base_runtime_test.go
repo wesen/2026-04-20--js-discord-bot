@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -288,11 +289,4 @@ func extractFieldValue(fields []any, name string) string {
 		}
 	}
 	return ""
-}
-
-func repoRootJSDiscord(t *testing.T) string {
-	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	require.NoError(t, err)
-	return root
 }
