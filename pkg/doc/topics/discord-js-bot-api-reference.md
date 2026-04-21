@@ -201,19 +201,41 @@ options: {
 }
 ```
 
+### Supported option types
+
+The framework supports Discord's application command option types with these JavaScript-friendly names:
+
+| Framework type | Discord API type | Value | What the user sees |
+| --- | --- | --- | --- |
+| `string` | `STRING` | 3 | Free text input |
+| `int`, `integer` | `INTEGER` | 4 | Whole number input |
+| `bool`, `boolean` | `BOOLEAN` | 5 | True/false toggle |
+| `number`, `float` | `NUMBER` | 10 | Decimal number input |
+| `user` | `USER` | 6 | @mention picker for users |
+| `channel` | `CHANNEL` | 7 | #channel picker |
+| `role` | `ROLE` | 8 | @role picker |
+| `mentionable` | `MENTIONABLE` | 9 | User or role picker |
+| `sub_command` | `SUB_COMMAND` | 1 | Nested command |
+| `sub_command_group` | `SUB_COMMAND_GROUP` | 2 | Nested command group |
+
+**Not yet supported:** `attachment` (Discord type 11, value 11) — file upload as a command option.
+
+**Does not exist in Discord's API:** There are no date, datetime, calendar, time-range, or date-picker option types. If you need time-based selection, use a `string` (ISO date), `integer` (relative hours), or a message ID as an anchor point.
+
 ### Supported option fields
 
-| Field | Meaning |
-| --- | --- |
-| `type` | Discord option type: `string`, `integer`, `bool`, `number`, `user`, `channel`, `role`, `mentionable`, `sub_command`, or `sub_command_group` |
-| `description` | Option description shown in Discord |
-| `required` | Marks the option as required |
-| `autocomplete` | Enables autocomplete for that option |
-| `choices` | Static choices for the option |
-| `minLength` | Minimum length for string options |
-| `maxLength` | Maximum length for string options |
-| `minValue` | Minimum numeric value |
-| `maxValue` | Maximum numeric value |
+| Field | Meaning | Valid for types |
+| --- | --- | --- |
+| `type` | Option type (see table above) | all |
+| `description` | Option description shown in Discord | all |
+| `required` | Marks the option as required | all except `sub_command` / `sub_command_group` |
+| `autocomplete` | Enables autocomplete for that option | `string`, `integer`, `number` |
+| `choices` | Static choices for the option | `string`, `integer`, `number` |
+| `minLength` | Minimum length for string options | `string` |
+| `maxLength` | Maximum length for string options | `string` |
+| `minValue` | Minimum numeric value | `integer`, `number` |
+| `maxValue` | Maximum numeric value | `integer`, `number` |
+| `channel_types` | Restrict channel picker to specific types | `channel` |
 
 Important rules:
 

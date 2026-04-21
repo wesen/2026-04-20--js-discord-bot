@@ -366,14 +366,163 @@ Bundle upload produces a single PDF with a table of contents. This is ideal for 
 
 ---
 
+## Step 10: Glazed command framework migration analysis
+
+**Prompt Context**
+
+**User prompt (verbatim):** "we want all commands to actually use the glazed command framework (see skill), and you can model how we could (should?) handle jsverbs similar to loupedeck in ~/code/wesen/corporate-headquarters/loupedeck . Add a second analysis and design / implementation guide to the code review doc, and upload to remarkable too"
+
+**Assistant interpretation:** The user wants a second design document that analyzes migrating all commands to the Glazed framework and models how jsverbs (as used in loupedeck) could integrate with discord-bot. This should be added to the existing ticket and uploaded to reMarkable.
+
+**Inferred user intent:** Provide a concrete migration path from the current mixed Glazed/Cobra state to a unified Glazed command tree, with an exploratory section on jsverbs for JS bot command declarations.
+
+**What I did**
+1. Read the `glazed-command-authoring` skill to understand current conventions.
+2. Examined loupedeck's jsverbs integration:
+   - `cmd/loupedeck/cmds/verbs/command.go` — Glazed command wrapper and lazy construction
+   - `cmd/loupedeck/cmds/verbs/bootstrap.go` — Repository discovery and scanning
+   - `cmd/loupedeck/cmds/verbs/command_test.go` — Tests for help output and custom invokers
+3. Read `go-go-goja/pkg/jsverbs/model.go` and `command.go` to understand the jsverbs API.
+4. Read `go-go-goja/pkg/jsverbs/scan.go` to understand the tree-sitter scanning approach.
+5. Analyzed the current discord-bot command landscape:
+   - Host commands (`run`, `validate-config`, `sync-commands`) ARE Glazed commands.
+   - `bots list`, `bots help`, `bots run` are pure Cobra with manual flag parsing.
+6. Created the second design document: `02-glazed-command-framework-migration-and-jsverb-integration-design.md`.
+
+**Commands run:**
+```bash
+cat /home/manuel/.pi/agent/skills/glazed-command-authoring/SKILL.md
+find /home/manuel/code/wesen/corporate-headquarters/loupedeck -type f -name "*.go" | head -40
+rg -n "jsverb|JsVerb|verb" --type go /home/manuel/code/wesen/corporate-headquarters/loupedeck | head -60
+find /home/manuel/code/wesen/corporate-headquarters/go-go-goja -path "*/jsverbs*" -type f -name "*.go" | head -30
+```
+
+**Key findings:**
+- Loupedeck uses `jsverbs.ScanDir` to statically parse JS files with tree-sitter (no JS execution).
+- Each `__verb__` annotation becomes a `VerbSpec`, which becomes a Glazed `CommandDescription` via `Registry.Commands()`.
+- Loupedeck uses lazy command construction: `NewLazyCommand()` defers JS scanning until the user actually invokes the `verbs` command.
+- The `bots run` dynamic schema problem can be solved by making each discovered bot a subcommand with a composite schema (host flags + bot config fields).
+
+**Why**
+The user explicitly wants all commands to use Glazed. The loupedeck project already solved the "dynamic JS-discovered commands" problem using jsverbs + lazy construction. Modeling our solution on it is the most evidence-based approach.
+
+**What worked**
+- The loupedeck codebase is well-structured and easy to follow.
+- The jsverbs API is clean: `ScanDir` → `Registry` → `Commands()` → `BuildCobraCommandFromCommand`.
+- The skill file confirmed the exact import paths and patterns to use.
+
+**What didn't work**
+- N/A.
+
+**What I learned**
+- `jsverbs` is not just for CLI verbs — it is a general-purpose "statically analyze JS to extract structured metadata" system.
+- However, the `__verb__` model is designed for standalone CLI commands, not for rich Discord bots with multiple handlers. A hybrid model (simple scripts use `__verb__`, rich bots use `defineBot`) is more appropriate.
+- The loupedeck `runtimeCommandWrapper` pattern (wrapping a `cmds.Command` around a custom invoker) is exactly what we need for the `bots run` migration.
+
+**What was tricky to build**
+- Deciding whether `bots run <bot>` should become `bots <bot>` (flat) or stay nested. I kept the nested form to avoid breaking changes, but documented the tradeoff.
+- Understanding how `buildRunSchema` (currently in `run_schema.go`) would integrate with a Glazed command description. The key insight is that the bot's runtime config fields become sections in the Glazed schema, and the host flags become additional sections.
+
+**What should be done in the future**
+- Prototype Phase 1 (`bots list` migration) to validate the approach.
+- Compare the `defineBot` model with a pure `__verb__` model for simple bots.
+- Evaluate whether jsverbs should include Discord-specific metadata (command types, permissions, etc.).
+
+**Code review instructions**
+- Read `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md` for the full proposal.
+- Compare with `cmd/loupedeck/cmds/verbs/command.go` for the reference implementation.
+- Check that the lazy construction pattern in `commands_run_lazy.go` matches the loupedeck `NewLazyCommand` pattern.
+
+---
+
+## Step 11: Relate files and update changelog for Glazed doc
+
+**What I did**
+Related key reference files to the second design doc and updated the changelog.
+
+**Commands run:**
+```bash
+docmgr doc relate --doc ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md --file-note "/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command.go:Current pure-Cobra bots commands that need Glazed migration"
+
+docmgr doc relate --doc ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md --file-note "/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/run_schema.go:Manual flag parser and runtime config schema builder"
+
+docmgr doc relate --doc ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md --file-note "/home/manuel/code/wesen/2026-04-20--js-discord-bot/cmd/discord-bot/commands.go:Existing Glazed host commands (reference pattern)"
+
+docmgr doc relate --doc ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md --file-note "/home/manuel/code/wesen/corporate-headquarters/loupedeck/cmd/loupedeck/cmds/verbs/command.go:Loupedeck jsverb Glazed command wrapper (reference implementation)"
+
+docmgr doc relate --doc ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md --file-note "/home/manuel/code/wesen/corporate-headquarters/go-go-goja/pkg/jsverbs/command.go:jsverbs Registry.Commands() builds Glazed commands from JS annotations"
+
+docmgr changelog update --ticket CODEQUAL-2026-0421 --entry "Added Glazed migration design doc: analyzed loupedeck jsverbs pattern, proposed 4-phase migration for bots commands, evaluated hybrid __verb__/defineBot model" --file-note "/home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command.go:Target for Glazed migration"
+```
+
+**Why**
+Bookkeeping ensures the ticket remains the source of truth for both code review and migration planning.
+
+**What worked**
+- All relate commands succeeded.
+- Changelog updated with meaningful entry.
+
+**What didn't work**
+- N/A.
+
+---
+
 ## Final handoff summary
 
 - **Ticket path:** `ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/`
-- **Design doc:** `design-doc/01-js-discord-bot-code-quality-report.md` (~44KB, exhaustive)
+- **Design docs:**
+  - `design-doc/01-js-discord-bot-code-quality-report.md` (~44KB, code quality review)
+  - `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md` (~28KB, Glazed migration + jsverbs)
+- **Diary:** `reference/01-investigation-diary.md`
+- **Validation:** `docmgr doctor` passed cleanly
+- **reMarkable upload:** `/ai/2026/04/21/CODEQUAL-2026-0421/js-discord-bot Code Quality Review.pdf` (first upload)
+---
+
+## Step 12: User decisions on open questions
+
+**What I did**
+Presented the two key open questions from the Glazed migration design doc to the user and received definitive answers.
+
+**User answers:**
+1. **Should `bots run <bot>` become `bots <bot>`?** → **YES**
+2. **Should jsverbs support Discord-specific metadata?** → **NO**
+
+**What I did with the answers**
+- Updated `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md`:
+  - Changed the Phase 3 heading from "Migrate `bots run <bot>`" to "Migrate `bots <bot>`".
+  - Added a **Decision** block in Phase 3 stating the flat UX is canonical and accepted as a breaking change.
+  - Removed the "Alternative: Keep `bots run <bot>`" section entirely.
+  - Updated the command tree diagram to show `bots <bot>` directly.
+  - Updated the implementation sketch to use `NewBotsLazyGroup` instead of `NewBotsRunLazyGroup`.
+  - Updated the file layout to use `commands_bots_lazy.go` instead of `commands_run.go`/`commands_run_lazy.go`.
+  - Updated the implementation plan Phase 3 to say "Migrate `bots <bot>`".
+  - Updated Risk 8.1 and Alternative 8.3 to reflect the decided UX.
+  - Renamed "Open Questions" to "Decisions" and marked both questions as decided.
+
+**Why**
+Capturing user decisions in the design doc prevents future ambiguity. The flat `bots <bot>` UX is cleaner and matches the loupedeck pattern. Keeping jsverbs generic avoids over-specializing the framework.
+
+**What worked**
+- The edits were surgical and did not affect the overall document structure.
+
+**What didn't work**
+- N/A.
+
+**What should be done in the future**
+- Update the `README.md` to reflect the new `bots <bot>` UX once implemented.
+- Update example commands in docs and help pages.
+
+---
+
+## Final handoff summary
+
+- **Ticket path:** `ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/`
+- **Design docs:**
+  - `design-doc/01-js-discord-bot-code-quality-report.md` (~44KB, code quality review)
+  - `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md` (~28KB, Glazed migration + jsverbs, updated with decisions)
 - **Diary:** `reference/01-investigation-diary.md`
 - **Validation:** `docmgr doctor` passed cleanly
 - **reMarkable upload:** `/ai/2026/04/21/CODEQUAL-2026-0421/js-discord-bot Code Quality Review.pdf`
-- **Open questions:**
-  - Should the manual flag parser be replaced with Cobra-native parsing? This affects CLI UX.
-  - Should map converters be code-generated from discordgo structs?
-  - What is the goja promise notification capability? Could polling be replaced with events?
+- **Decisions:**
+  - ✅ `bots <bot>` flat UX is canonical (breaking change accepted)
+  - ✅ jsverbs stays generic, no Discord-specific metadata
