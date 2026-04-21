@@ -12,20 +12,21 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: examples/discord-bots/knowledge-base/index.js
-      Note: Concrete bot wiring for the review and reaction components sketched in the reference
-    - Path: examples/discord-bots/knowledge-base/lib/reactions.js
-      Note: Trusted emoji and reviewer policy for reaction promotion
-    - Path: examples/discord-bots/knowledge-base/lib/review.js
-      Note: Queue card
+      Note: Concrete wiring for the review, search, and export components sketched in the reference
+    - Path: examples/discord-bots/knowledge-base/lib/search.js
+      Note: Search-state, source lookup, and export helpers for the reference sketch
+    - Path: examples/discord-bots/knowledge-base/lib/render.js
+      Note: Rich result and source embed helpers for the reference sketch
     - Path: internal/jsdiscord/knowledge_base_runtime_test.go
-      Note: Runtime test coverage for the review and promotion API sketch
+      Note: Runtime test coverage for the review, search, and export API sketch
 ExternalSources: []
 Summary: |
     Practical API sketches for the rich review queue, reaction promotion, rich search cards, citation rendering, and export-to-channel behavior in the knowledge steward bot.
-LastUpdated: 2026-04-20T23:15:00-04:00
+LastUpdated: 2026-04-20T23:35:00-04:00
 WhatFor: Provide a concrete starting point for implementing the post-MVP UX and retrieval features.
 WhenToUse: Use when wiring the bot UI or validating the command and event contracts for this ticket.
 ---
+
 
 
 # Discord Knowledge Steward Rich UX and Retrieval Enhancements API Sketches

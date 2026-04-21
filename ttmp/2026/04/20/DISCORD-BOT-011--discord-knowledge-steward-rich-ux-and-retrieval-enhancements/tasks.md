@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources: []
 Summary: >
   Work plan for the next knowledge steward bot slice: rich review UI, reaction-based promotion, source citation UX, rich search UI, and export from ask results.
-LastUpdated: 2026-04-20T23:10:00-04:00
+LastUpdated: 2026-04-20T23:35:00-04:00
 WhatFor: Track implementation tasks for the post-MVP UX and retrieval work.
 WhenToUse: Use when building the next interaction and retrieval layer for the bot.
 ---
@@ -44,24 +44,24 @@ WhenToUse: Use when building the next interaction and retrieval layer for the bo
 
 ## Source citation UX
 
-- [ ] Render source citations in search and article cards
-- [ ] Add jump-link / open-source behavior for source messages or threads
+- [x] Render source citations in search and article cards
+- [x] Add jump-link / open-source behavior for source messages or threads
 - [ ] Add related-entry hints and canonical-source highlighting
-- [ ] Make source metadata easy to read in the review UI
+- [x] Make source metadata easy to read in the review UI
 
 ## Rich search UI
 
-- [ ] Replace plain search results with richer cards and status badges
+- [x] Replace plain search results with richer cards and status badges
 - [ ] Add pagination / next-page support for larger result sets
 - [ ] Add autocomplete for tags, aliases, and article names
-- [ ] Improve result ranking so verified entries appear first
+- [x] Improve result ranking so verified entries appear first
 
 ## Export from ask results
 
-- [ ] Add an export-to-channel action from ask result cards
-- [ ] Support posting a selected answer or knowledge card into the current channel
-- [ ] Preserve citations when exporting the result
-- [ ] Add a private/ephemeral preview before the export is posted publicly
+- [x] Add an export-to-channel action from ask result cards
+- [x] Support posting a selected answer or knowledge card into the current channel
+- [x] Preserve citations when exporting the result
+- [x] Add a private/ephemeral preview before the export is posted publicly
 
 ## Validation and rollout
 

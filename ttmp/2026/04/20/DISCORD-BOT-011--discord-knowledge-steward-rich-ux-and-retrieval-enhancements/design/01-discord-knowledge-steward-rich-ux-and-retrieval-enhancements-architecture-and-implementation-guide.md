@@ -12,20 +12,25 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: examples/discord-bots/knowledge-base/index.js
-      Note: Wires the review queue
-    - Path: examples/discord-bots/knowledge-base/lib/reactions.js
-      Note: Implements the trusted reaction promotion policy described in the design
+      Note: Bot wiring for review, search, export, and reaction promotion
     - Path: examples/discord-bots/knowledge-base/lib/review.js
-      Note: Implements the review-state model
+      Note: Review queue UI, selection state, and edit modal helpers
+    - Path: examples/discord-bots/knowledge-base/lib/search.js
+      Note: Search panel, source citation, and export helpers
+    - Path: examples/discord-bots/knowledge-base/lib/render.js
+      Note: Rich embed and source citation rendering helpers
+    - Path: examples/discord-bots/knowledge-base/lib/reactions.js
+      Note: Trusted reaction promotion helpers
     - Path: internal/jsdiscord/knowledge_base_runtime_test.go
-      Note: Proves the review and reaction flows against the runtime
+      Note: Runtime coverage for review, search, source, and export flows
 ExternalSources: []
 Summary: |
     Architecture and implementation guide for the post-MVP knowledge steward bot slice that adds a rich review queue, reaction-based promotion, stronger source citation UX, richer search cards, and export-to-channel behavior.
-LastUpdated: 2026-04-20T23:15:00-04:00
+LastUpdated: 2026-04-20T23:35:00-04:00
 WhatFor: Explain how to evolve the knowledge steward bot beyond the MVP into a more interactive review and retrieval experience.
 WhenToUse: Use when designing or implementing the next UX-heavy knowledge steward bot slice.
 ---
+
 
 
 # Discord Knowledge Steward Rich UX and Retrieval Enhancements Architecture and Implementation Guide
