@@ -150,127 +150,97 @@ func fallbackBotName(scriptPath string) string {
 	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
-func parseCommandDescriptors(raw any) []CommandDescriptor {
+func parseDescriptors[T any](raw any, parseFn func(map[string]any) (T, bool), lessFn func(T, T) bool) []T {
 	snapshots := commandSnapshots(raw)
-	ret := make([]CommandDescriptor, 0, len(snapshots))
+	ret := make([]T, 0, len(snapshots))
 	for _, item := range snapshots {
 		mapping, _ := item.(map[string]any)
 		if len(mapping) == 0 {
 			continue
 		}
+		desc, ok := parseFn(mapping)
+		if !ok {
+			continue
+		}
+		ret = append(ret, desc)
+	}
+	sort.Slice(ret, func(i, j int) bool { return lessFn(ret[i], ret[j]) })
+	return ret
+}
+
+func parseCommandDescriptors(raw any) []CommandDescriptor {
+	return parseDescriptors(raw, func(mapping map[string]any) (CommandDescriptor, bool) {
 		spec, _ := mapping["spec"].(map[string]any)
 		cmdType := ""
 		if spec != nil {
 			cmdType = strings.TrimSpace(fmt.Sprint(spec["type"]))
 		}
-		ret = append(ret, CommandDescriptor{
+		return CommandDescriptor{
 			Name:        mapString(mapping, "name"),
 			Description: mapString(spec, "description"),
 			Type:        cmdType,
 			Spec:        cloneMap(spec),
-		})
-	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i].Name < ret[j].Name })
-	return ret
+		}, true
+	}, func(a, b CommandDescriptor) bool { return a.Name < b.Name })
 }
 
 func parseSubcommandDescriptors(raw any) []SubcommandDescriptor {
-	snapshots := commandSnapshots(raw)
-	ret := make([]SubcommandDescriptor, 0, len(snapshots))
-	for _, item := range snapshots {
-		mapping, _ := item.(map[string]any)
-		if len(mapping) == 0 {
-			continue
-		}
+	return parseDescriptors(raw, func(mapping map[string]any) (SubcommandDescriptor, bool) {
 		spec, _ := mapping["spec"].(map[string]any)
-		ret = append(ret, SubcommandDescriptor{
+		return SubcommandDescriptor{
 			RootName:    mapString(mapping, "rootName"),
 			Name:        mapString(mapping, "name"),
 			Description: mapString(spec, "description"),
 			Spec:        cloneMap(spec),
-		})
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		if ret[i].RootName != ret[j].RootName {
-			return ret[i].RootName < ret[j].RootName
+		}, true
+	}, func(a, b SubcommandDescriptor) bool {
+		if a.RootName != b.RootName {
+			return a.RootName < b.RootName
 		}
-		return ret[i].Name < ret[j].Name
+		return a.Name < b.Name
 	})
-	return ret
 }
 
 func parseEventDescriptors(raw any) []EventDescriptor {
-	snapshots := commandSnapshots(raw)
-	ret := make([]EventDescriptor, 0, len(snapshots))
-	for _, item := range snapshots {
-		mapping, _ := item.(map[string]any)
-		if len(mapping) == 0 {
-			continue
-		}
-		ret = append(ret, EventDescriptor{Name: mapString(mapping, "name")})
-	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i].Name < ret[j].Name })
-	return ret
+	return parseDescriptors(raw, func(mapping map[string]any) (EventDescriptor, bool) {
+		return EventDescriptor{Name: mapString(mapping, "name")}, true
+	}, func(a, b EventDescriptor) bool { return a.Name < b.Name })
 }
 
 func parseComponentDescriptors(raw any) []ComponentDescriptor {
-	snapshots := commandSnapshots(raw)
-	ret := make([]ComponentDescriptor, 0, len(snapshots))
-	for _, item := range snapshots {
-		mapping, _ := item.(map[string]any)
-		if len(mapping) == 0 {
-			continue
-		}
+	return parseDescriptors(raw, func(mapping map[string]any) (ComponentDescriptor, bool) {
 		customID := mapString(mapping, "customId")
 		if customID == "" {
-			continue
+			return ComponentDescriptor{}, false
 		}
-		ret = append(ret, ComponentDescriptor{CustomID: customID})
-	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i].CustomID < ret[j].CustomID })
-	return ret
+		return ComponentDescriptor{CustomID: customID}, true
+	}, func(a, b ComponentDescriptor) bool { return a.CustomID < b.CustomID })
 }
 
 func parseModalDescriptors(raw any) []ModalDescriptor {
-	snapshots := commandSnapshots(raw)
-	ret := make([]ModalDescriptor, 0, len(snapshots))
-	for _, item := range snapshots {
-		mapping, _ := item.(map[string]any)
-		if len(mapping) == 0 {
-			continue
-		}
+	return parseDescriptors(raw, func(mapping map[string]any) (ModalDescriptor, bool) {
 		customID := mapString(mapping, "customId")
 		if customID == "" {
-			continue
+			return ModalDescriptor{}, false
 		}
-		ret = append(ret, ModalDescriptor{CustomID: customID})
-	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i].CustomID < ret[j].CustomID })
-	return ret
+		return ModalDescriptor{CustomID: customID}, true
+	}, func(a, b ModalDescriptor) bool { return a.CustomID < b.CustomID })
 }
 
 func parseAutocompleteDescriptors(raw any) []AutocompleteDescriptor {
-	snapshots := commandSnapshots(raw)
-	ret := make([]AutocompleteDescriptor, 0, len(snapshots))
-	for _, item := range snapshots {
-		mapping, _ := item.(map[string]any)
-		if len(mapping) == 0 {
-			continue
-		}
+	return parseDescriptors(raw, func(mapping map[string]any) (AutocompleteDescriptor, bool) {
 		commandName := mapString(mapping, "commandName")
 		optionName := mapString(mapping, "optionName")
 		if commandName == "" || optionName == "" {
-			continue
+			return AutocompleteDescriptor{}, false
 		}
-		ret = append(ret, AutocompleteDescriptor{CommandName: commandName, OptionName: optionName})
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		if ret[i].CommandName != ret[j].CommandName {
-			return ret[i].CommandName < ret[j].CommandName
+		return AutocompleteDescriptor{CommandName: commandName, OptionName: optionName}, true
+	}, func(a, b AutocompleteDescriptor) bool {
+		if a.CommandName != b.CommandName {
+			return a.CommandName < b.CommandName
 		}
-		return ret[i].OptionName < ret[j].OptionName
+		return a.OptionName < b.OptionName
 	})
-	return ret
 }
 
 func parseRunSchemaDescriptor(raw any) *RunSchemaDescriptor {
