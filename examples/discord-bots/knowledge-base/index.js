@@ -1,79 +1,51 @@
-const { defineBot } = require("discord");
-const docs = require("./lib/docs");
+const { defineBot } = require("discord")
+const createKnowledgeStore = require("./lib/store").createKnowledgeStore
+const capture = require("./lib/capture")
+const render = require("./lib/render")
+const registerKnowledgeBot = require("./lib/register-knowledge-bot")
 
-module.exports = defineBot(({ command, event, configure }) => {
+const store = createKnowledgeStore()
+
+module.exports = defineBot(({ command, event, modal, configure }) => {
   configure({
     name: "knowledge-base",
-    description: "Search and summarize internal docs from JavaScript",
+    description: "Listen to Discord chat, record candidate knowledge, and curate it as a shared memory",
     category: "knowledge",
     run: {
       fields: {
-        index_path: {
+        dbPath: {
           type: "string",
-          help: "Optional path label for the active docs index",
-          default: "builtin-docs"
+          help: "SQLite path for the knowledge store",
+          default: "./examples/discord-bots/knowledge-base/data/knowledge.sqlite",
         },
-        read_only: {
+        captureEnabled: {
           type: "bool",
-          help: "Disable write operations for future knowledge-base mutations",
-          default: true
-        }
-      }
-    }
-  });
+          help: "Enable passive capture from messageCreate events",
+          default: true,
+        },
+        captureThreshold: {
+          type: "number",
+          help: "Minimum confidence required to save a passive capture",
+          default: 0.65,
+        },
+        captureChannels: {
+          type: "string",
+          help: "Optional comma-separated channel IDs to allow for passive capture",
+          default: "",
+        },
+        reviewLimit: {
+          type: "integer",
+          help: "Number of entries to show in review lists",
+          default: 5,
+        },
+        seedEntries: {
+          type: "bool",
+          help: "Seed onboarding entries the first time the SQLite store is created",
+          default: true,
+        },
+      },
+    },
+  })
 
-  command("kb-search", {
-    description: "Search the knowledge base",
-    options: {
-      query: {
-        type: "string",
-        description: "Search query",
-        required: true,
-      }
-    }
-  }, async (ctx) => {
-    const matches = docs.search(ctx.args.query);
-    const indexPath = ctx.config && ctx.config.index_path || "builtin-docs";
-    if (matches.length === 0) {
-      return { content: `No docs found for ${ctx.args.query} in ${indexPath}.`, ephemeral: true };
-    }
-    return {
-      content: `Found ${matches.length} document(s) for ${ctx.args.query} in ${indexPath}.`,
-      embeds: [{
-        title: "Knowledge Base Search",
-        description: matches.map((m) => `**${m.key}** — ${m.excerpt}`).join("\n"),
-        color: 0x5865F2,
-      }]
-    };
-  });
-
-  command("kb-article", {
-    description: "Fetch one knowledge base article",
-    options: {
-      name: {
-        type: "string",
-        description: "Article name",
-        required: true,
-      }
-    }
-  }, async (ctx) => {
-    return {
-      content: docs.article(ctx.args.name),
-      embeds: [{ title: `Article: ${ctx.args.name}`, color: 0x57F287 }]
-    };
-  });
-
-  event("ready", async (ctx) => {
-    ctx.log.info("knowledge-base bot ready", { user: ctx.me && ctx.me.username });
-  });
-
-  event("messageCreate", async (ctx) => {
-    const content = (ctx.message && ctx.message.content || "").trim();
-    if (content === "!kb") {
-      await ctx.reply({
-        content: "Knowledge base bot is online.",
-        embeds: [{ title: "KB", description: "Try /kb-search or /kb-article.", color: 0xFEE75C }]
-      });
-    }
-  });
-});
+  registerKnowledgeBot({ command, event, modal }, store, capture, render)
+})

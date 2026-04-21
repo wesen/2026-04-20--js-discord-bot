@@ -1,0 +1,99 @@
+package jsdiscord
+
+import (
+	"context"
+	"fmt"
+	"path/filepath"
+	"regexp"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview(t *testing.T) {
+	scriptPath := filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "knowledge-base", "index.js")
+	handle := loadTestBot(t, scriptPath)
+
+	config := map[string]any{
+		"dbPath":           filepath.Join(t.TempDir(), "knowledge.sqlite"),
+		"captureEnabled":   true,
+		"captureThreshold": 0.2,
+		"reviewLimit":      5,
+		"seedEntries":      false,
+	}
+
+	var replies []any
+	_, err := handle.DispatchEvent(context.Background(), DispatchRequest{
+		Name: "messageCreate",
+		Message: map[string]any{
+			"id":        "msg-1",
+			"content":   "Here is the fix:\n```js\ndb.configure(\"sqlite3\", \":memory:\")\n```\nUse /teach to save this knowledge.",
+			"guildID":   "guild-1",
+			"channelID": "channel-1",
+			"author":    map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		},
+		User:    map[string]any{"id": "user-1", "username": "Ada", "bot": false},
+		Guild:   map[string]any{"id": "guild-1"},
+		Channel: map[string]any{"id": "channel-1"},
+		Config:  config,
+		Reply: func(_ context.Context, value any) error {
+			replies = append(replies, value)
+			return nil
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, replies, 1)
+	require.Contains(t, fmt.Sprint(replies[0]), "Captured knowledge entry")
+
+	searchResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name:   "kb-search",
+		Args:   map[string]any{"query": "sqlite"},
+		Config: config,
+	})
+	require.NoError(t, err)
+	searchMap := searchResult.(map[string]any)
+	require.Contains(t, fmt.Sprint(searchMap["content"]), "sqlite")
+	searchEmbeds := searchMap["embeds"].([]any)
+	require.NotEmpty(t, searchEmbeds)
+	require.Contains(t, fmt.Sprint(searchEmbeds[0]), "Here is the fix")
+
+	reviewResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name:   "kb-review",
+		Config: config,
+	})
+	require.NoError(t, err)
+	reviewMap := reviewResult.(map[string]any)
+	reviewEmbeds := reviewMap["embeds"].([]any)
+	require.NotEmpty(t, reviewEmbeds)
+	reviewText := fmt.Sprint(reviewEmbeds[0])
+	require.Contains(t, reviewText, "draft")
+	re := regexp.MustCompile(`id: ([^\s·]+)`)
+	matches := re.FindStringSubmatch(reviewText)
+	require.Len(t, matches, 2)
+	entryID := matches[1]
+
+	verifyResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name:   "kb-verify",
+		Args:   map[string]any{"entry": entryID, "note": "verified in runtime test"},
+		Config: config,
+	})
+	require.NoError(t, err)
+	require.Contains(t, fmt.Sprint(verifyResult), "Verified")
+
+	articleResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name:   "article",
+		Args:   map[string]any{"name": entryID},
+		Config: config,
+	})
+	require.NoError(t, err)
+	articleMap := articleResult.(map[string]any)
+	require.Contains(t, fmt.Sprint(articleMap["content"]), "Opened knowledge entry")
+	require.Contains(t, fmt.Sprint(articleMap["embeds"]), "verified")
+}
+
+func repoRootJSDiscord(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	return root
+}

@@ -14,7 +14,7 @@ GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
 ## Bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
-- `knowledge-base/` — relative `require()` helper, search/article commands, message event
+- `knowledge-base/` — SQLite-backed knowledge steward with passive capture, teach/remember modals, search/article/review commands, and source-backed entries
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event, and thread utility helpers
 - `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role/member lookup helpers, message history helpers, member moderation host APIs, message moderation utilities, and channel utility helpers
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
@@ -29,18 +29,19 @@ GOWORK=off go run ./cmd/discord-bot bots help knowledge-base --bot-repository ./
 GOWORK=off go run ./cmd/discord-bot bots help poker --bot-repository ./examples/discord-bots
 GOWORK=off go run ./cmd/discord-bot bots run ping --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
 GOWORK=off go run ./cmd/discord-bot bots run poker --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --index-path ./docs/local-index --sync-on-start
+GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite --sync-on-start
 ```
 
 ## Runtime notes
 
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
-- `knowledge-base` now demonstrates bot startup config via `configure({ run: ... })`; for example `index_path` becomes the CLI flag `--index-path` and is exposed in JavaScript as `ctx.config.index_path`.
+- `knowledge-base` now demonstrates bot startup config via `configure({ run: ... })`; for example `dbPath` becomes the CLI flag `--db-path` and is exposed in JavaScript as `ctx.config.dbPath`.
 - `support` now also includes `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` to demonstrate the DISCORD-BOT-014 thread utility helpers.
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
-- `!kb`, `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
+- `knowledge-base` listens passively for knowledge candidates in opted-in channels, records them to SQLite, and adds `/remember`, `/teach`, `/ask`, `/kb-search`, `/article`, `/kb-article`, `/review`, `/kb-review`, `/kb-verify`, `/kb-stale`, `/kb-reject`, `/recent`, and `/kb-recent`.
+- `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
 - `moderation` now also includes `mod-list-messages`, `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, `mod-fetch-role`, `mod-fetch-member`, and `mod-list-members` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities, the DISCORD-BOT-011 guild/role lookup helpers, the DISCORD-BOT-012 member lookup helpers, and the new DISCORD-BOT-013 message history helpers.
