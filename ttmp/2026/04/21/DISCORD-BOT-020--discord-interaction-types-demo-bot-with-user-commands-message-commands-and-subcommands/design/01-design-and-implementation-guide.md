@@ -27,7 +27,7 @@ Discord application commands are the primary way users interact with bots in mod
 | User | `USER` | 2 | Right-click a user → Apps → "Command Name" | Actions targeted at a specific user (e.g., "Show Avatar", "Kick") |
 | Message | `MESSAGE` | 3 | Right-click a message → Apps → "Command Name" | Actions targeted at a specific message (e.g., "Quote", "Pin") |
 
-In addition, Chat Input commands support **subcommands** and **subcommand groups**, which let you nest related operations under a single root command. For example, `/admin kick @user` and `/admin ban @user` are two subcommands under the root `/admin` command.
+In addition, Chat Input commands support **subcommands** and **subcommand groups**, which let you nest related operations under a single root command. For example, `/fun roll sides:6` and `/fun coin` are two subcommands under the root `/fun` command.
 
 ### Subcommands vs Subcommand Groups
 
@@ -35,12 +35,9 @@ A subcommand is an option of type `SUB_COMMAND` (value 1). A subcommand group is
 
 ```
 /admin                    ← root command
-  /kick                   ← subcommand (option type 1)
-    user: @user           ← string option
-    reason: "spam"        ← string option
-  /ban                    ← subcommand (option type 1)
-    user: @user           ← string option
-    duration: 7           ← integer option
+  /roll                   ← subcommand (option type 1)
+    sides: 6              ← integer option
+  /coin                   ← subcommand (option type 1)
 ```
 
 The Discord API docs we downloaded via defuddle live in:
@@ -163,7 +160,7 @@ Discord users right-click on a message and see "Apps". We cannot register handle
 
 ### 3. No Subcommands
 
-We can register a root command like `/admin`, but we cannot register separate handlers for `/admin kick` and `/admin ban`. The framework treats the entire command as one handler.
+We can register a root command like `/fun`, but we cannot register separate handlers for `/fun roll` and `/fun coin`. The framework treats the entire command as one handler.
 
 **Gap in `bot.go`:** No `subcommandDraft` or `subcommands` slice.  
 **Gap in `runtime.go`:** No `subcommand()` API exposed to JS.  
@@ -193,14 +190,15 @@ messageCommand("Quote Message", async (ctx) => {
 })
 
 // Subcommand under a root
-subcommand("admin", "kick", {
-  description: "Kick a user",
+subcommand("fun", "roll", {
+  description: "Roll a die",
   options: {
-    user: { type: "user", required: true },
-    reason: { type: "string" }
+    sides: { type: "integer", default: 6 }
   }
 }, async (ctx) => {
-  return { content: `Kicked ${ctx.args.user} for ${ctx.args.reason}` }
+  const sides = ctx.args.sides || 6
+  const result = Math.floor(Math.random() * sides) + 1
+  return { content: `🎲 You rolled ${result} (1-${sides})` }
 })
 ```
 
@@ -216,17 +214,17 @@ This keeps the descriptor simple while making it easy for `host_commands.go` to 
 
 ### Design Decision: How Subcommands are Dispatched
 
-When Discord sends an interaction for `/admin kick user:@bob reason:spam`:
+When Discord sends an interaction for `/fun roll sides:6`:
 
 1. `data.Name` is `"admin"` (the root)
 2. `data.Options` has one entry: `{ Name: "kick", Type: SubCommand, Options: [...] }`
 3. The Go dispatch layer will:
-   - Check if a subcommand handler exists for `("admin", "kick")`
-   - If yes, call `DispatchSubcommand` with `rootName="admin"`, `subName="kick"`, and args flattened from the inner options
+   - Check if a subcommand handler exists for `("fun", "roll")`
+   - If yes, call `DispatchSubcommand` with `rootName="fun"`, `subName="roll"`, and args flattened from the inner options
    - If no, fall back to the root command handler with the raw options
 
 This lets bot authors choose:
-- Use `subcommand("admin", "kick", ...)` for clean separation
+- Use `subcommand("fun", "roll", ...)` for clean separation
 - Or just use `command("admin", ...)` and branch on `ctx.args` manually
 
 ### Design Decision: Context Menu Target Access
@@ -386,8 +384,8 @@ The bot will register one example of each interaction type:
 |------------------|-------------|--------------|
 | Simple slash command | `/hello` | Replies with a greeting |
 | Slash command with options | `/echo` | Echoes back the provided text |
-| Subcommand | `/admin kick` | Shows a kick confirmation |
-| Subcommand | `/admin ban` | Shows a ban confirmation |
+| Subcommand | `/fun roll` | Rolls a die with configurable sides |
+| Subcommand | `/fun coin` | Flips a coin |
 | User context menu | "Show Avatar" | Returns the target user's avatar URL |
 | Message context menu | "Quote Message" | Quotes the target message |
 
@@ -420,37 +418,32 @@ module.exports = defineBot(({ command, userCommand, messageCommand, subcommand, 
     return { content: ctx.args.text }
   })
 
-  // Subcommands under /admin
-  subcommand("admin", "kick", {
-    description: "Kick a user",
-    options: {
-      user: { type: "user", description: "User to kick", required: true },
-      reason: { type: "string", description: "Reason for kick" }
-    }
+  // Subcommands under /fun
+  subcommand("fun", "roll", {
+    description: "Roll a die"
   }, async (ctx) => {
-    return { content: `Would kick ${ctx.args.user} for: ${ctx.args.reason || "no reason"}` }
+    const sides = ctx.args.sides || 6
+    const result = Math.floor(Math.random() * sides) + 1
+    return { content: `🎲 You rolled a **${result}** (1-${sides})`, ephemeral: true }
   })
 
-  subcommand("admin", "ban", {
-    description: "Ban a user",
-    options: {
-      user: { type: "user", description: "User to ban", required: true },
-      duration: { type: "integer", description: "Ban duration in days" }
-    }
+  subcommand("fun", "coin", {
+    description: "Flip a coin"
   }, async (ctx) => {
-    return { content: `Would ban ${ctx.args.user} for ${ctx.args.duration || 0} days` }
+    const result = Math.random() < 0.5 ? "Heads" : "Tails"
+    return { content: `🪙 **${result}**!`, ephemeral: true }
   })
 
-  // Also register the root /admin command so Discord knows it exists
-  command("admin", {
-    description: "Administration commands",
+  // Also register the root /fun command so Discord knows it exists
+  command("fun", {
+    description: "Fun and games",
     options: {
-      kick: { type: "sub_command", options: { ... } },
-      ban: { type: "sub_command", options: { ... } }
+      roll: { type: "sub_command", options: { ... } },
+      coin: { type: "sub_command", options: { ... } }
     }
   }, async (ctx) => {
-    // Fallback handler if someone invokes /admin without a subcommand
-    return { content: "Please use /admin kick or /admin ban" }
+    // Fallback handler if someone invokes /fun without a subcommand
+    return { content: "Please use /fun roll or /fun coin" }
   })
 
   // User context menu command

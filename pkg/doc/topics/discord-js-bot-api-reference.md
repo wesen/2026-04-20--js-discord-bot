@@ -282,12 +282,12 @@ Message commands do not accept a `spec` or options.
 `subcommand(...)` registers a handler for a subcommand under a root slash command. Discord represents subcommands as options of type `SUB_COMMAND` on the root command.
 
 ```js
-subcommand("admin", "kick", {
-  description: "Kick a user"
+subcommand("fun", "roll", {
+  description: "Roll a die"
 }, async (ctx) => {
-  const userId = ctx.args.user
-  const reason = ctx.args.reason || "no reason"
-  return { content: `Would kick <@${userId}> for: ${reason}`, ephemeral: true }
+  const sides = ctx.args.sides || 6
+  const result = Math.floor(Math.random() * sides) + 1
+  return { content: `🎲 You rolled a **${result}** (1-${sides})`, ephemeral: true }
 })
 ```
 
@@ -296,21 +296,20 @@ subcommand("admin", "kick", {
 You must also register the root command with `command(...)` so Discord knows the full command structure. The root command's spec should declare the subcommand options:
 
 ```js
-command("admin", {
-  description: "Administration commands",
+command("fun", {
+  description: "Fun and games",
   options: {
-    kick: {
+    roll: {
       type: "sub_command",
-      description: "Kick a user",
+      description: "Roll a die",
       options: {
-        user: { type: "user", description: "User to kick", required: true },
-        reason: { type: "string", description: "Reason" }
+        sides: { type: "integer", description: "Number of sides", default: 6 }
       }
     }
   }
 }, async (ctx) => {
-  // Fallback handler when /admin is called without a subcommand
-  return { content: "Use /admin kick or /admin ban" }
+  // Fallback handler when /fun is called without a subcommand
+  return { content: "Use /fun roll or /fun coin" }
 })
 ```
 

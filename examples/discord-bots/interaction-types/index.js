@@ -24,50 +24,44 @@ module.exports = defineBot(({ command, userCommand, messageCommand, subcommand, 
     return { content: ctx.args.text }
   })
 
-  // Root command for /admin — defines the Discord command structure
-  command("admin", {
-    description: "Administration commands",
+  // Root command for /fun — defines the Discord command structure with subcommands
+  command("fun", {
+    description: "Fun and games",
     options: {
-      kick: {
+      roll: {
         type: "sub_command",
-        description: "Kick a user",
+        description: "Roll a die",
         options: {
-          user: { type: "user", description: "User to kick", required: true },
-          reason: { type: "string", description: "Reason for kick" }
+          sides: { type: "integer", description: "Number of sides (default 6)", default: 6 }
         }
       },
-      ban: {
+      coin: {
         type: "sub_command",
-        description: "Ban a user",
-        options: {
-          user: { type: "user", description: "User to ban", required: true },
-          duration: { type: "integer", description: "Ban duration in days" }
-        }
+        description: "Flip a coin"
       }
     }
   }, async (ctx) => {
-    return { content: "Please use `/admin kick` or `/admin ban`" }
+    return { content: "Please use `/fun roll` or `/fun coin`" }
   })
 
-  // Subcommand handlers for /admin kick and /admin ban
-  subcommand("admin", "kick", {
-    description: "Kick a user"
+  // Subcommand handlers for /fun roll and /fun coin
+  subcommand("fun", "roll", {
+    description: "Roll a die"
   }, async (ctx) => {
-    const userId = ctx.args.user || "unknown"
-    const reason = ctx.args.reason || "no reason given"
+    const sides = ctx.args.sides || 6
+    const result = Math.floor(Math.random() * sides) + 1
     return {
-      content: `🔨 Would kick <@${userId}> for: ${reason}`,
+      content: `🎲 You rolled a **${result}** (1-${sides})`,
       ephemeral: true
     }
   })
 
-  subcommand("admin", "ban", {
-    description: "Ban a user"
+  subcommand("fun", "coin", {
+    description: "Flip a coin"
   }, async (ctx) => {
-    const userId = ctx.args.user || "unknown"
-    const duration = ctx.args.duration || 0
+    const result = Math.random() < 0.5 ? "Heads" : "Tails"
     return {
-      content: `🔨 Would ban <@${userId}> for ${duration} day(s)`,
+      content: `🪙 **${result}**!`,
       ephemeral: true
     }
   })
