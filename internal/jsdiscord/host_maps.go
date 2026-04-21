@@ -196,6 +196,63 @@ func guildMap(guildID string) map[string]any {
 	return map[string]any{"id": guildID}
 }
 
+func guildSnapshotMap(guild *discordgo.Guild) map[string]any {
+	if guild == nil {
+		return map[string]any{}
+	}
+	ret := map[string]any{
+		"id":                guild.ID,
+		"name":              guild.Name,
+		"ownerID":           guild.OwnerID,
+		"description":       guild.Description,
+		"memberCount":       guild.MemberCount,
+		"large":             guild.Large,
+		"verificationLevel": fmt.Sprint(guild.VerificationLevel),
+	}
+	if len(guild.Features) > 0 {
+		features := make([]string, 0, len(guild.Features))
+		for _, feature := range guild.Features {
+			features = append(features, string(feature))
+		}
+		ret["features"] = features
+	}
+	if guild.Icon != "" {
+		ret["icon"] = guild.Icon
+	}
+	if guild.AfkChannelID != "" {
+		ret["afkChannelID"] = guild.AfkChannelID
+	}
+	if guild.WidgetChannelID != "" {
+		ret["widgetChannelID"] = guild.WidgetChannelID
+	}
+	return ret
+}
+
+func roleMap(guildID string, role *discordgo.Role) map[string]any {
+	if role == nil {
+		return map[string]any{}
+	}
+	ret := map[string]any{
+		"id":           role.ID,
+		"guildID":      strings.TrimSpace(guildID),
+		"name":         role.Name,
+		"color":        role.Color,
+		"position":     role.Position,
+		"permissions":  fmt.Sprint(role.Permissions),
+		"managed":      role.Managed,
+		"mentionable":  role.Mentionable,
+		"hoist":        role.Hoist,
+		"unicodeEmoji": role.UnicodeEmoji,
+	}
+	if role.Icon != "" {
+		ret["icon"] = role.Icon
+	}
+	if role.Flags != 0 {
+		ret["flags"] = int(role.Flags)
+	}
+	return ret
+}
+
 func guildCreateMap(guild *discordgo.GuildCreate) map[string]any {
 	if guild == nil || guild.Guild == nil {
 		return map[string]any{}

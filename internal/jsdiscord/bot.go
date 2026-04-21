@@ -53,6 +53,9 @@ type botDraft struct {
 }
 
 type DiscordOps struct {
+	GuildFetch         func(context.Context, string) (map[string]any, error)
+	RoleList           func(context.Context, string) ([]map[string]any, error)
+	RoleFetch          func(context.Context, string, string) (map[string]any, error)
 	ChannelSend        func(context.Context, string, any) error
 	ChannelFetch       func(context.Context, string) (map[string]any, error)
 	ChannelSetTopic    func(context.Context, string, string) error
@@ -876,10 +879,15 @@ func storeObject(vm *goja.Runtime, store *MemoryStore) *goja.Object {
 
 func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *goja.Object {
 	root := vm.NewObject()
+	guilds := vm.NewObject()
+	roles := vm.NewObject()
 	channels := vm.NewObject()
 	messages := vm.NewObject()
 	members := vm.NewObject()
 	if ops == nil {
+		_ = guilds.Set("fetch", func(string) any { return map[string]any{} })
+		_ = roles.Set("list", func(string) any { return []map[string]any{} })
+		_ = roles.Set("fetch", func(string, string) any { return map[string]any{} })
 		_ = channels.Set("send", func(string, any) error { return nil })
 		_ = channels.Set("fetch", func(string) any { return map[string]any{} })
 		_ = channels.Set("setTopic", func(string, string) error { return nil })
@@ -899,6 +907,24 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 		_ = members.Set("ban", func(string, string, any) error { return nil })
 		_ = members.Set("unban", func(string, string) error { return nil })
 	} else {
+		_ = guilds.Set("fetch", func(guildID string) (any, error) {
+			if ops.GuildFetch == nil {
+				return map[string]any{}, nil
+			}
+			return ops.GuildFetch(ctx, guildID)
+		})
+		_ = roles.Set("list", func(guildID string) (any, error) {
+			if ops.RoleList == nil {
+				return []map[string]any{}, nil
+			}
+			return ops.RoleList(ctx, guildID)
+		})
+		_ = roles.Set("fetch", func(guildID, roleID string) (any, error) {
+			if ops.RoleFetch == nil {
+				return map[string]any{}, nil
+			}
+			return ops.RoleFetch(ctx, guildID, roleID)
+		})
 		_ = channels.Set("send", func(channelID string, payload any) error {
 			if ops.ChannelSend == nil {
 				return nil
@@ -1008,6 +1034,8 @@ func discordOpsObject(vm *goja.Runtime, ctx context.Context, ops *DiscordOps) *g
 			return ops.MemberUnban(ctx, guildID, userID)
 		})
 	}
+	_ = root.Set("guilds", guilds)
+	_ = root.Set("roles", roles)
 	_ = root.Set("channels", channels)
 	_ = root.Set("messages", messages)
 	_ = root.Set("members", members)

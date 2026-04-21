@@ -755,6 +755,58 @@ func TestDiscordContextSupportsMessageBulkDelete(t *testing.T) {
 	}
 }
 
+func TestDiscordContextSupportsGuildAndRoleLookup(t *testing.T) {
+	scriptPath := writeBotScript(t, `
+		const { defineBot } = require("discord")
+		module.exports = defineBot(({ command }) => {
+			command("lookup", async (ctx) => {
+				const guild = await ctx.discord.guilds.fetch("guild-1")
+				const roles = await ctx.discord.roles.list("guild-1")
+				const role = await ctx.discord.roles.fetch("guild-1", "role-2")
+				return { content: String(guild.id) + ":" + String(roles.length) + ":" + String(role.name) }
+			})
+		})
+	`)
+
+	handle := loadTestBot(t, scriptPath)
+	var guildFetches, roleLists, roleFetches int
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "lookup",
+		Discord: &DiscordOps{
+			GuildFetch: func(_ context.Context, guildID string) (map[string]any, error) {
+				guildFetches++
+				if guildID != "guild-1" {
+					t.Fatalf("guild fetch = %s", guildID)
+				}
+				return map[string]any{"id": "guild-1"}, nil
+			},
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				roleLists++
+				if guildID != "guild-1" {
+					t.Fatalf("role list = %s", guildID)
+				}
+				return []map[string]any{{"id": "role-1"}, {"id": "role-2"}}, nil
+			},
+			RoleFetch: func(_ context.Context, guildID, roleID string) (map[string]any, error) {
+				roleFetches++
+				if guildID != "guild-1" || roleID != "role-2" {
+					t.Fatalf("role fetch = %s/%s", guildID, roleID)
+				}
+				return map[string]any{"id": "role-2", "name": "Moderator"}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+	if fmt.Sprint(result) != "map[content:guild-1:2:Moderator]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if guildFetches != 1 || roleLists != 1 || roleFetches != 1 {
+		t.Fatalf("counts = guild:%d roles:%d role:%d", guildFetches, roleLists, roleFetches)
+	}
+}
+
 func TestDiscordContextSupportsChannelUtilities(t *testing.T) {
 	scriptPath := writeBotScript(t, `
 		const { defineBot } = require("discord")

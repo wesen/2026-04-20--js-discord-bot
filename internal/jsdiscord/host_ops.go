@@ -7,6 +7,8 @@ func buildDiscordOps(scriptPath string, session *discordgo.Session) *DiscordOps 
 		return nil
 	}
 	ops := &DiscordOps{}
+	buildGuildOps(ops, scriptPath, session)
+	buildRoleOps(ops, scriptPath, session)
 	buildChannelOps(ops, scriptPath, session)
 	buildMessageOps(ops, scriptPath, session)
 	buildMemberOps(ops, scriptPath, session)
