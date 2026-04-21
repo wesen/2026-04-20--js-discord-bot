@@ -140,7 +140,7 @@ func newRunCommand() *cobra.Command {
 		Args:               cobra.ArbitraryArgs,
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			parsed, err := preparseRunArgs(args, defaultPreParsedRunArgs())
+			parsed, err := parseStaticRunnerArgs(args, defaultStaticRunnerArgs())
 			if err != nil {
 				return err
 			}
