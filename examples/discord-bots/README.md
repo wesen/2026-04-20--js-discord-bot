@@ -22,6 +22,7 @@ The source files for those help pages live in the repo at:
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event, and thread utility helpers
 - `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role/member lookup helpers, message history helpers, member moderation host APIs, message moderation utilities, and channel utility helpers
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
+- `interaction-types/` — demo of all Discord application command interaction types: slash commands, subcommands, user context menu commands, and message context menu commands
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
 ## Example commands

@@ -62,6 +62,9 @@ The CLI discovers bots by scanning the repository, loading each script, and read
 | `defineBot(builderFn)` | Create one bot from a builder callback |
 | `configure(options)` | Set bot metadata and runtime config fields |
 | `command(name, spec?, handler)` | Register a slash command |
+| `userCommand(name, handler)` | Register a user context menu command |
+| `messageCommand(name, handler)` | Register a message context menu command |
+| `subcommand(rootName, name, spec?, handler)` | Register a subcommand handler |
 | `event(name, handler)` | Register a gateway/event handler |
 | `component(customId, handler)` | Handle button or select-menu interactions |
 | `modal(customId, handler)` | Handle modal submissions |
@@ -196,7 +199,7 @@ options: {
 
 | Field | Meaning |
 | --- | --- |
-| `type` | Discord option type: `string`, `integer`, `bool`, `number`, `user`, `channel`, `role`, or `mentionable` |
+| `type` | Discord option type: `string`, `integer`, `bool`, `number`, `user`, `channel`, `role`, `mentionable`, `sub_command`, or `sub_command_group` |
 | `description` | Option description shown in Discord |
 | `required` | Marks the option as required |
 | `autocomplete` | Enables autocomplete for that option |
@@ -229,6 +232,96 @@ The handler receives a context object. For slash commands, the most important fi
 - `ctx.store` — per-runtime in-memory state
 
 If your command does work that might take longer than Discord likes, call `await ctx.defer({ ephemeral: true })`, do the work, and then `await ctx.edit(...)` with the result.
+
+## `userCommand(name, handler)`
+
+`userCommand(...)` registers a user context menu command. Users see it when they right-click a user and choose Apps.
+
+```js
+userCommand("Show Avatar", async (ctx) => {
+  const target = ctx.args.target
+  if (!target || !target.id) {
+    return { content: "Could not resolve user", ephemeral: true }
+  }
+  const avatarUrl = target.avatar
+    ? `https://cdn.discordapp.com/avatars/${target.id}/${target.avatar}.png?size=512`
+    : `https://cdn.discordapp.com/embed/avatars/${(parseInt(target.discriminator) || 0) % 5}.png`
+  return { content: `${target.username}'s avatar: ${avatarUrl}`, ephemeral: true }
+})
+```
+
+User commands do not accept a `spec` or options. Discord ignores description and options for context menu commands.
+
+### User command context fields
+
+- `ctx.args.target` — the resolved user object: `{ id, username, avatar, discriminator, bot }`
+- All standard context fields (`reply`, `defer`, `edit`, `discord`, `log`, etc.) are also available
+
+## `messageCommand(name, handler)`
+
+`messageCommand(...)` registers a message context menu command. Users see it when they right-click a message and choose Apps.
+
+```js
+messageCommand("Quote Message", async (ctx) => {
+  const target = ctx.args.target
+  const author = target.author && target.author.username || "unknown"
+  const content = target.content || "(empty)"
+  return { content: `> ${content}\n— **${author}**`, ephemeral: true }
+})
+```
+
+Message commands do not accept a `spec` or options.
+
+### Message command context fields
+
+- `ctx.args.target` — the resolved message object: `{ id, content, author, guildID, channelID }`
+- All standard context fields are also available
+
+## `subcommand(rootName, name, spec?, handler)`
+
+`subcommand(...)` registers a handler for a subcommand under a root slash command. Discord represents subcommands as options of type `SUB_COMMAND` on the root command.
+
+```js
+subcommand("admin", "kick", {
+  description: "Kick a user"
+}, async (ctx) => {
+  const userId = ctx.args.user
+  const reason = ctx.args.reason || "no reason"
+  return { content: `Would kick <@${userId}> for: ${reason}`, ephemeral: true }
+})
+```
+
+### How subcommands work with the root command
+
+You must also register the root command with `command(...)` so Discord knows the full command structure. The root command's spec should declare the subcommand options:
+
+```js
+command("admin", {
+  description: "Administration commands",
+  options: {
+    kick: {
+      type: "sub_command",
+      description: "Kick a user",
+      options: {
+        user: { type: "user", description: "User to kick", required: true },
+        reason: { type: "string", description: "Reason" }
+      }
+    }
+  }
+}, async (ctx) => {
+  // Fallback handler when /admin is called without a subcommand
+  return { content: "Use /admin kick or /admin ban" }
+})
+```
+
+The `subcommand(...)` registration only creates the handler mapping. The `command(...)` registration tells Discord what the command looks like.
+
+### Subcommand context fields
+
+- `ctx.args` — parsed option values from the subcommand's own options
+- `ctx.command.name` — the root command name
+- `ctx.command.subName` — the subcommand name
+- All standard context fields are also available
 
 ## `event(name, handler)`
 
@@ -631,3 +724,4 @@ It is a normal channel message. Use interaction replies when you want ephemeral/
 - `examples/discord-bots/poker/index.js` — a richer bot with game state and action advice
 - `examples/discord-bots/knowledge-base/index.js` — runtime config and docs-search example
 - `examples/discord-bots/README.md` — repository-level usage notes and command examples
+- `examples/discord-bots/interaction-types/index.js` — demo of all command and interaction types
