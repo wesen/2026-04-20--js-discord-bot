@@ -260,40 +260,157 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 			Str("script", h.scriptPath).
 			Str("interactionType", "applicationCommand").
 			Str("command", data.Name).
+			Str("commandType", fmt.Sprint(data.CommandType)).
 			Str("guildId", interaction.GuildID).
 			Str("channelId", interaction.ChannelID).
 			Str("userId", interactionUserID(interaction)).
 			Msg("dispatching javascript interaction")
 		responder := newInteractionResponder(session, interaction, h.scriptPath)
-		result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
-			Name:        data.Name,
-			Args:        optionMap(data.Options),
-			Command:     map[string]any{"name": data.Name, "id": data.ID},
-			Interaction: interactionMap(interaction),
-			Message:     messageMap(interaction.Message),
-			User:        interactionUserMap(interaction),
-			Guild:       guildMap(interaction.GuildID),
-			Channel:     channelMap(interaction.ChannelID),
-			Me:          currentUserMap(session),
-			Metadata:    map[string]any{"scriptPath": h.scriptPath},
-			Config:      cloneMap(h.runtimeConfig),
-			Discord:     buildDiscordOps(h.scriptPath, session),
-			Reply:       responder.Reply,
-			FollowUp:    responder.FollowUp,
-			Edit:        responder.Edit,
-			Defer:       responder.Defer,
-			ShowModal:   responder.ShowModal,
-		})
-		if err != nil {
-			if !responder.Acknowledged() {
-				_ = responder.Reply(ctx, map[string]any{"content": "command failed: " + err.Error(), "ephemeral": true})
+
+		switch data.CommandType {
+		case discordgo.UserApplicationCommand:
+			args := map[string]any{}
+			if data.Resolved != nil && data.Resolved.Users != nil {
+				if targetUser, ok := data.Resolved.Users[data.TargetID]; ok {
+					args["target"] = userMap(targetUser)
+				}
 			}
-			return fmt.Errorf("dispatch command %q for script %q: %w", data.Name, h.scriptPath, err)
+			result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
+				Name:        data.Name,
+				Args:        args,
+				Command:     map[string]any{"name": data.Name, "id": data.ID, "type": "user"},
+				Interaction: interactionMap(interaction),
+				Message:     messageMap(interaction.Message),
+				User:        interactionUserMap(interaction),
+				Guild:       guildMap(interaction.GuildID),
+				Channel:     channelMap(interaction.ChannelID),
+				Me:          currentUserMap(session),
+				Metadata:    map[string]any{"scriptPath": h.scriptPath},
+				Config:      cloneMap(h.runtimeConfig),
+				Discord:     buildDiscordOps(h.scriptPath, session),
+				Reply:       responder.Reply,
+				FollowUp:    responder.FollowUp,
+				Edit:        responder.Edit,
+				Defer:       responder.Defer,
+				ShowModal:   responder.ShowModal,
+			})
+			if err != nil {
+				if !responder.Acknowledged() {
+					_ = responder.Reply(ctx, map[string]any{"content": "user command failed: " + err.Error(), "ephemeral": true})
+				}
+				return fmt.Errorf("dispatch user command %q for script %q: %w", data.Name, h.scriptPath, err)
+			}
+			if !responder.Acknowledged() {
+				return emitEventResult(ctx, responder.Reply, result)
+			}
+			return nil
+
+		case discordgo.MessageApplicationCommand:
+			args := map[string]any{}
+			if data.Resolved != nil && data.Resolved.Messages != nil {
+				if targetMessage, ok := data.Resolved.Messages[data.TargetID]; ok {
+					args["target"] = messageMap(targetMessage)
+				}
+			}
+			result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
+				Name:        data.Name,
+				Args:        args,
+				Command:     map[string]any{"name": data.Name, "id": data.ID, "type": "message"},
+				Interaction: interactionMap(interaction),
+				Message:     messageMap(interaction.Message),
+				User:        interactionUserMap(interaction),
+				Guild:       guildMap(interaction.GuildID),
+				Channel:     channelMap(interaction.ChannelID),
+				Me:          currentUserMap(session),
+				Metadata:    map[string]any{"scriptPath": h.scriptPath},
+				Config:      cloneMap(h.runtimeConfig),
+				Discord:     buildDiscordOps(h.scriptPath, session),
+				Reply:       responder.Reply,
+				FollowUp:    responder.FollowUp,
+				Edit:        responder.Edit,
+				Defer:       responder.Defer,
+				ShowModal:   responder.ShowModal,
+			})
+			if err != nil {
+				if !responder.Acknowledged() {
+					_ = responder.Reply(ctx, map[string]any{"content": "message command failed: " + err.Error(), "ephemeral": true})
+				}
+				return fmt.Errorf("dispatch message command %q for script %q: %w", data.Name, h.scriptPath, err)
+			}
+			if !responder.Acknowledged() {
+				return emitEventResult(ctx, responder.Reply, result)
+			}
+			return nil
+
+		default:
+			// Chat input command (slash command) — check for subcommands
+			args := optionMap(data.Options)
+			if len(data.Options) > 0 && data.Options[0].Type == discordgo.ApplicationCommandOptionSubCommand {
+				subName := data.Options[0].Name
+				subArgs := optionMap(data.Options[0].Options)
+				result, err := h.handle.DispatchSubcommand(ctx, DispatchRequest{
+					Name:        data.Name + "/" + subName,
+					RootName:    data.Name,
+					SubName:     subName,
+					Args:        subArgs,
+					Command:     map[string]any{"name": data.Name, "id": data.ID, "subName": subName},
+					Interaction: interactionMap(interaction),
+					Message:     messageMap(interaction.Message),
+					User:        interactionUserMap(interaction),
+					Guild:       guildMap(interaction.GuildID),
+					Channel:     channelMap(interaction.ChannelID),
+					Me:          currentUserMap(session),
+					Metadata:    map[string]any{"scriptPath": h.scriptPath},
+					Config:      cloneMap(h.runtimeConfig),
+					Discord:     buildDiscordOps(h.scriptPath, session),
+					Reply:       responder.Reply,
+					FollowUp:    responder.FollowUp,
+					Edit:        responder.Edit,
+					Defer:       responder.Defer,
+					ShowModal:   responder.ShowModal,
+				})
+				if err != nil {
+					if !responder.Acknowledged() {
+						_ = responder.Reply(ctx, map[string]any{"content": "subcommand failed: " + err.Error(), "ephemeral": true})
+					}
+					return fmt.Errorf("dispatch subcommand %q/%q for script %q: %w", data.Name, subName, h.scriptPath, err)
+				}
+				if !responder.Acknowledged() {
+					return emitEventResult(ctx, responder.Reply, result)
+				}
+				return nil
+			}
+
+			result, err := h.handle.DispatchCommand(ctx, DispatchRequest{
+				Name:        data.Name,
+				Args:        args,
+				Command:     map[string]any{"name": data.Name, "id": data.ID},
+				Interaction: interactionMap(interaction),
+				Message:     messageMap(interaction.Message),
+				User:        interactionUserMap(interaction),
+				Guild:       guildMap(interaction.GuildID),
+				Channel:     channelMap(interaction.ChannelID),
+				Me:          currentUserMap(session),
+				Metadata:    map[string]any{"scriptPath": h.scriptPath},
+				Config:      cloneMap(h.runtimeConfig),
+				Discord:     buildDiscordOps(h.scriptPath, session),
+				Reply:       responder.Reply,
+				FollowUp:    responder.FollowUp,
+				Edit:        responder.Edit,
+				Defer:       responder.Defer,
+				ShowModal:   responder.ShowModal,
+			})
+			if err != nil {
+				if !responder.Acknowledged() {
+					_ = responder.Reply(ctx, map[string]any{"content": "command failed: " + err.Error(), "ephemeral": true})
+				}
+				return fmt.Errorf("dispatch command %q for script %q: %w", data.Name, h.scriptPath, err)
+			}
+			if !responder.Acknowledged() {
+				return emitEventResult(ctx, responder.Reply, result)
+			}
+			return nil
 		}
-		if !responder.Acknowledged() {
-			return emitEventResult(ctx, responder.Reply, result)
-		}
-		return nil
 	case discordgo.InteractionMessageComponent:
 		data := interaction.MessageComponentData()
 		log.Debug().

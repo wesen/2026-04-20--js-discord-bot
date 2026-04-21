@@ -96,6 +96,8 @@ type DiscordOps struct {
 
 type DispatchRequest struct {
 	Name        string
+	RootName    string
+	SubName     string
 	Args        map[string]any
 	Values      any
 	Command     map[string]any
@@ -768,6 +770,9 @@ func commandSnapshotsFromDrafts(commands []*commandDraft) []map[string]any {
 	out := make([]map[string]any, 0, len(commands))
 	for _, command := range commands {
 		snapshot := map[string]any{"name": command.name}
+		if command.commandType != "" {
+			snapshot["type"] = command.commandType
+		}
 		if len(command.spec) > 0 {
 			snapshot["spec"] = cloneMap(command.spec)
 		}
@@ -888,6 +893,8 @@ func setObjectField(vm *goja.Runtime, obj *goja.Object, name string, value any) 
 func buildDispatchInput(vm *goja.Runtime, ctx context.Context, request DispatchRequest) *goja.Object {
 	input := vm.NewObject()
 	setObjectField(vm, input, "name", request.Name)
+	setObjectField(vm, input, "rootName", request.RootName)
+	setObjectField(vm, input, "subName", request.SubName)
 	setObjectField(vm, input, "args", request.Args)
 	setObjectField(vm, input, "values", request.Values)
 	setObjectField(vm, input, "command", request.Command)

@@ -14,17 +14,33 @@ func applicationCommandFromSnapshot(snapshot map[string]any) (*discordgo.Applica
 		return nil, fmt.Errorf("discord command snapshot missing name")
 	}
 	spec, _ := snapshot["spec"].(map[string]any)
+	cmdType := strings.ToLower(strings.TrimSpace(fmt.Sprint(snapshot["type"])))
+	if cmdType == "" && spec != nil {
+		cmdType = strings.ToLower(strings.TrimSpace(fmt.Sprint(spec["type"])))
+	}
+
 	description := "JavaScript command"
 	if spec != nil {
 		if raw, ok := spec["description"]; ok && strings.TrimSpace(fmt.Sprint(raw)) != "" {
 			description = strings.TrimSpace(fmt.Sprint(raw))
 		}
 	}
-	options, err := applicationCommandOptions(spec)
-	if err != nil {
-		return nil, fmt.Errorf("discord command %s: %w", name, err)
+
+	var options []*discordgo.ApplicationCommandOption
+	var err error
+
+	switch cmdType {
+	case "user":
+		return &discordgo.ApplicationCommand{Name: name, Type: discordgo.UserApplicationCommand}, nil
+	case "message":
+		return &discordgo.ApplicationCommand{Name: name, Type: discordgo.MessageApplicationCommand}, nil
+	default:
+		options, err = applicationCommandOptions(spec)
+		if err != nil {
+			return nil, fmt.Errorf("discord command %s: %w", name, err)
+		}
+		return &discordgo.ApplicationCommand{Name: name, Description: description, Options: options}, nil
 	}
-	return &discordgo.ApplicationCommand{Name: name, Description: description, Options: options}, nil
 }
 
 func applicationCommandOptions(spec map[string]any) ([]*discordgo.ApplicationCommandOption, error) {
@@ -210,6 +226,10 @@ func optionTypeFromSpec(mapping map[string]any) (discordgo.ApplicationCommandOpt
 		return discordgo.ApplicationCommandOptionRole, nil
 	case "mentionable":
 		return discordgo.ApplicationCommandOptionMentionable, nil
+	case "sub_command":
+		return discordgo.ApplicationCommandOptionSubCommand, nil
+	case "sub_command_group":
+		return discordgo.ApplicationCommandOptionSubCommandGroup, nil
 	default:
 		return discordgo.ApplicationCommandOptionString, fmt.Errorf("unsupported option type %q", mapping["type"])
 	}
