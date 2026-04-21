@@ -420,10 +420,7 @@ func (h *Host) dispatchModalSubmitInteraction(ctx context.Context, session *disc
 	req.Guild = guildMap(interaction.GuildID)
 	req.Channel = channelMap(interaction.ChannelID)
 	req.Modal = map[string]any{"customId": data.CustomID}
-	req.Reply = responder.Reply
-	req.FollowUp = responder.FollowUp
-	req.Edit = responder.Edit
-	req.Defer = responder.Defer
+	req = withInteractionResponder(req, responder)
 	result, err := h.handle.DispatchModal(ctx, req)
 	if err != nil {
 		if !responder.Acknowledged() {
