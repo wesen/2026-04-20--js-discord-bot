@@ -123,7 +123,13 @@ module.exports = defineBot(({ command, messageCommand, event, configure }) => {
 
     // Fetch all messages from the thread
     const maxMessages = ctx.config.default_limit || 500
-    const messages = await fetchAllMessages(ctx, threadId, maxMessages)
+    let messages
+    try {
+      messages = await fetchAllMessages(ctx, threadId, maxMessages)
+    } catch (err) {
+      await ctx.edit({ content: `Failed to fetch thread messages: ${err.message || err}`, ephemeral: true })
+      return
+    }
 
     if (messages.length === 0) {
       await ctx.edit({ content: "No messages found in this thread.", ephemeral: true })
@@ -134,15 +140,20 @@ module.exports = defineBot(({ command, messageCommand, event, configure }) => {
     const markdown = renderArchive(channel, thread, messages)
 
     // Send as file attachment to the current channel (the thread itself)
-    await ctx.discord.channels.send(threadId, {
-      content: `📄 Archive of thread "${thread.name}": ${messages.length} messages`,
-      files: [
-        {
-          name: `${sanitize(channel.name)}--${sanitize(thread.name)}--archive.md`,
-          content: markdown,
-        },
-      ],
-    })
+    try {
+      await ctx.discord.channels.send(threadId, {
+        content: `📄 Archive of thread "${thread.name}": ${messages.length} messages`,
+        files: [
+          {
+            name: `${sanitize(channel.name)}--${sanitize(thread.name)}--archive.md`,
+            content: markdown,
+          },
+        ],
+      })
+    } catch (err) {
+      await ctx.edit({ content: `Failed to send archive file: ${err.message || err}`, ephemeral: true })
+      return
+    }
 
     await ctx.edit({
       content: `Archived ${messages.length} messages from thread "${thread.name}".`,
