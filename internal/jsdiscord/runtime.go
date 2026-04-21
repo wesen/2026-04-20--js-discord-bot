@@ -1,19 +1,18 @@
 package jsdiscord
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
 )
 
+// RuntimeStateContextKey is the engine context key for the discord runtime state.
+// It is set during module registration so that runtime inspectors or future
+// extensions can retrieve the RuntimeState from the module context.
 const RuntimeStateContextKey = "discord.runtime"
-
-var runtimeStateByVM sync.Map
 
 type Config struct {
 	ModuleName string
@@ -42,17 +41,6 @@ func (r *Registrar) RegisterRuntimeModules(ctx *engine.RuntimeModuleContext, reg
 	state := NewRuntimeState(moduleName)
 	if ctx != nil {
 		ctx.SetValue(RuntimeStateContextKey, state)
-		if ctx.VM != nil {
-			RegisterRuntimeState(ctx.VM, state)
-		}
-		if ctx.AddCloser != nil && ctx.VM != nil {
-			if err := ctx.AddCloser(func(context.Context) error {
-				UnregisterRuntimeState(ctx.VM)
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
 	}
 	reg.RegisterNativeModule(state.ModuleName(), state.Loader)
 	return nil
@@ -69,32 +57,6 @@ func NewRuntimeState(moduleName string) *RuntimeState {
 		moduleName = "discord"
 	}
 	return &RuntimeState{moduleName: moduleName, store: NewMemoryStore()}
-}
-
-func RegisterRuntimeState(vm *goja.Runtime, state *RuntimeState) {
-	if vm == nil || state == nil {
-		return
-	}
-	runtimeStateByVM.Store(vm, state)
-}
-
-func UnregisterRuntimeState(vm *goja.Runtime) {
-	if vm == nil {
-		return
-	}
-	runtimeStateByVM.Delete(vm)
-}
-
-func LookupRuntimeState(vm *goja.Runtime) *RuntimeState {
-	if vm == nil {
-		return nil
-	}
-	value, ok := runtimeStateByVM.Load(vm)
-	if !ok {
-		return nil
-	}
-	state, _ := value.(*RuntimeState)
-	return state
 }
 
 func (s *RuntimeState) ModuleName() string {
