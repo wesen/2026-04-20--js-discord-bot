@@ -50,10 +50,22 @@ module.exports = defineBot(({ command, messageCommand, event, configure }) => {
     const beforeId = ctx.args.before_message_id || null
 
     // Fetch channel info for metadata
-    const channel = await ctx.discord.channels.fetch(channelId)
+    let channel
+    try {
+      channel = await ctx.discord.channels.fetch(channelId)
+    } catch (err) {
+      await ctx.edit({ content: `Could not fetch channel info: ${err.message || err}`, ephemeral: true })
+      return
+    }
 
     // Fetch messages with pagination
-    const messages = await fetchAllMessages(ctx, channelId, maxMessages, beforeId)
+    let messages
+    try {
+      messages = await fetchAllMessages(ctx, channelId, maxMessages, beforeId)
+    } catch (err) {
+      await ctx.edit({ content: `Failed to fetch messages: ${err.message || err}`, ephemeral: true })
+      return
+    }
 
     if (messages.length === 0) {
       await ctx.edit({ content: "No messages found in this channel.", ephemeral: true })
@@ -64,15 +76,20 @@ module.exports = defineBot(({ command, messageCommand, event, configure }) => {
     const markdown = renderArchive(channel, null, messages)
 
     // Send as file attachment
-    await ctx.discord.channels.send(channelId, {
-      content: `📄 Archive of #${channel.name}: ${messages.length} messages`,
-      files: [
-        {
-          name: `${sanitize(channel.name)}--archive.md`,
-          content: markdown,
-        },
-      ],
-    })
+    try {
+      await ctx.discord.channels.send(channelId, {
+        content: `📄 Archive of #${channel.name}: ${messages.length} messages`,
+        files: [
+          {
+            name: `${sanitize(channel.name)}--archive.md`,
+            content: markdown,
+          },
+        ],
+      })
+    } catch (err) {
+      await ctx.edit({ content: `Failed to send archive file: ${err.message || err}`, ephemeral: true })
+      return
+    }
 
     // Update the deferred reply
     await ctx.edit({
@@ -93,7 +110,13 @@ module.exports = defineBot(({ command, messageCommand, event, configure }) => {
     await ctx.defer({ ephemeral: true })
 
     // Fetch thread info
-    const thread = await ctx.discord.threads.fetch(threadId)
+    let thread
+    try {
+      thread = await ctx.discord.threads.fetch(threadId)
+    } catch (err) {
+      await ctx.edit({ content: "This command only works inside threads. Right-click a message in a thread and choose Apps → Archive Thread.", ephemeral: true })
+      return
+    }
 
     // Fetch parent channel for metadata
     const channel = await ctx.discord.channels.fetch(thread.parentID)
