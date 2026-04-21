@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources: []
 Summary: >
   Work plan for the next knowledge steward bot slice: rich review UI, reaction-based promotion, source citation UX, rich search UI, and export from ask results.
-LastUpdated: 2026-04-20T23:35:00-04:00
+LastUpdated: 2026-04-20T23:55:00-04:00
 WhatFor: Track implementation tasks for the post-MVP UX and retrieval work.
 WhenToUse: Use when building the next interaction and retrieval layer for the bot.
 ---
@@ -46,14 +46,14 @@ WhenToUse: Use when building the next interaction and retrieval layer for the bo
 
 - [x] Render source citations in search and article cards
 - [x] Add jump-link / open-source behavior for source messages or threads
-- [ ] Add related-entry hints and canonical-source highlighting
+- [x] Add related-entry hints and canonical-source highlighting
 - [x] Make source metadata easy to read in the review UI
 
 ## Rich search UI
 
 - [x] Replace plain search results with richer cards and status badges
-- [ ] Add pagination / next-page support for larger result sets
-- [ ] Add autocomplete for tags, aliases, and article names
+- [x] Add pagination / next-page support for larger result sets
+- [x] Add autocomplete for tags, aliases, and article names
 - [x] Improve result ranking so verified entries appear first
 
 ## Export from ask results

@@ -60,6 +60,7 @@ function knowledgeEmbed(entry) {
     fields: [
       { name: "Status", value: String(entry.status || "draft"), inline: true },
       { name: "Confidence", value: confidenceLabel(entry.confidence), inline: true },
+      { name: "Canonical source", value: canonicalSourceLabel(entry), inline: false },
       { name: "Tags", value: formatTags(entry.tags), inline: false },
       { name: "Aliases", value: formatAliases(entry.aliases), inline: false },
       { name: "Source citation", value: formatSourceCitation(entry), inline: false },
@@ -114,6 +115,9 @@ function searchResultCard(entry, meta) {
   const embed = knowledgeEmbed(entry)
   const fields = Array.isArray(embed.fields) ? embed.fields.slice() : []
   fields.unshift({ name: "Entry ID", value: String(entry && entry.id || "(unknown)"), inline: false })
+  if (meta && Array.isArray(meta.relatedEntries) && meta.relatedEntries.length > 0) {
+    fields.push({ name: "Related entries", value: meta.relatedEntries.map(formatRelatedEntry).join("\n"), inline: false })
+  }
   const next = { ...embed, fields }
   if (meta) {
     const footerParts = []
@@ -121,6 +125,8 @@ function searchResultCard(entry, meta) {
     if (meta.position && meta.total) footerParts.push(`Result ${meta.position}/${meta.total}`)
     if (meta.position && !meta.total) footerParts.push(`Result ${meta.position}`)
     if (meta.total && !meta.position) footerParts.push(`Total ${meta.total}`)
+    if (meta.page && meta.pageCount) footerParts.push(`Page ${meta.page}/${meta.pageCount}`)
+    else if (meta.page) footerParts.push(`Page ${meta.page}`)
     if (footerParts.length > 0) {
       next.footer = { text: footerParts.join(" · ") }
     }
@@ -186,6 +192,28 @@ function renderReviewLine(entry) {
 function confidenceLabel(confidence) {
   const value = Number(confidence || 0)
   return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`
+}
+
+function canonicalSourceLabel(entry) {
+  if (!entry) {
+    return "(unknown)"
+  }
+  if (String(entry.status || "").toLowerCase() === "verified") {
+    return "Verified canonical entry"
+  }
+  if (entry.source && String(entry.source.kind || "").toLowerCase() === "seed") {
+    return "Seeded canonical entry"
+  }
+  return "Candidate entry"
+}
+
+function formatRelatedEntry(entry) {
+  if (!entry) {
+    return "(unknown)"
+  }
+  const title = String(entry.title || entry.slug || entry.id || "Untitled").trim()
+  const status = String(entry.status || "draft").trim()
+  return `• **${title}** — ${status}`
 }
 
 function formatAliases(aliases) {

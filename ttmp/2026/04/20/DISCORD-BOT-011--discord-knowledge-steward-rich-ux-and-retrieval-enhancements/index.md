@@ -13,8 +13,8 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: >
-  Follow-up ticket for the knowledge steward bot MVP, focused on rich review UI, reaction-based promotion, source citation UX, rich search UI, and exporting ask results back into the channel.
-LastUpdated: 2026-04-20T23:35:00-04:00
+  Follow-up ticket for the knowledge steward bot MVP, focused on rich review UI, reaction-based promotion, source citation UX, rich search UI, pagination, autocomplete, and exporting ask results back into the channel.
+LastUpdated: 2026-04-20T23:55:00-04:00
 WhatFor: Track the next UX and retrieval improvements for the Discord knowledge steward bot.
 WhenToUse: Use when designing or implementing richer review, search, citation, and export flows for the knowledge steward bot.
 ---
@@ -23,7 +23,7 @@ WhenToUse: Use when designing or implementing richer review, search, citation, a
 
 ## Overview
 
-This ticket continues the knowledge steward bot work after the SQLite-backed MVP. It collects the richer interaction and retrieval features that were intentionally left out of the first implementation: an interactive review queue, reaction-based promotion, stronger citation UX, a richer search experience, and an action to export ask results back into the channel.
+This ticket continues the knowledge steward bot work after the SQLite-backed MVP. It collects the richer interaction and retrieval features that were intentionally left out of the first implementation: an interactive review queue, reaction-based promotion, stronger citation UX, a richer search experience with pagination and autocomplete, and an action to export ask results back into the channel.
 
 ## Key Links
 

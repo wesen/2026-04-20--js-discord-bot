@@ -8,7 +8,7 @@ const reactions = require("./lib/reactions")
 
 const store = createKnowledgeStore()
 
-module.exports = defineBot(({ command, event, component, modal, configure }) => {
+module.exports = defineBot(({ command, event, component, modal, autocomplete, configure }) => {
   configure({
     name: "knowledge-base",
     description: "Listen to Discord chat, record candidate knowledge, and curate it as a shared memory",
@@ -117,6 +117,7 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
         type: "string",
         description: "Search query",
         required: true,
+        autocomplete: true,
       },
     },
   }, async (ctx) => {
@@ -124,8 +125,8 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
     const query = String((ctx.args || {}).query || "").trim()
     const limit = Number((ctx.config || {}).reviewLimit || 5)
     const results = store.search(ctx.config, query, limit)
-    const state = search.stateFromSearchCommand(ctx, query, limit, results)
-    return search.buildSearchMessage(query, results, state)
+    search.stateFromSearchCommand(ctx, query, limit, results)
+    return search.buildSearchMessage(search.searchView(ctx, store))
   })
 
   command("kb-search", {
@@ -135,6 +136,7 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
         type: "string",
         description: "Search query",
         required: true,
+        autocomplete: true,
       },
     },
   }, async (ctx) => {
@@ -142,8 +144,8 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
     const query = String((ctx.args || {}).query || "").trim()
     const limit = Number((ctx.config || {}).reviewLimit || 5)
     const results = store.search(ctx.config, query, limit)
-    const state = search.stateFromSearchCommand(ctx, query, limit, results)
-    return search.buildSearchMessage(query, results, state)
+    search.stateFromSearchCommand(ctx, query, limit, results)
+    return search.buildSearchMessage(search.searchView(ctx, store))
   })
 
   command("article", {
@@ -153,6 +155,7 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
         type: "string",
         description: "Entry id or slug",
         required: true,
+        autocomplete: true,
       },
     },
   }, async (ctx) => {
@@ -174,6 +177,7 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
         type: "string",
         description: "Entry id or slug",
         required: true,
+        autocomplete: true,
       },
     },
   }, async (ctx) => {
@@ -412,14 +416,31 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
       return { content: "Please choose a knowledge entry from the search dropdown.", ephemeral: true }
     }
     search.setSearchSelection(ctx, selectedId)
-    const state = search.loadSearchState(ctx)
-    const entries = search.searchEntries(ctx, store)
-    const current = entries.find((entry) => entry && entry.id === selectedId) || search.currentSearchEntry(ctx, store)
-    if (!current) {
+    const view = search.searchView(ctx, store)
+    if (!view.selectedEntry) {
       return { content: "No search result is currently available.", ephemeral: true }
     }
-    const position = entries.findIndex((entry) => entry && entry.id === current.id)
-    return search.searchReply(current, { query: state.query, total: entries.length, position: position >= 0 ? position + 1 : undefined })
+    return search.buildSearchMessage(view)
+  })
+
+  component(search.SEARCH_COMPONENTS.previous, async (ctx) => {
+    store.ensure(ctx.config)
+    search.shiftSearchPage(ctx, -1)
+    const view = search.searchView(ctx, store)
+    if (!view.selectedEntry) {
+      return { content: "No search result is currently available.", ephemeral: true }
+    }
+    return search.buildSearchMessage(view)
+  })
+
+  component(search.SEARCH_COMPONENTS.next, async (ctx) => {
+    store.ensure(ctx.config)
+    search.shiftSearchPage(ctx, 1)
+    const view = search.searchView(ctx, store)
+    if (!view.selectedEntry) {
+      return { content: "No search result is currently available.", ephemeral: true }
+    }
+    return search.buildSearchMessage(view)
   })
 
   component(search.SEARCH_COMPONENTS.open, async (ctx) => {
@@ -439,17 +460,37 @@ module.exports = defineBot(({ command, event, component, modal, configure }) => 
 
   component(search.SEARCH_COMPONENTS.export, async (ctx) => {
     store.ensure(ctx.config)
-    const entry = search.currentSearchEntry(ctx, store)
+    const view = search.searchView(ctx, store)
+    const entry = view.selectedEntry
     if (!entry) {
       return { content: "No search result is currently selected.", ephemeral: true }
     }
-    const state = search.loadSearchState(ctx)
     await ctx.defer({ ephemeral: true })
-    await ctx.followUp(search.searchExportPayload(entry, state.query))
+    await ctx.followUp(search.searchExportPayload(entry, view.query))
     await ctx.edit({
-      content: `Exported **${entry.title || "knowledge entry"}** into the channel from ${state.query ? `search for ${state.query}` : "search results"}.`,
-      embeds: [search.renderSearchResultCard(entry, { query: state.query, total: 1, position: 1 })],
+      content: `Exported **${entry.title || "knowledge entry"}** into the channel from ${view.query ? `search for ${view.query}` : "search results"}.`,
+      embeds: [search.renderSearchResultCard(entry, { query: view.query, total: view.allResults.length, position: view.selectedIndex, page: view.page, pageCount: view.pageCount, relatedEntries: view.relatedEntries })],
     })
+  })
+
+  autocomplete("ask", "query", async (ctx) => {
+    store.ensure(ctx.config)
+    return search.searchAutocompleteSuggestions(ctx, store)
+  })
+
+  autocomplete("kb-search", "query", async (ctx) => {
+    store.ensure(ctx.config)
+    return search.searchAutocompleteSuggestions(ctx, store)
+  })
+
+  autocomplete("article", "name", async (ctx) => {
+    store.ensure(ctx.config)
+    return search.articleAutocompleteSuggestions(ctx, store)
+  })
+
+  autocomplete("kb-article", "name", async (ctx) => {
+    store.ensure(ctx.config)
+    return search.articleAutocompleteSuggestions(ctx, store)
   })
 
   reactions.registerReactionPromotions({ event }, store, render)

@@ -12,24 +12,33 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: examples/discord-bots/knowledge-base/index.js
-      Note: Bot wiring for review, search, export, and reaction promotion
+      Note: |-
+        Bot wiring for review, search, export, and reaction promotion
+        Bot wiring for review
+    - Path: examples/discord-bots/knowledge-base/lib/reactions.js
+      Note: Trusted reaction promotion helpers
+    - Path: examples/discord-bots/knowledge-base/lib/render.js
+      Note: |-
+        Rich embed and source citation rendering helpers
+        Rich embed
     - Path: examples/discord-bots/knowledge-base/lib/review.js
       Note: Review queue UI, selection state, and edit modal helpers
     - Path: examples/discord-bots/knowledge-base/lib/search.js
-      Note: Search panel, source citation, and export helpers
-    - Path: examples/discord-bots/knowledge-base/lib/render.js
-      Note: Rich embed and source citation rendering helpers
-    - Path: examples/discord-bots/knowledge-base/lib/reactions.js
-      Note: Trusted reaction promotion helpers
+      Note: |-
+        Search panel, source citation, and export helpers
+        Search pagination
     - Path: internal/jsdiscord/knowledge_base_runtime_test.go
-      Note: Runtime coverage for review, search, source, and export flows
+      Note: |-
+        Runtime coverage for review, search, source, and export flows
+        Runtime coverage for review
 ExternalSources: []
 Summary: |
-    Architecture and implementation guide for the post-MVP knowledge steward bot slice that adds a rich review queue, reaction-based promotion, stronger source citation UX, richer search cards, and export-to-channel behavior.
-LastUpdated: 2026-04-20T23:35:00-04:00
+    Architecture and implementation guide for the post-MVP knowledge steward bot slice that adds a rich review queue, reaction-based promotion, stronger source citation UX, richer search cards with pagination and autocomplete, and export-to-channel behavior.
+LastUpdated: 2026-04-20T23:55:00-04:00
 WhatFor: Explain how to evolve the knowledge steward bot beyond the MVP into a more interactive review and retrieval experience.
 WhenToUse: Use when designing or implementing the next UX-heavy knowledge steward bot slice.
 ---
+
 
 
 

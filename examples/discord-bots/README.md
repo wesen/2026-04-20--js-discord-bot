@@ -11,6 +11,10 @@ GOWORK=off go run ./cmd/discord-bot help discord-js-bot-api-reference
 GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
 ```
 
+The source files for those help pages live in the repo at:
+- `pkg/doc/topics/discord-js-bot-api-reference.md` — comprehensive API reference for the JavaScript bot DSL, handler contexts, payload shapes, and outbound Discord operations
+- `pkg/doc/tutorials/building-and-running-discord-js-bots.md` — step-by-step tutorial covering repository layout, command and event registration, buttons, modals, autocomplete, runtime config, and troubleshooting
+
 ## Bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
@@ -41,7 +45,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
 - `knowledge-base` listens passively for knowledge candidates in opted-in channels, records them to SQLite, and adds `/remember`, `/teach`, `/ask`, `/kb-search`, `/article`, `/kb-article`, `/review`, `/kb-review`, `/kb-verify`, `/kb-stale`, `/kb-reject`, `/recent`, and `/kb-recent`.
-- The review queue now uses a select menu, action buttons, and an edit modal, trusted reactions can promote a captured message into the review queue, and `/ask` / `/kb-search` now return rich result cards with source citations, source detail views, and an export-to-channel action.
+- The review queue now uses a select menu, action buttons, and an edit modal, trusted reactions can promote a captured message into the review queue, and `/ask` / `/kb-search` now return rich result cards with source citations, related-entry hints, source detail views, pagination, autocomplete, and an export-to-channel action.
 - `!support`, `!modping`, `!poker`, and `!pingjs` message triggers exercise each bot's own `messageCreate` handling.
 - `moderation` now also logs message edit/delete lifecycle events, reaction add/remove events, and guild member join/update/remove events to demonstrate the early DISCORD-BOT-009 event-expansion slices.
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.

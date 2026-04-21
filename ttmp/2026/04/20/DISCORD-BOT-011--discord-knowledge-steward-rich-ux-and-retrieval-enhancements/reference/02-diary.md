@@ -18,20 +18,25 @@ RelatedFiles:
     - Path: examples/discord-bots/knowledge-base/lib/reactions.js
       Note: Reaction promotion implementation recorded in the diary
     - Path: examples/discord-bots/knowledge-base/lib/render.js
-      Note: Rich citation rendering implementation recorded in the diary
+      Note: |-
+        Rich citation rendering implementation recorded in the diary
+        Rich citation and canonical-source rendering implementation recorded in the diary
     - Path: examples/discord-bots/knowledge-base/lib/review.js
       Note: Rich review queue implementation recorded in the diary
     - Path: examples/discord-bots/knowledge-base/lib/search.js
-      Note: Search panel, source details, and export implementation recorded in the diary
+      Note: |-
+        Search panel, source details, and export implementation recorded in the diary
+        Search pagination
     - Path: internal/jsdiscord/knowledge_base_runtime_test.go
       Note: Runtime validation evidence referenced in the diary
 ExternalSources: []
 Summary: |
     Chronological diary for the rich review queue and reaction-based promotion work in the Discord knowledge steward bot.
-LastUpdated: 2026-04-20T23:35:00-04:00
+LastUpdated: 2026-04-20T23:55:00-04:00
 WhatFor: Capture the implementation trail, decisions, and validation steps for the post-MVP UX slice.
 WhenToUse: Use when continuing the ticket or reviewing how the rich review and reaction flows were built.
 ---
+
 
 
 
@@ -279,3 +284,79 @@ Validate with:
 - Search state is stored via `ctx.store` using a per-user, per-channel, per-guild key.
 - The search panel uses a select menu plus Open / Source / Export buttons.
 - Export posts a public follow-up with the rendered knowledge card and then edits the ephemeral interaction reply with a confirmation.
+
+## Step 4: Pagination, autocomplete, and related-entry hints
+
+I polished the search experience further by adding page navigation, autocomplete, and related-entry hints. The search panel now has previous/next controls, the query and article commands offer autocomplete suggestions based on recent entries, and the search card can highlight related entries plus the canonical-source status of the selected item.
+
+That made the search UX feel more like a real stewardship surface instead of a one-off lookup command. Reviewers can now stay oriented as they move through result sets, and people typing commands get useful suggestions without needing to remember exact ids or tags.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the ticket by finishing the remaining rich UX polish: pagination, autocomplete, and related-entry/canonical-source hints.
+
+**Inferred user intent:** Improve the usability of the search panel so it can scale beyond a single result card while still staying source-backed and easy to operate.
+
+**Commit (code):** pending at the time of this diary entry
+
+### What I did
+
+- Added previous/next paging controls to the knowledge-base search panel.
+- Added autocomplete support for `/ask`, `/kb-search`, `/article`, and `/kb-article`.
+- Added related-entry hints to richer search cards.
+- Added canonical-source highlighting to the rendered knowledge cards.
+- Updated the runtime test to exercise autocomplete and the richer search panel behavior.
+
+### Why
+
+The previous search slice was already useful, but the bot still needed better orientation when more than one result matched and more ergonomic command entry. Pagination and autocomplete reduce friction, while related-entry hints and canonical labels make the returned knowledge easier to trust and navigate.
+
+### What worked
+
+- The search state pattern from the review queue extended naturally to paging.
+- Autocomplete suggestions could be built from existing recent/search results without a new host API.
+- Related entries were easy to score from tags, aliases, and title tokens.
+- The extra metadata fit cleanly into the existing embed/card rendering helpers.
+
+### What didn't work
+
+- The first version of the search runtime test assumed the same result would always be selected after adding a second candidate entry. In practice, ranking can legitimately choose a different result, so the test had to focus on the behavior being exercised rather than a single hard-coded entry id.
+- The first export assertion also assumed one specific captured message would always be the exported result. That was too brittle once pagination and ranking were in play.
+
+### What I learned
+
+- Rich search UX benefits from treating page navigation and autocomplete as first-class pieces of the interaction, not as afterthoughts.
+- Related-entry hints are especially helpful when the bot has multiple similar captures in the same channel.
+- Canonical labeling is most useful when it is a clear, small signal in the embed instead of a separate command.
+
+### What was tricky to build
+
+The trickiest part was keeping the search result selection stable enough for interaction handling while still allowing the ranking engine to pick the best match. The final approach was to keep the UI state explicit and let the tests verify the user-visible behaviors rather than a single result identity.
+
+### What warrants a second pair of eyes
+
+- Whether the search panel should show page counts or a simple next/previous affordance.
+- Whether related-entry hints should be scored more aggressively by tag overlap or by title similarity.
+- Whether canonical-source highlighting should remain tied to verified state only or also recognize seeded/canonical knowledge.
+
+### What should be done in the future
+
+- Add queue pagination and status filters to the review surface.
+- Consider a dedicated source-details command or modal for even richer provenance inspection.
+- Revisit autocomplete ranking if the result set grows significantly.
+
+### Code review instructions
+
+Start with:
+
+- `examples/discord-bots/knowledge-base/lib/search.js`
+- `examples/discord-bots/knowledge-base/lib/render.js`
+- `examples/discord-bots/knowledge-base/index.js`
+- `internal/jsdiscord/knowledge_base_runtime_test.go`
+
+Validate with:
+
+- `go test ./internal/jsdiscord -run TestKnowledgeBaseBotUsesSQLiteStoreForCaptureSearchAndReview -count=1`
+- `go test ./...`
