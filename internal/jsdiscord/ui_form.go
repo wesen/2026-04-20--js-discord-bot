@@ -28,17 +28,17 @@ func newFormBuilder(vm *goja.Runtime, customID, title string) goja.Value {
 	proxy := vm.NewProxy(target, &goja.ProxyTrapConfig{
 		Get: func(target *goja.Object, property string, receiver goja.Value) goja.Value {
 			switch property {
-			// text(shortLabel, customId) — adds a short text input field
+			// text(customId, label) — adds a short text input field
 			case "text":
 				return vm.ToValue(func(call goja.FunctionCall) goja.Value {
 					b.finishField()
-					label := argString(call, 0)
-					fieldID := argString(call, 1)
-					if label == "" {
-						panic(vm.NewTypeError("ui.form.text: label is required"))
-					}
+					fieldID := argString(call, 0)
+					label := argString(call, 1)
 					if fieldID == "" {
 						panic(vm.NewTypeError("ui.form.text: customId is required"))
+					}
+					if label == "" {
+						panic(vm.NewTypeError("ui.form.text: label is required"))
 					}
 					if len(b.rows) >= 5 {
 						panic(vm.NewTypeError("ui.form: maximum 5 fields exceeded"))
@@ -50,17 +50,17 @@ func newFormBuilder(vm *goja.Runtime, customID, title string) goja.Value {
 					}
 					return receiver
 				})
-			// textarea(label, customId) — adds a paragraph text input field
+			// textarea(customId, label) — adds a paragraph text input field
 			case "textarea":
 				return vm.ToValue(func(call goja.FunctionCall) goja.Value {
 					b.finishField()
-					label := argString(call, 0)
-					fieldID := argString(call, 1)
-					if label == "" {
-						panic(vm.NewTypeError("ui.form.textarea: label is required"))
-					}
+					fieldID := argString(call, 0)
+					label := argString(call, 1)
 					if fieldID == "" {
 						panic(vm.NewTypeError("ui.form.textarea: customId is required"))
+					}
+					if label == "" {
+						panic(vm.NewTypeError("ui.form.textarea: label is required"))
 					}
 					if len(b.rows) >= 5 {
 						panic(vm.NewTypeError("ui.form: maximum 5 fields exceeded"))

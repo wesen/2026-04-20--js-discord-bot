@@ -391,3 +391,21 @@ The `toMap()` intermediate representation was a bad idea. Go structs should flow
 
 ### Commit
 `9a09d66` — fix(ui): live bot crash
+
+---
+
+## Step 8: Fix form field key mapping for modal responses
+
+### Prompt Context
+User reported that the feedback form showed default values instead of submitted values.
+
+### Root cause
+The Go modal builder used the wrong argument order for fields: it interpreted `.text("title", "Title")` as `(label, customId)` instead of `(customId, label)`. The modal submission payload keys come from `TextInput.CustomID`, so the submitted values were stored under the wrong keys.
+
+### Fix
+- Swapped `ui.form().text()` and `ui.form().textarea()` to use `(customId, label)`
+- Updated the phase 3/4 tests to match the showcase bot’s API
+- Re-ran the full suite successfully
+
+### Commit
+`<pending>` — fix(ui): modal form builder now uses customId-first field arguments

@@ -163,7 +163,7 @@ func TestSelectBuilderOptionsFromArray(t *testing.T) {
 		for k, v := range o {
 			_ = obj2.Set(k, v)
 		}
-	_ = arr.Set(fmt.Sprintf("%d", i), obj2)
+		_ = arr.Set(fmt.Sprintf("%d", i), obj2)
 	}
 
 	builder = mustCall(t, obj, "options", arr)
@@ -329,10 +329,10 @@ func TestFormBuilderBasicChain(t *testing.T) {
 	builder, _ := formFn(goja.Undefined(), vm.ToValue("submit-form"), vm.ToValue("My Form"))
 	obj := builder.(*goja.Object)
 
-	builder = mustCall(t, obj, "text", vm.ToValue("Name"), vm.ToValue("name"))
+	builder = mustCall(t, obj, "text", vm.ToValue("name"), vm.ToValue("Name"))
 	builder = mustCall(t, builder.(*goja.Object), "required")
 	builder = mustCall(t, builder.(*goja.Object), "placeholder", vm.ToValue("Enter your name"))
-	builder = mustCall(t, builder.(*goja.Object), "textarea", vm.ToValue("Description"), vm.ToValue("desc"))
+	builder = mustCall(t, builder.(*goja.Object), "textarea", vm.ToValue("desc"), vm.ToValue("Description"))
 	builder = mustCall(t, builder.(*goja.Object), "value", vm.ToValue("Default text"))
 	builder = mustCall(t, builder.(*goja.Object), "min", vm.ToValue(10))
 	builder = mustCall(t, builder.(*goja.Object), "max", vm.ToValue(500))
@@ -375,11 +375,11 @@ func TestFormBuilderMax5Fields(t *testing.T) {
 	obj := builder.(*goja.Object)
 
 	for i := 0; i < 5; i++ {
-		builder = mustCall(t, obj, "text", vm.ToValue(fmt.Sprintf("F%d", i)), vm.ToValue(fmt.Sprintf("f%d", i)))
+		builder = mustCall(t, obj, "text", vm.ToValue(fmt.Sprintf("f%d", i)), vm.ToValue(fmt.Sprintf("F%d", i)))
 		obj = builder.(*goja.Object)
 	}
 
-	_, err := tryCall(t, obj, "text", vm.ToValue("Extra"), vm.ToValue("extra"))
+	_, err := tryCall(t, obj, "text", vm.ToValue("extra"), vm.ToValue("Extra"))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "maximum 5 fields")
 }
@@ -406,7 +406,7 @@ func TestFormBuilderTextRequiresLabelAndId(t *testing.T) {
 	builder, _ := formFn(goja.Undefined(), vm.ToValue("f1"), vm.ToValue("F"))
 	obj := builder.(*goja.Object)
 
-	_, err := tryCall(t, obj, "text", vm.ToValue(""), vm.ToValue("id"))
+	_, err := tryCall(t, obj, "text", vm.ToValue("id"), vm.ToValue(""))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "label is required")
 }
@@ -472,7 +472,7 @@ func TestActionsHelper(t *testing.T) {
 		for k, v := range def {
 			_ = obj.Set(k, v)
 		}
-	_ = arr.Set(fmt.Sprintf("%d", i), obj)
+		_ = arr.Set(fmt.Sprintf("%d", i), obj)
 	}
 
 	result, _ := actionsFn(goja.Undefined(), arr)
