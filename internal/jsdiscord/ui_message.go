@@ -144,12 +144,13 @@ func extractEmbed(vm *goja.Runtime, arg goja.Value) *discordgo.MessageEmbed {
 }
 
 // buildRowFromArgs takes variadic arguments and builds a discordgo.ActionsRow.
-// Each argument must be a builder proxy (button, select, etc.) with a .build() method.
+// It accepts builder proxies, already-built components, and pre-built action rows.
+// If an argument is an ActionsRow (e.g. ui.pager()), its child components are flattened
+// into the returned row so callers can write `.row(ui.pager(...))` without nesting rows.
 func buildRowFromArgs(vm *goja.Runtime, args []goja.Value) discordgo.ActionsRow {
 	var components []discordgo.MessageComponent
 	for _, arg := range args {
-		comp := extractComponent(vm, arg)
-		components = append(components, comp)
+		components = append(components, extractRowComponents(vm, arg)...)
 	}
 	if len(components) > 5 {
 		panic(vm.NewTypeError("ui.message.row: maximum 5 components per row"))
@@ -157,21 +158,33 @@ func buildRowFromArgs(vm *goja.Runtime, args []goja.Value) discordgo.ActionsRow 
 	return discordgo.ActionsRow{Components: components}
 }
 
-// extractComponent extracts a discordgo.MessageComponent from a builder proxy,
-// an already-built Go component, or panics with a type error.
-func extractComponent(vm *goja.Runtime, arg goja.Value) discordgo.MessageComponent {
+// extractRowComponents extracts one or more discordgo.MessageComponent values from
+// a builder proxy, an already-built Go component, or an already-built row.
+func extractRowComponents(vm *goja.Runtime, arg goja.Value) []discordgo.MessageComponent {
 	// First: try already-built Go types
 	if !goja.IsUndefined(arg) && arg != nil {
 		exported := arg.Export()
 		switch v := exported.(type) {
-		case discordgo.MessageComponent:
-			return v
-		case discordgo.Button:
-			return v
-		case discordgo.SelectMenu:
-			return v
 		case discordgo.ActionsRow:
-			return v
+			return v.Components
+		case *discordgo.ActionsRow:
+			if v != nil {
+				return v.Components
+			}
+		case discordgo.MessageComponent:
+			return []discordgo.MessageComponent{v}
+		case discordgo.Button:
+			return []discordgo.MessageComponent{v}
+		case *discordgo.Button:
+			if v != nil {
+				return []discordgo.MessageComponent{*v}
+			}
+		case discordgo.SelectMenu:
+			return []discordgo.MessageComponent{v}
+		case *discordgo.SelectMenu:
+			if v != nil {
+				return []discordgo.MessageComponent{*v}
+			}
 		}
 	}
 
@@ -194,15 +207,23 @@ func extractComponent(vm *goja.Runtime, arg goja.Value) discordgo.MessageCompone
 	if err != nil {
 		panic(err)
 	}
-	// The builder's build() returns a typed Go value (discordgo.Button, discordgo.SelectMenu, etc.)
-	// which implements discordgo.MessageComponent.
 	exported := result.Export()
-	comp, ok := exported.(discordgo.MessageComponent)
-	if !ok {
-		typeMismatchError(vm, "ui.message.row", "component", "a ui.button() or ui.select() builder", arg)
-		return nil // unreachable
+	switch v := exported.(type) {
+	case discordgo.ActionsRow:
+		return v.Components
+	case *discordgo.ActionsRow:
+		if v != nil {
+			return v.Components
+		}
+	case discordgo.MessageComponent:
+		return []discordgo.MessageComponent{v}
+	case discordgo.Button:
+		return []discordgo.MessageComponent{v}
+	case discordgo.SelectMenu:
+		return []discordgo.MessageComponent{v}
 	}
-	return comp
+	typeMismatchError(vm, "ui.message.row", "component", "a ui.button() or ui.select() builder", arg)
+	return nil // unreachable
 }
 
 // extractEmbedBuilder attempts to get an EmbedBuilder from a proxy argument.

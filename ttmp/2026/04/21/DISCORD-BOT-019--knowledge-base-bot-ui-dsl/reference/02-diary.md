@@ -408,4 +408,23 @@ The Go modal builder used the wrong argument order for fields: it interpreted `.
 - Re-ran the full suite successfully
 
 ### Commit
-`<pending>` — fix(ui): modal form builder now uses customId-first field arguments
+`02dd660` — fix(ui): modal form builder now uses customId-first field arguments
+
+---
+
+## Step 9: Fix nested action rows from ui.pager()
+
+### Prompt Context
+User reported `/demo-pager` failed with Discord rejecting the message body because the returned component tree nested an `actionRow` inside another `actionRow`.
+
+### Root cause
+`ui.pager()` already returns an `ActionsRow`, but `message.row(ui.pager(...))` was treating that row as a single component and wrapping it in another `ActionsRow`. Discord components cannot nest rows, so the API rejected the payload.
+
+### Fix
+- Added row-flattening in `buildRowFromArgs()`
+- `ui.row(...)` and `message.row(...)` now expand any pre-built `ActionsRow` into its child components
+- This keeps `ui.pager()` returning a row for direct use, while also supporting `.row(ui.pager(...))`
+- Re-ran the full suite successfully
+
+### Commit
+`<pending>` — fix(ui): flatten nested action rows passed to message.row
