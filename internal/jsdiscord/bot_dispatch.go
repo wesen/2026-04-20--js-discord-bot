@@ -60,9 +60,46 @@ func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request Disp
 	return settleValue(ctx, bindings.Owner, ret)
 }
 
-// SettleValue exports settleValue for testing.
-func SettleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any, error) {
-	return settleValue(ctx, owner, value)
+// DispatchCommandAsMap dispatches a command and normalizes the result to map[string]any.
+// This is used by tests that expect the old map[string]any format.
+func (h *BotHandle) DispatchCommandAsMap(ctx context.Context, request DispatchRequest) (map[string]any, error) {
+	result, err := h.DispatchCommand(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return normalizeResultToMap(result)
+}
+
+// DispatchComponentAsMap dispatches a component interaction and normalizes the result.
+func (h *BotHandle) DispatchComponentAsMap(ctx context.Context, request DispatchRequest) (map[string]any, error) {
+	result, err := h.DispatchComponent(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return normalizeResultToMap(result)
+}
+
+// DispatchModalAsMap dispatches a modal submission and normalizes the result.
+func (h *BotHandle) DispatchModalAsMap(ctx context.Context, request DispatchRequest) (map[string]any, error) {
+	result, err := h.DispatchModal(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return normalizeResultToMap(result)
+}
+
+func normalizeResultToMap(result any) (map[string]any, error) {
+	if result == nil {
+		return nil, nil
+	}
+	switch v := result.(type) {
+	case *normalizedResponse:
+		return v.toMap(), nil
+	case map[string]any:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("unexpected result type %T", result)
+	}
 }
 
 func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any, error) {
@@ -95,7 +132,7 @@ func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any
 		}
 		return out, nil
 	case *normalizedResponse:
-		return v.toMap(), nil
+		return v, nil
 	default:
 		return value, nil
 	}

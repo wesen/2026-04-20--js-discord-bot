@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/rs/zerolog/log"
 )
 
 func emitEventResult(ctx context.Context, reply func(context.Context, any) error, result any) error {
@@ -89,6 +90,7 @@ func (r *interactionResponder) Reply(ctx context.Context, payload any) error {
 		}
 		data, err := normalizeResponsePayload(payload)
 		if err != nil {
+			log.Error().Err(err).Fields(payloadLogFields(payload)).Msg("failed to normalize javascript interaction response")
 			return err
 		}
 		err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
@@ -97,6 +99,8 @@ func (r *interactionResponder) Reply(ctx context.Context, payload any) error {
 		})
 		if err == nil {
 			logLifecycleDebug("replied to javascript interaction", mergeLogFields(interactionLogFields(r.scriptPath, r.interaction), payloadLogFields(payload), map[string]any{"action": "reply"}))
+		} else {
+			log.Error().Err(err).Fields(payloadLogFields(payload)).Msg("discord rejected interaction response")
 		}
 		return err
 	}

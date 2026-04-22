@@ -238,6 +238,8 @@ func intValue(value any) (int, bool) {
 		return int(v), true
 	case int64:
 		return int(v), true
+	case uint:
+		return int(v), true
 	case float64:
 		return int(v), true
 	case float32:

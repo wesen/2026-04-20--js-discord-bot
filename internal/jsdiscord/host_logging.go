@@ -17,6 +17,15 @@ func payloadLogFields(payload any) map[string]any {
 	case string:
 		fields["contentPreview"] = truncateLogText(v, 120)
 		return fields
+	case *normalizedResponse:
+		if v.Content != "" {
+			fields["contentPreview"] = truncateLogText(v.Content, 120)
+		}
+		fields["ephemeral"] = v.Ephemeral
+		fields["embedCount"] = len(v.Embeds)
+		fields["componentCount"] = len(v.Components)
+		fields["fileCount"] = len(v.Files)
+		return fields
 	case map[string]any:
 		if content, ok := v["content"]; ok {
 			fields["contentPreview"] = truncateLogText(fmt.Sprint(content), 120)

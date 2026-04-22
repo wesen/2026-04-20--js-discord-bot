@@ -13,7 +13,7 @@ func TestUIShowcaseBotMessageBuilders(t *testing.T) {
 	scriptPath := filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "ui-showcase", "index.js")
 	handle := loadTestBot(t, scriptPath)
 
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-message",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
@@ -21,7 +21,7 @@ func TestUIShowcaseBotMessageBuilders(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.Contains(t, fmt.Sprint(msg["content"]), "UI DSL builder")
 	require.True(t, msg["ephemeral"].(bool))
 
@@ -44,7 +44,7 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 	config := map[string]any{}
 
 	// Search for "discord" — should find multiple articles
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name:   "demo-search",
 		Args:   map[string]any{"query": "discord"},
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
@@ -54,7 +54,7 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.Contains(t, fmt.Sprint(msg["content"]), "discord")
 	require.Contains(t, fmt.Sprint(msg["content"]), "Found")
 
@@ -72,7 +72,7 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 	require.Contains(t, fmt.Sprint(components[2]), "showcase.search:open")
 
 	// Click "next" to paginate
-	nextResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	nextResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name:   "showcase.search:next",
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:  map[string]any{"id": "guild-1"},
@@ -80,11 +80,11 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 		Config: config,
 	})
 	require.NoError(t, err)
-	nextMsg := nextResult.(map[string]any)
+	nextMsg := nextResult
 	require.Contains(t, fmt.Sprint(nextMsg["content"]), "discord")
 
 	// Click "previous" to go back
-	prevResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	prevResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name:   "showcase.search:previous",
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:  map[string]any{"id": "guild-1"},
@@ -92,11 +92,11 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 		Config: config,
 	})
 	require.NoError(t, err)
-	prevMsg := prevResult.(map[string]any)
+	prevMsg := prevResult
 	require.Contains(t, fmt.Sprint(prevMsg["content"]), "discord")
 
 	// Open the selected article
-	openResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	openResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name:   "showcase.search:open",
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:  map[string]any{"id": "guild-1"},
@@ -104,11 +104,11 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 		Config: config,
 	})
 	require.NoError(t, err)
-	openMsg := openResult.(map[string]any)
+	openMsg := openResult
 	require.Contains(t, fmt.Sprint(openMsg["content"]), "Opened")
 
 	// Search alias (/find) should return the same shape
-	aliasResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	aliasResult, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name:   "find",
 		Args:   map[string]any{"query": "pagination"},
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
@@ -117,7 +117,7 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 		Config: config,
 	})
 	require.NoError(t, err)
-	aliasMsg := aliasResult.(map[string]any)
+	aliasMsg := aliasResult
 	require.Contains(t, fmt.Sprint(aliasMsg["content"]), "pagination")
 
 	// Autocomplete
@@ -141,7 +141,7 @@ func TestUIShowcaseBotReviewFlow(t *testing.T) {
 	config := map[string]any{}
 
 	// Open review queue for "review" status
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name:   "demo-review",
 		Args:   map[string]any{"status": "review"},
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
@@ -151,7 +151,7 @@ func TestUIShowcaseBotReviewFlow(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.Contains(t, fmt.Sprint(msg["content"]), "review")
 	require.Contains(t, fmt.Sprint(msg["content"]), "Review queue")
 
@@ -171,7 +171,7 @@ func TestUIShowcaseBotReviewFlow(t *testing.T) {
 	require.NotEmpty(t, entryID)
 
 	// Verify the article
-	verifyResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	verifyResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name:   "showcase.review:verify",
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:  map[string]any{"id": "guild-1"},
@@ -179,7 +179,7 @@ func TestUIShowcaseBotReviewFlow(t *testing.T) {
 		Config: config,
 	})
 	require.NoError(t, err)
-	verifyMsg := verifyResult.(map[string]any)
+	verifyMsg := verifyResult
 	require.Contains(t, fmt.Sprint(verifyMsg["content"]), "Verified")
 }
 
@@ -188,7 +188,7 @@ func TestUIShowcaseBotConfirmDialog(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	// Trigger confirmation
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-confirm",
 		Args: map[string]any{"action": "delete everything"},
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
@@ -197,7 +197,7 @@ func TestUIShowcaseBotConfirmDialog(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.True(t, msg["ephemeral"].(bool))
 	require.Contains(t, fmt.Sprint(msg["content"]), "delete everything")
 
@@ -211,25 +211,25 @@ func TestUIShowcaseBotConfirmDialog(t *testing.T) {
 	require.Contains(t, fmt.Sprint(components[0]), "showcase:confirm:no")
 
 	// Confirm the action
-	confirmResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	confirmResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name: "showcase:confirm:yes",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	confirmMsg := confirmResult.(map[string]any)
+	confirmMsg := confirmResult
 	require.Contains(t, fmt.Sprint(confirmMsg["content"]), "Confirmed")
 
 	// Cancel the action
-	cancelResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	cancelResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name: "showcase:confirm:no",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	cancelMsg := cancelResult.(map[string]any)
+	cancelMsg := cancelResult
 	require.Contains(t, fmt.Sprint(cancelMsg["content"]), "Cancelled")
 }
 
@@ -237,7 +237,7 @@ func TestUIShowcaseBotPager(t *testing.T) {
 	scriptPath := filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "ui-showcase", "index.js")
 	handle := loadTestBot(t, scriptPath)
 
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-pager",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
@@ -245,7 +245,7 @@ func TestUIShowcaseBotPager(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.Contains(t, fmt.Sprint(msg["content"]), "page 1/")
 
 	components := msg["components"].([]any)
@@ -253,25 +253,25 @@ func TestUIShowcaseBotPager(t *testing.T) {
 	require.Contains(t, fmt.Sprint(components[0]), "showcase.pager:previous")
 
 	// Next page
-	nextResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	nextResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name: "showcase.pager:next",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	nextMsg := nextResult.(map[string]any)
+	nextMsg := nextResult
 	require.Contains(t, fmt.Sprint(nextMsg["content"]), "page 2/")
 
 	// Previous page
-	prevResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	prevResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name: "showcase.pager:previous",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	prevMsg := prevResult.(map[string]any)
+	prevMsg := prevResult
 	require.Contains(t, fmt.Sprint(prevMsg["content"]), "page 1/")
 }
 
@@ -279,7 +279,7 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 	scriptPath := filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "ui-showcase", "index.js")
 	handle := loadTestBot(t, scriptPath)
 
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-cards",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
@@ -287,7 +287,7 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.Contains(t, fmt.Sprint(msg["content"]), "catalog")
 
 	embeds := msg["embeds"].([]any)
@@ -299,7 +299,7 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 	require.Len(t, components, 2) // select + action buttons
 
 	// Select a different product
-	selectResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	selectResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name:   "showcase.cards:select",
 		Values: []string{"prod-3"},
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
@@ -307,31 +307,31 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	selectMsg := selectResult.(map[string]any)
+	selectMsg := selectResult
 	selectEmbeds := selectMsg["embeds"].([]any)
 	selectEmbed := selectEmbeds[0].(map[string]any)
 	require.Contains(t, fmt.Sprint(selectEmbed["title"]), "Doodad Max")
 
 	// Get info for the selected product
-	infoResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	infoResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name: "showcase.cards:info",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	infoMsg := infoResult.(map[string]any)
+	infoMsg := infoResult
 	require.Contains(t, fmt.Sprint(infoMsg["content"]), "Product info")
 
 	// Alias: /browse should work the same
-	browseResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	browseResult, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "browse",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	browseMsg := browseResult.(map[string]any)
+	browseMsg := browseResult
 	require.Contains(t, fmt.Sprint(browseMsg["content"]), "catalog")
 }
 
@@ -339,7 +339,7 @@ func TestUIShowcaseBotSelects(t *testing.T) {
 	scriptPath := filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "ui-showcase", "index.js")
 	handle := loadTestBot(t, scriptPath)
 
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-selects",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
@@ -347,7 +347,7 @@ func TestUIShowcaseBotSelects(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	components := msg["components"].([]any)
 	// Should have 5 rows: string, user, role, channel, mentionable selects
 	require.Len(t, components, 5)
@@ -358,7 +358,7 @@ func TestUIShowcaseBotSelects(t *testing.T) {
 	require.Contains(t, fmt.Sprint(components[4]), "showcase:select:mentionable")
 
 	// Click a string select option
-	selectResult, err := handle.DispatchComponent(context.Background(), DispatchRequest{
+	selectResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
 		Name:   "showcase:select:string",
 		Values: []string{"banana"},
 		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
@@ -366,7 +366,7 @@ func TestUIShowcaseBotSelects(t *testing.T) {
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	selectMsg := selectResult.(map[string]any)
+	selectMsg := selectResult
 	require.Contains(t, fmt.Sprint(selectMsg["content"]), "banana")
 }
 
@@ -375,7 +375,7 @@ func TestUIShowcaseBotModalForm(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	// Submit the feedback form modal
-	result, err := handle.DispatchModal(context.Background(), DispatchRequest{
+	result, err := handle.DispatchModalAsMap(context.Background(), DispatchRequest{
 		Name: "showcase:form:submit",
 		Values: map[string]any{
 			"title":    "Great DSL!",
@@ -389,7 +389,7 @@ func TestUIShowcaseBotModalForm(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := result.(map[string]any)
+	msg := result
 	require.Contains(t, fmt.Sprint(msg["content"]), "Thanks")
 	embeds := msg["embeds"].([]any)
 	require.NotEmpty(t, embeds)
@@ -403,24 +403,24 @@ func TestUIShowcaseBotAliasRegistration(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	// Both aliases should return the same content
-	result1, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result1, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-alias",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	msg1 := result1.(map[string]any)
+	msg1 := result1
 	require.Contains(t, fmt.Sprint(msg1["content"]), "alias demo")
 
-	result2, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result2, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "demo-alias-alt",
 		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
-	msg2 := result2.(map[string]any)
+	msg2 := result2
 	require.Contains(t, fmt.Sprint(msg2["content"]), "alias demo")
 	// Same content from both aliases
 	require.Equal(t, msg1["content"], msg2["content"])
