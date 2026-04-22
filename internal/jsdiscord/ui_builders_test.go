@@ -40,8 +40,14 @@ func mustCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value)
 
 // tryCall attempts to call a method and returns (result, error).
 // It does not fail the test on error — the caller decides.
-func tryCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value) (goja.Value, error) {
+func tryCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value) (result goja.Value, err error) {
 	t.Helper()
+	// Proxy Get trap panics propagate — catch them
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 	fn := obj.Get(method)
 	if fn == nil {
 		return nil, fmt.Errorf("method %s not found", method)
@@ -50,7 +56,8 @@ func tryCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value) 
 	if !ok {
 		return nil, fmt.Errorf("method %s is not callable", method)
 	}
-	return callable(obj, args...)
+	result, err = callable(obj, args...)
+	return
 }
 
 func panicMessage(v any) string {
