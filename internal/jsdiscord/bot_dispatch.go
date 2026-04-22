@@ -109,7 +109,7 @@ func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any
 	if value == nil {
 		return nil, nil
 	}
-	dispatchLog.Debug().Str("type", fmt.Sprintf("%T", value)).Msg("settleValue")
+	dispatchLog.Info().Str("type", fmt.Sprintf("%T", value)).Msg("settleValue")
 	switch v := value.(type) {
 	case *goja.Promise:
 		return waitForPromise(ctx, owner, v)

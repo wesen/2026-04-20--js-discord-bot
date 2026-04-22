@@ -14,7 +14,7 @@ func emitEventResult(ctx context.Context, reply func(context.Context, any) error
 	if reply == nil || result == nil {
 		return nil
 	}
-	log.Debug().Str("resultType", fmt.Sprintf("%T", result)).Msg("emitting event result")
+	log.Info().Str("resultType", fmt.Sprintf("%T", result)).Msg("emitting event result")
 	switch v := result.(type) {
 	case []any:
 		for _, item := range v {
@@ -94,7 +94,7 @@ func (r *interactionResponder) Reply(ctx context.Context, payload any) error {
 		log.Error().Err(err).Str("payloadType", fmt.Sprintf("%T", payload)).Fields(payloadLogFields(payload)).Msg("failed to normalize javascript interaction response")
 		return err
 	}
-	log.Debug().Str("payloadType", fmt.Sprintf("%T", payload)).Fields(payloadLogFields(payload)).Msg("sending interaction response to discord")
+	log.Info().Str("payloadType", fmt.Sprintf("%T", payload)).Fields(payloadLogFields(payload)).Msg("sending interaction response to discord")
 		err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: data,
