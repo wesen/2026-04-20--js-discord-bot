@@ -170,3 +170,33 @@ examples/discord-bots/ui-showcase/
 2. `4789d2d` — feat(ui-showcase): add generic UI DSL primitives and stateful screen helpers
 3. `76c536a` — feat(ui-showcase): add in-memory demo data store
 4. `a633ee7` — feat(ui-showcase): add comprehensive UI DSL showcase bot
+5. `f4b9540` — docs(DISCORD-BOT-019): mark tasks complete, update diary and changelog
+6. `2ca817a` — docs(DISCORD-BOT-019): add 01-proxy-poc.go proving Goja Proxy works
+7. `6e90222` — fix(ui-showcase): auto-build chain objects in row() and message().row()
+8. `343fa3a` — test(ui-showcase): add Go integration tests for all DSL showcase commands
+
+---
+
+## Step 3: Pivot to Go-side Goja Proxy-based DSL
+
+### Prompt Context
+**User prompt (verbatim):** "do you think it would make sense to implement the DSL (ui object) on the go side, and keep things more opaque for JS, so that we have more control and can assert things more easily from the go side?"
+
+**Assistant interpretation:** The JS-side builders work but leak chain objects into the Go host, causing cryptic errors. A Go-side DSL using Goja Proxy would give full control, immediate validation, and clear error messages.
+
+**Inferred user intent:** Evaluate and decide whether to pivot the implementation approach before investing more in the JS-side builders.
+
+### What I did
+1. Investigated Goja's Proxy support — found `vm.NewProxy(target, &ProxyTrapConfig{Get: ...})`
+2. Wrote `scripts/01-proxy-poc.go` proving the approach works
+3. Analyzed the existing payload pipeline (`payload_model.go`, `payload_components.go`) to confirm backward compatibility
+4. Wrote detailed implementation guide: `design/02-goja-proxy-ui-dsl-implementation-guide.md`
+5. Updated tasks with comprehensive Go implementation plan
+
+### Key insight
+Goja supports full ES6 Proxy with a Go-native `ProxyTrapConfig`. The `Get` trap intercepts every property access, so a Go struct can expose only the chain methods it wants. When `.build()` is called, it returns the validated `discordgo.*` structs directly — no `map[string]any` round-trip, no normalization needed.
+
+The existing `normalizePayload()` already handles typed Go values (`[]*discordgo.MessageEmbed`, `[]discordgo.MessageComponent`) in `map[string]any` values, so the Go builders' output slots right in.
+
+### What to do next
+Implement the Go-side `require("ui")` module following the implementation guide, task by task.

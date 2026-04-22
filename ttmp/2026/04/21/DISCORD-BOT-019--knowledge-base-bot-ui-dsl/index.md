@@ -46,8 +46,10 @@ This ticket captures a design analysis of the current `examples/discord-bots/kno
 ## Key Links
 
 - `design/01-knowledge-base-ui-dsl-brainstorm-and-design-options.md`
+- `design/02-goja-proxy-ui-dsl-implementation-guide.md`
 - `reference/01-ui-dsl-example-sketches-for-knowledge-base-bot.md`
 - `reference/02-diary.md`
+- `scripts/01-proxy-poc.go`
 - `tasks.md`
 - `changelog.md`
 
