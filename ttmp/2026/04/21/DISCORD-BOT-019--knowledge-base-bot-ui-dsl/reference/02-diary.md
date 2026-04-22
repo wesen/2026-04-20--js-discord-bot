@@ -305,3 +305,57 @@ Implement the Go-side `require("ui")` module following the implementation guide,
 
 ### Commit
 `49b5ec5` — feat(ui): implement Phase 3+4
+
+---
+
+## Step 6: Migrate ui-showcase bot to Go-side require('ui') — Phase 6
+
+### Prompt Context
+**User prompt (verbatim):** "go ahead 6"
+
+**Inferred user intent:** Migrate the ui-showcase bot to use the Go-side `require("ui")` module instead of JS-side `primitives.js`, and verify all 9 integration tests pass unchanged.
+
+### What I did
+
+1. **Identified API gaps** between JS primitives and Go module:
+   - `optionEntries(entries, selectedId)` on select — used 3 times in the showcase
+   - `pager(id, id, {hasPrevious, hasNext})` — controls object for disabling buttons
+   - `confirm(confirmId, cancelId, {body, title, ...})` — JS-style options object
+   - `truncate(text, maxLen)` — utility function
+   - `rows(...)` — not used in showcase but added for completeness
+
+2. **Added missing methods to Go:**
+   - `optionEntries()` on SelectBuilder — maps `{id,label,value,description}` entries to Discord options, handles label fallbacks (title/name/id), truncation, default selection
+   - `pager()` now reads `controls.hasPrevious`/`controls.hasNext` to set `Disabled` on buttons
+   - `confirm()` detects JS-style vs Go-style by checking if 3rd arg is an options object (map)
+   - Added `truncateString()` helper, `truncate` and `rows` exports
+
+3. **Fixed dispatch pipeline for `*normalizedResponse`:**
+   - `settleValue` didn't recurse on Promise-fulfilled values — `waitForPromise` returned `*normalizedResponse` directly instead of converting to `map[string]any`
+   - Added `*normalizedResponse` case in `settleValue`
+   - Added `toMap()` method that recursively converts Go structs to `map[string]any` (embeds, components, fields, buttons, selects)
+   - Fixed `waitForPromise` to call `settleValue` on the fulfilled result
+
+4. **Fixed `extractComponent`/`extractEmbed` to accept already-built Go types:**
+   - `ui.pager()` returns `discordgo.ActionsRow` directly, but `message.row()` expected builder proxies
+   - Added type switch for `discordgo.Button`, `discordgo.SelectMenu`, `discordgo.ActionsRow`, `discordgo.MessageComponent`
+
+5. **Replaced `primitives.js` with Go module:**
+   - `lib/ui/index.js` now merges `require("ui")` (Go) with `require("./screen")` (JS: flow, alias, aliasAutocomplete)
+   - Deleted `primitives.js` (268 lines → 7 lines)
+
+### Key bugs found
+
+- **Promise resolution loses type info** — `waitForPromise` returns the raw resolved value without running it through `settleValue`. Fixed by making the fulfilled case recurse.
+- **Goja Proxy objects can't be extended in JS** — can't add methods to a Proxy from JS side. All builder methods must be defined in Go.
+- **`discordgo.SelectMenu.MinValues` is `*int`** — already known from Phase 3.
+
+### Tests
+
+All 9 ui-showcase integration tests pass **without modifications**:
+- MessageBuilders, SearchFlow, ReviewFlow, ConfirmDialog, Pager, CardGallery, Selects, ModalForm, AliasRegistration
+
+Full suite: 99 tests, 0 failures, 0 regressions.
+
+### Commit
+`ac18bd9` — feat(ui): migrate ui-showcase bot to Go-side require('ui') module
