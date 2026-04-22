@@ -123,3 +123,50 @@ examples/discord-bots/ui-showcase/
 3. **Stateful screen in `screen.js`**: `flow(namespace, { stateKey, ... })` manages per-user per-channel state keys, generates custom IDs, and provides a `render()` helper that returns the full Discord payload.
 4. **Showcase commands**: Each command demos a different DSL feature.
 5. **No external dependencies**: The bot runs in the Goja runtime, same as all other example bots.
+
+### What I built
+
+#### Commit 1: UI DSL primitives (`lib/ui/primitives.js`)
+- `message()` builder for interaction responses
+- `embed()` builder for rich embeds
+- `button()` builder with `disabled()`, `emoji()`, `url()` chain methods
+- `select()`, `userSelect()`, `roleSelect()`, `channelSelect()`, `mentionableSelect()` builders
+- `row()`, `rows()`, `pager()`, `actions()` component helpers
+- `form()` modal builder with `.text()`, `.textarea()`, `.required()`, `.min()`, `.max()` chain
+- `card()` convenience embed builder with `.meta()` shortcut
+- `confirm()` inline confirmation dialog helper
+- `ok()`, `error()`, `emptyResults()` quick-response helpers
+
+#### Commit 2: Stateful screen helpers (`lib/ui/screen.js`)
+- `flow(namespace, { init })` creates a state manager with `.load(ctx)`, `.save(ctx, state)`, `.clear(ctx)`, `.id(suffix)`, `.componentIds(names)`, `.pagerIds()`
+- `alias(registerCommand, names, spec, handler)` registers a command under multiple names
+- `aliasAutocomplete(registerAutocomplete, entries, handler)` does the same for autocomplete
+
+#### Commit 3: Demo data store (`lib/demo-store.js`)
+- 12 articles with title, summary, category, status, tags, confidence
+- 6 products with name, price, description, stock
+- 8 tasks with title, priority, status, assignee
+- Search, filter, suggestion helpers
+
+#### Commit 4: Showcase bot (`index.js`)
+- 10 commands covering every aspect of the DSL
+- `/demo-message`: message/embed/button/select builders
+- `/demo-form`: modal form builder with field validation
+- `/demo-search` + `/find`: stateful search with select navigation, pager, open/source/export actions, autocomplete, and channel export via `ctx.discord.channels.send()`
+- `/demo-review`: review queue with select dropdown, verify/stale/reject/edit buttons, inline modal editing
+- `/demo-confirm`: inline confirmation with confirm/cancel buttons
+- `/demo-pager`: paginated article list with previous/next
+- `/demo-cards` + `/browse`: product card gallery with select, buy confirmation, info, share
+- `/demo-selects`: all five select menu types (string, user, role, channel, mentionable)
+- `/demo-alias` + `/demo-alias-alt`: alias registration demo
+
+### Bug fixed during implementation
+- `button()` returned a plain object but `pager()` called `.disabled()` on it. Fixed by adding chain methods directly onto the button object instead of a separate `chain` variable.
+- `message().embed()` was passing builder objects instead of built results. Fixed by auto-calling `.build()` when a builder is detected.
+- `confirm()` helper was passing `embed()` builder without `.build()`. Fixed by adding `.build()` call.
+
+### Commits
+1. `b72df98` — docs(DISCORD-BOT-019): update tasks and diary
+2. `4789d2d` — feat(ui-showcase): add generic UI DSL primitives and stateful screen helpers
+3. `76c536a` — feat(ui-showcase): add in-memory demo data store
+4. `a633ee7` — feat(ui-showcase): add comprehensive UI DSL showcase bot

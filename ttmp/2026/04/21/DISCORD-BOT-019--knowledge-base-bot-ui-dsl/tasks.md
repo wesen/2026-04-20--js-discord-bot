@@ -18,11 +18,11 @@
 
 ## Implementation
 
-- [ ] Create `examples/discord-bots/ui-showcase/` example bot skeleton
-- [ ] Create `lib/ui/` with generic UI builder primitives (message, embed, row, button, select, form)
-- [ ] Create `lib/ui/screen.js` with stateful screen helper (flow namespace, state key, screen renderer)
-- [ ] Wire up the showcase bot `index.js` using the UI DSL throughout
-- [ ] Implement showcase commands: /demo-message (builder patterns), /demo-form (modal DSL), /demo-search (stateful search screen), /demo-review (review queue screen), /demo-confirm (confirmation dialog), /demo-pager (paginated list), /demo-cards (card gallery with select), /demo-alias (alias registration demo)
-- [ ] Update README.md to include the ui-showcase bot
-- [ ] Commit and validate
+- [x] Create `examples/discord-bots/ui-showcase/` example bot skeleton
+- [x] Create `lib/ui/` with generic UI builder primitives (message, embed, row, button, select, form)
+- [x] Create `lib/ui/screen.js` with stateful screen helper (flow namespace, state key, screen renderer)
+- [x] Wire up the showcase bot `index.js` using the UI DSL throughout
+- [x] Implement showcase commands: /demo-message (builder patterns), /demo-form (modal DSL), /demo-search (stateful search screen), /demo-review (review queue screen), /demo-confirm (confirmation dialog), /demo-pager (paginated list), /demo-cards (card gallery with select), /demo-selects (all select menu types), /demo-alias (alias registration demo)
+- [x] Update README.md to include the ui-showcase bot
+- [x] Commit and validate
 
