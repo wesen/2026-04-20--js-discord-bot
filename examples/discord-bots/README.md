@@ -43,6 +43,7 @@ GOWORK=off go run ./cmd/discord-bot bots run ui-showcase --bot-repository ./exam
 
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
+- Component interactions in `ui-showcase` now default to in-place updates (`UPDATE_MESSAGE`) so button/select flows stay in one message thread unless the handler explicitly opts into a new follow-up.
 - `knowledge-base` now demonstrates bot startup config via `configure({ run: ... })`; for example `dbPath` becomes the CLI flag `--db-path` and is exposed in JavaScript as `ctx.config.dbPath`.
 - `support` now also includes `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` to demonstrate the DISCORD-BOT-014 thread utility helpers.
 - Use `/poker-help` in Discord to see the command list and examples.
@@ -54,7 +55,7 @@ GOWORK=off go run ./cmd/discord-bot bots run ui-showcase --bot-repository ./exam
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
 - `moderation` now also includes `mod-list-messages`, `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, `mod-fetch-role`, `mod-fetch-member`, and `mod-list-members` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities, the DISCORD-BOT-011 guild/role lookup helpers, the DISCORD-BOT-012 member lookup helpers, and the new DISCORD-BOT-013 message history helpers.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
-- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration).
+- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration). The showcase now uses the Go-side `require("ui")` module for builders, so component interactions update messages in place instead of creating a new message for every click.
 
 ## Moderation / event prerequisites
 

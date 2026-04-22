@@ -821,6 +821,24 @@ await sleep(2000)
 
 Use this for simulated search, background work, or tests that need a visible pause. It is not a Discord API, but it is part of the runtime environment that the example bots use.
 
+### `require("database")`
+
+`require("database")` is the runtime module for durable data access from JavaScript bots. Use it when the state must survive restarts or when the bot owns real application data such as knowledge entries, reviews, or long-lived records.
+
+The knowledge-base bot is the best example in this repository. It initializes SQLite through the database module and then uses SQL queries from JavaScript to search, insert, update, and review entries.
+
+A minimal shape looks like this:
+
+```js
+const database = require("database")
+
+database.configure("sqlite3", "./data/bot.sqlite")
+database.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)`)
+const rows = database.query(`SELECT id, body FROM notes ORDER BY id LIMIT 10`)
+```
+
+Use `ctx.store` for ephemeral per-interaction or per-session screen state. Use `require("database")` for durable state that you want to query later.
+
 ## Common mistakes and how to avoid them
 
 ### 1. Using static choices and autocomplete together
@@ -857,6 +875,7 @@ It is a normal channel message. Use interaction replies when you want ephemeral/
 ## See Also
 
 - `build-and-run-discord-js-bots` — step-by-step tutorial for creating and running bots
+- `go-side-ui-dsl-for-discord-bots` — tutorial for the Go-backed `require("ui")` DSL and in-place interaction updates
 - `examples/discord-bots/ping/index.js` — button, select, modal, autocomplete, and outbound ops showcase
 - `examples/discord-bots/poker/index.js` — a richer bot with game state and action advice
 - `examples/discord-bots/knowledge-base/index.js` — runtime config and docs-search example
