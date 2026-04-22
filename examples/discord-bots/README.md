@@ -23,6 +23,7 @@ The source files for those help pages live in the repo at:
 - `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role/member lookup helpers, message history helpers, member moderation host APIs, message moderation utilities, and channel utility helpers
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `interaction-types/` — demo of all Discord application command interaction types: slash commands, subcommands, user context menu commands, and message context menu commands
+- `ui-showcase/` — comprehensive UI DSL showcase: builder patterns, modal forms, stateful search/review screens, paginated lists, card galleries, confirmations, all select menu types, and alias registration
 - `announcements.js` — root-level bot script to exercise direct file discovery
 
 ## Example commands
@@ -35,6 +36,7 @@ GOWORK=off go run ./cmd/discord-bot bots help poker --bot-repository ./examples/
 GOWORK=off go run ./cmd/discord-bot bots run ping --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
 GOWORK=off go run ./cmd/discord-bot bots run poker --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
 GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite --sync-on-start
+GOWORK=off go run ./cmd/discord-bot bots run ui-showcase --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
 ```
 
 ## Runtime notes
@@ -52,6 +54,7 @@ GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./e
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
 - `moderation` now also includes `mod-list-messages`, `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, `mod-fetch-role`, `mod-fetch-member`, and `mod-list-members` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities, the DISCORD-BOT-011 guild/role lookup helpers, the DISCORD-BOT-012 member lookup helpers, and the new DISCORD-BOT-013 message history helpers.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
+- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration).
 
 ## Moderation / event prerequisites
 
