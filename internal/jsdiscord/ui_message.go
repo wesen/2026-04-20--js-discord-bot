@@ -16,9 +16,10 @@ type MessageBuilder struct {
 	embeds     []*discordgo.MessageEmbed
 	components []discordgo.MessageComponent
 	files      []*discordgo.File
+	followUp   bool
 }
 
-var messageAvailable = []string{"content", "ephemeral", "tts", "embed", "row", "file", "build"}
+var messageAvailable = []string{"content", "ephemeral", "tts", "embed", "row", "file", "followUp", "build"}
 
 func newMessageBuilder(vm *goja.Runtime) goja.Value {
 	b := &MessageBuilder{}
@@ -74,6 +75,11 @@ func newMessageBuilder(vm *goja.Runtime) goja.Value {
 					_ = content
 					return receiver
 				})
+			case "followUp":
+				return vm.ToValue(func(call goja.FunctionCall) goja.Value {
+					b.followUp = true
+					return receiver
+				})
 			case "build":
 				return vm.ToValue(func(call goja.FunctionCall) goja.Value {
 					return vm.ToValue(b.build())
@@ -96,6 +102,7 @@ func (b *MessageBuilder) build() *normalizedResponse {
 		Embeds:     b.embeds,
 		Components: b.components,
 		Files:      b.files,
+		FollowUp:   b.followUp,
 	}
 }
 

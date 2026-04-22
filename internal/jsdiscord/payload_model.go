@@ -16,6 +16,7 @@ type normalizedResponse struct {
 	Reference       *discordgo.MessageReference
 	TTS             bool
 	Ephemeral       bool
+	FollowUp        bool // if true, creates a new message instead of updating in-place
 }
 
 func normalizeResponsePayload(payload any) (*discordgo.InteractionResponseData, error) {

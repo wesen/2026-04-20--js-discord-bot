@@ -43,6 +43,20 @@ func newInteractionResponder(session *discordgo.Session, interaction *discordgo.
 	return &interactionResponder{session: session, interaction: interaction, scriptPath: scriptPath}
 }
 
+// responseType determines the correct Discord interaction response type.
+// Component interactions default to UPDATE_MESSAGE (type 7, edit in-place).
+// Everything else uses CHANNEL_MESSAGE_WITH_SOURCE (type 4, new message).
+// If the payload is a *normalizedResponse with FollowUp=true, force type 4.
+func (r *interactionResponder) responseType(payload any) discordgo.InteractionResponseType {
+	if nr, ok := payload.(*normalizedResponse); ok && nr.FollowUp {
+		return discordgo.InteractionResponseChannelMessageWithSource
+	}
+	if r.interaction.Type == discordgo.InteractionMessageComponent {
+		return discordgo.InteractionResponseUpdateMessage
+	}
+	return discordgo.InteractionResponseChannelMessageWithSource
+}
+
 func (r *interactionResponder) Acknowledged() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -71,8 +85,14 @@ func (r *interactionResponder) Defer(ctx context.Context, payload any) error {
 	if err != nil {
 		return err
 	}
+	// Component interactions use DEFERRED_UPDATE_MESSAGE (type 6) — no loading state shown.
+	// Others use DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE (type 5) — shows "thinking...".
+	deferType := discordgo.InteractionResponseDeferredChannelMessageWithSource
+	if r.interaction.Type == discordgo.InteractionMessageComponent {
+		deferType = discordgo.InteractionResponseDeferredMessageUpdate
+	}
 	err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Type: deferType,
 		Data: &discordgo.InteractionResponseData{Flags: data.Flags},
 	})
 	if err == nil {
@@ -89,14 +109,22 @@ func (r *interactionResponder) Reply(ctx context.Context, payload any) error {
 		if !r.markAcked() {
 			return nil
 		}
-	data, err := normalizeResponsePayload(payload)
-	if err != nil {
-		log.Error().Err(err).Str("payloadType", fmt.Sprintf("%T", payload)).Fields(payloadLogFields(payload)).Msg("failed to normalize javascript interaction response")
-		return err
-	}
-	log.Info().Str("payloadType", fmt.Sprintf("%T", payload)).Fields(payloadLogFields(payload)).Msg("sending interaction response to discord")
+		data, err := normalizeResponsePayload(payload)
+		if err != nil {
+			log.Error().Err(err).Str("payloadType", fmt.Sprintf("%T", payload)).Fields(payloadLogFields(payload)).Msg("failed to normalize javascript interaction response")
+			return err
+		}
+
+		// Determine response type:
+		// - Component interactions (button/select clicks) → UPDATE_MESSAGE (type 7) = edit in-place
+		// - Slash commands and others → CHANNEL_MESSAGE_WITH_SOURCE (type 4) = new message
+		// - Unless the payload explicitly requests a followUp (new message)
+		responseType := r.responseType(payload)
+
+		log.Info().Str("payloadType", fmt.Sprintf("%T", payload)).Int("responseType", int(responseType)).Fields(payloadLogFields(payload)).Msg("sending interaction response to discord")
+
 		err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Type: responseType,
 			Data: data,
 		})
 		if err == nil {
