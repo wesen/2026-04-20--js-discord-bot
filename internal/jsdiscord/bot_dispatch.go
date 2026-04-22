@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimeowner"
+	"github.com/rs/zerolog/log"
 )
 
 func (h *BotHandle) DispatchCommand(ctx context.Context, request DispatchRequest) (any, error) {
@@ -60,6 +61,8 @@ func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request Disp
 	return settleValue(ctx, bindings.Owner, ret)
 }
 
+var dispatchLog = log.With().Str("component", "dispatch").Logger()
+
 // DispatchCommandAsMap dispatches a command and normalizes the result to map[string]any.
 // This is used by tests that expect the old map[string]any format.
 func (h *BotHandle) DispatchCommandAsMap(ctx context.Context, request DispatchRequest) (map[string]any, error) {
@@ -106,6 +109,7 @@ func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any
 	if value == nil {
 		return nil, nil
 	}
+	dispatchLog.Debug().Str("type", fmt.Sprintf("%T", value)).Msg("settleValue")
 	switch v := value.(type) {
 	case *goja.Promise:
 		return waitForPromise(ctx, owner, v)
