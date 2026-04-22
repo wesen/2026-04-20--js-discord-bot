@@ -19,7 +19,7 @@ RelatedFiles:
     - Path: cmd/discord-bot/commands.go
       Note: Existing Glazed host commands (reference pattern)
     - Path: internal/botcli/command.go
-      Note: Current pure-Cobra bots commands that need Glazed migration
+      Note: Current non-Glazed bots commands that need Glazed migration
     - Path: internal/botcli/run_schema.go
       Note: Manual flag parser and runtime config schema builder
 ExternalSources: []
@@ -45,10 +45,10 @@ WhenToUse: ""
 
 ## 1. Executive Summary
 
-The `js-discord-bot` CLI currently lives in a **mixed state**: the top-level host commands (`run`, `validate-config`, `sync-commands`) are proper Glazed commands, but the `bots` subcommands (`list`, `help`, `run`) are hand-rolled Cobra commands with manual flag parsing and no Glazed integration. This inconsistency means:
+The `js-discord-bot` CLI currently lives in a **mixed state**: the top-level host commands (`run`, `validate-config`, `sync-commands`) are proper Glazed commands, but the `bots` subcommands (`list`, `help`, `run`) are hand-rolled commands with manual flag parsing and no Glazed integration. This inconsistency means:
 
 - The `bots` commands do not support Glazed output formats (`--output json`, `--output yaml`, `--fields`).
-- The `bots run` command reimplements flag parsing that Cobra already does.
+- The `bots run` command reimplements flag parsing that the CLI framework already handles.
 - There is no declarative schema for bot runtime config; it is built imperatively in `run_schema.go`.
 - The JavaScript bots themselves cannot declare their commands in a way that the Go CLI can introspect without loading the full JS runtime.
 
@@ -78,10 +78,10 @@ discord-bot
 ├── run              ✅ Glazed command (cmd/discord-bot/commands.go)
 ├── validate-config  ✅ Glazed command (cmd/discord-bot/commands.go)
 ├── sync-commands    ✅ Glazed command (cmd/discord-bot/commands.go)
-└── bots             ❌ Pure Cobra (internal/botcli/command.go)
-    ├── list         ❌ Pure Cobra
-    ├── help         ❌ Pure Cobra
-    └── run          ❌ Pure Cobra + manual pre-parser
+└── bots             ❌ Legacy non-Glazed (internal/botcli/command.go)
+    ├── list         ❌ Manual implementation
+    ├── help         ❌ Manual implementation
+    └── run          ❌ Manual implementation + pre-parser
 ```
 
 ### 2.3 The `bots` commands in detail
@@ -96,13 +96,13 @@ discord-bot
 - No structured output. No way to pipe into `jq`.
 
 **`bots run <bot>`** (`internal/botcli/command.go`, lines 80–140)
-- Uses `DisableFlagParsing: true`.
+- Disables normal flag parsing.
 - Implements a manual pre-parser (`preparseRunArgs` in `run_schema.go`) that extracts known flags (`--bot-token`, `--sync-on-start`) and passes the rest to a dynamic Glazed schema parser.
 - This is the most complex and fragile part of the CLI.
 
 ### 2.4 Why the manual parser exists
 
-The `bots run` command needs to accept **dynamic flags** based on the selected bot's runtime config schema. For example, the knowledge-base bot exposes `--db-path`, `--capture-threshold`, etc. Cobra does not support dynamic flags natively, so the current code:
+The `bots run` command needs to accept **dynamic flags** based on the selected bot's runtime config schema. For example, the knowledge-base bot exposes `--db-path`, `--capture-threshold`, etc. Standard flag parsing does not support dynamic flags natively, so the current code:
 1. Pre-parses to find the bot selector and known flags.
 2. Resolves the bot to get its `RunSchema`.
 3. Builds a Glazed schema from the `RunSchema`.
@@ -188,7 +188,7 @@ type FieldSpec struct {
 }
 ```
 
-### 3.4 How loupedeck wires jsverbs into Cobra
+### 3.4 How loupedeck wires jsverbs into the CLI
 
 Loupedeck's `cmd/loupedeck/cmds/verbs/command.go` shows the pattern:
 
@@ -205,12 +205,12 @@ discovered, err := collectDiscoveredVerbs(repositories)
 // 4. Build: create Glazed command wrappers
 commands, err := buildCommands(discovered, liveSceneInvokerFactory)
 
-// 5. Register: add to Cobra tree
+// 5. Register: add to CLI tree
 for _, command := range commands {
     description := command.Description()
     parentCmd := findOrCreateParentCommand(root, description.Parents)
-    cobraCommand, err := buildRuntimeCobraCommand(command)
-    parentCmd.AddCommand(cobraCommand)
+    cliCommand, err := buildRuntimeCLICommand(command)
+    parentCmd.AddCommand(cliCommand)
 }
 ```
 
@@ -221,10 +221,10 @@ The critical insight: **each JS verb becomes a full Glazed command** with:
 
 ### 3.5 Lazy command construction
 
-Because scanning JS files is not instant, loupedeck provides a `NewLazyCommand` that defers the full scan until the user actually runs `loupedeck verbs ...`:
+Because scanning JS files is not instant, loupedeck provides a lazy group command that defers the full scan until the user actually runs `loupedeck verbs ...`:
 
 ```go
-func NewLazyCommand() *cobra.Command {
+func NewLazyGroup() *cobra.Command {
     return &cobra.Command{
         Use:                "verbs",
         DisableFlagParsing: true,
@@ -240,6 +240,8 @@ func NewLazyCommand() *cobra.Command {
 ```
 
 This means `loupedeck --help` is fast (no JS scanning). `loupedeck verbs --help` triggers the scan once.
+
+*(Note: the placeholder is a lightweight CLI group command. The actual commands it produces are full Glazed commands with schemas, parsed by Glazed.)*
 
 ---
 
@@ -257,7 +259,9 @@ discord-bot                           (Glazed root)
 └── bots                              (Glazed group — lazy-loaded)
     ├── list                          (Glazed command — emits rows)
     ├── help                          (Glazed command — emits rows)
-    └── run                           (Glazed command — with dynamic schema)
+    ├── ping                          (Glazed command — bot-specific schema)
+    ├── knowledge-base                (Glazed command — bot-specific schema)
+    └── ...
 ```
 
 ### 4.2 Phase 1: Migrate `bots list` to Glazed
@@ -436,7 +440,7 @@ The `bots run` command's schema depends on which bot is selected. Glazed command
 
 #### 4.4.2 The loupedeck solution
 
-Loupedeck uses **lazy command construction**: the `verbs` Cobra command is created empty, and when the user runs `loupedeck verbs ...`, it scans JS files, builds Glazed commands dynamically, and re-executes with the real command tree.
+Loupedeck uses **lazy command construction**: a lightweight placeholder group command is created empty, and when the user runs `loupedeck verbs ...`, it scans JS files, builds Glazed commands dynamically, and re-executes with the real command tree.
 
 We adapt this for `discord-bot bots <bot>`.
 
@@ -454,9 +458,6 @@ func NewBotsGroupCommand() *cobra.Command {
     return &cobra.Command{
         Use:   "bots",
         Short: "List, inspect, and run named JavaScript bot implementations",
-        PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-            return logging.InitLoggerFromCobra(cmd)
-        },
     }
 }
 ```
@@ -541,9 +542,8 @@ func buildBotCommand(bot DiscoveredBot, preArgs preParsedRunArgs) (*cobra.Comman
     // Create a Glazed command wrapper
     glazedCmd := &botRunGlazedCommand{desc: cmdDesc, bot: bot, nameMap: nameMap}
 
-    // Build Cobra command from Glazed command
-    cobraCmd, err := cli.BuildCobraCommandFromCommand(glazedCmd)
-    return cobraCmd, err
+    // Build CLI command from Glazed command
+    return cli.BuildCobraCommandFromCommand(glazedCmd)
 }
 ```
 
@@ -625,7 +625,7 @@ Simple scripts (one command):    use __verb__ annotations
 Rich bots (multiple commands):   use defineBot (existing model)
 ```
 
-For the scope of this document, **Phase 4 is optional and exploratory**. The immediate value is in Phases 1–3.
+**Phase 4 is deferred.** JS bot cleanup is not a current priority.
 
 ---
 
@@ -684,12 +684,9 @@ cmd/discord-bot/
 5. Delete the old `newRunCommand` and `preparseRunArgs`.
 6. Update tests.
 
-### Phase 4: Evaluate jsverbs (exploratory, 2–3 days)
-1. Prototype a simple bot using `__verb__` annotations.
-2. Use `jsverbs.ScanDir` to discover it.
-3. Build a Glazed command from the `VerbSpec`.
-4. Compare complexity with the `defineBot` model.
-5. Document findings and decide whether to adopt.
+### Phase 4: Evaluate jsverbs (deferred)
+- Not a current priority.
+- Revisit when there is a need for standalone simple scripts with static schema discovery.
 
 ---
 
@@ -709,7 +706,7 @@ cmds.NewCommandDescription(name, ...Option)
 // Field definition
 fields.New(name, fields.Type, ...Option)
 
-// Cobra builder
+// Glazed CLI builder
 cli.BuildCobraCommandFromCommand(cmd cmds.Command, ...BuildOption)
 ```
 
@@ -736,7 +733,7 @@ VerbSpec.Fields       // map of field specs
 | File | Purpose |
 |------|---------|
 | `cmd/loupedeck/cmds/verbs/bootstrap.go` | Repository discovery, scanning, deduplication |
-| `cmd/loupedeck/cmds/verbs/command.go` | Glazed command wrapper, lazy construction, Cobra wiring |
+| `cmd/loupedeck/cmds/verbs/command.go` | Glazed command wrapper, lazy construction, CLI wiring |
 | `cmd/loupedeck/cmds/verbs/command_test.go` | Tests for help output, custom invokers, result routing |
 | `pkg/scriptmeta/scriptmeta.go` | Higher-level metadata extraction using jsverbs |
 
@@ -768,9 +765,9 @@ The schema would include ALL possible runtime config fields from ALL bots, but o
 
 **Verdict:** Rejected. The team decided to move to `bots <bot>` flat UX.
 
-### 8.4 Alternative: Use Cobra dynamic flags
+### 8.4 Alternative: Bypass Glazed with runtime flag injection
 
-Cobra supports adding flags at runtime via `cmd.Flags().AddFlag(...)`. We could build the schema, convert it to Cobra flags, and attach them to the command before parsing.
+Some CLI frameworks support adding flags at runtime. We could build the schema and attach flags dynamically before parsing.
 
 **Verdict:** Rejected. It bypasses Glazed entirely and reintroduces the manual parsing problem we are trying to solve.
 

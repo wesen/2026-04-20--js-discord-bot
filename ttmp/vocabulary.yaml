@@ -17,6 +17,10 @@ topics:
       description: Code quality reviews and refactoring planning
     - slug: refactoring
       description: Code restructuring and cleanup
+    - slug: cleanup
+      description: Cleanup and removal of dead code or stale artifacts
+    - slug: api-design
+      description: API design and contract improvements
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

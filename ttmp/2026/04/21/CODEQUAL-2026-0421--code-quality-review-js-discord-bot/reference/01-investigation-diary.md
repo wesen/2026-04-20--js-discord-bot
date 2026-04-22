@@ -523,6 +523,99 @@ Capturing user decisions in the design doc prevents future ambiguity. The flat `
 - **Diary:** `reference/01-investigation-diary.md`
 - **Validation:** `docmgr doctor` passed cleanly
 - **reMarkable upload:** `/ai/2026/04/21/CODEQUAL-2026-0421/js-discord-bot Code Quality Review.pdf`
+---
+
+## Step 13: Update doc per user decisions
+
+**What I did**
+Updated `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md` based on two user directives:
+1. **Remove Cobra framing** — since the team uses Glazed, removed "Pure Cobra" labels and Cobra-vs-Glazed contrast language. Kept `cobra.Command` type references only where they are the literal return type of `cli.BuildCobraCommandFromCommand` (standard Glazed API).
+2. **Remove JS bot cleanup** — marked Phase 4 (jsverbs evaluation) as deferred rather than exploratory. Removed any implication that JS example bot reorganization is a current priority.
+
+**Specific edits:**
+- Replaced "Pure Cobra" with "legacy non-Glazed" in the command inventory.
+- Removed `DisableFlagParsing: true` as a descriptive detail; framed it as "disables normal flag parsing."
+- Changed "Cobra does not support dynamic flags" to "Standard flag parsing does not support dynamic flags."
+- Updated loupedeck section: "wires jsverbs into Cobra" → "wires jsverbs into the CLI"
+- Added note that lazy placeholder is lightweight and actual commands are Glazed.
+- Marked Phase 4 as "deferred" with note: "JS bot cleanup is not a current priority."
+- Renamed Alternative 8.4 from "Use Cobra dynamic flags" to "Bypass Glazed with runtime flag injection."
+
+**Why**
+The user wants the design doc to reflect the team's actual technology choice (Glazed) and current priorities (no JS bot cleanup).
+
+**What worked**
+- Surgical edits preserved the document structure while aligning terminology.
+
+**What didn't work**
+- N/A.
+
+**What should be done in the future**
+- When the Glazed migration is implemented, update the `README.md` to show `bots <bot>` syntax.
+
+---
+
+## Final handoff summary
+
+- **Ticket path:** `ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/`
+- **Design docs:**
+  - `design-doc/01-js-discord-bot-code-quality-report.md` (~44KB, code quality review)
+  - `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md` (~28KB, Glazed migration + jsverbs, updated with decisions and terminology)
+- **Diary:** `reference/01-investigation-diary.md`
+- **Validation:** `docmgr doctor` passed cleanly
+- **reMarkable upload:** `/ai/2026/04/21/CODEQUAL-2026-0421/js-discord-bot Code Quality Review.pdf`
 - **Decisions:**
   - ✅ `bots <bot>` flat UX is canonical (breaking change accepted)
   - ✅ jsverbs stays generic, no Discord-specific metadata
+  - ✅ Terminology aligned to Glazed (Cobra framing removed)
+
+---
+
+## Step 14: Incorporate colleague review findings (DISCORD-BOT-021)
+
+**What I did**
+Compared the assistant's code quality report (`01-js-discord-bot-code-quality-report.md`) against a parallel colleague review (`DISCORD-BOT-021`) and incorporated the colleague's unique findings that were not already covered.
+
+**Colleague findings incorporated:**
+1. **Typed internal structs (5.1.6)** — The colleague highlighted that `map[string]any` persists too far into the interior of the system. Added new finding `5.1.6 The Go↔JS boundary uses too much map[string]any` with cleanup sketch for `DispatchEnvelope`, `InteractionSnapshot`, `MessageSnapshot`, etc.
+2. **Test splitting by behavior family (5.2.4)** — The colleague proposed splitting `runtime_test.go` by concern. Expanded the existing "Test helper duplication" finding into "Test organization" with explicit behavior-family split plan.
+3. **`run_schema.go` naming clarity (5.4.1)** — The colleague noted `preparseRunArgs` is unclear. Updated the finding to recommend `parseStaticRunnerArgs` and explicit file split (`run_static_args.go`, `run_dynamic_schema.go`, `run_help.go`).
+4. **Stale artifacts with `looksLikeBotScript` evidence (5.4.2)** — The colleague identified `register-knowledge-bot.js` as unreferenced. Enriched the finding with evidence from `bootstrap.go:184` showing current discovery requires `defineBot` + `require("discord")`, making `examples/bots/` truly stale.
+5. **`runtime.go` unused lifecycle surfaces (5.5.4)** — The colleague flagged `LookupRuntimeState`, `RuntimeStateContextKey`, and `runtimeStateByVM` as unused. Added new finding `5.5.4` with two cleanup options (delete or comment).
+
+**Section 6 rewritten** — Replaced the flat priority list with a **4-pass model** that incorporates both reviews:
+- **Pass 1** — stale code and dead branches (lowest risk)
+- **Pass 2** — file-size cleanup without semantic changes (low risk)
+- **Pass 3** — API clarity improvements (medium risk)
+- **Pass 4** — larger changes (discuss before doing)
+
+**What I excluded:**
+- Knowledge-base JS bot cleanup (per user directive: "no JS bot cleanup right now")
+- Store splitting recommendations (deferred to Phase 4)
+
+**Why**
+The colleague's review had genuine gaps the assistant missed: typed envelopes, runtime.go dead code, test architecture, and naming clarity. Blending both reviews produces a more authoritative document.
+
+**What worked**
+- Python script replacement approach worked for 5 of 6 edits; the 5.1.6 insertion required a manual `edit` call due to a blank-line mismatch.
+- All edits preserved the existing document structure and voice.
+
+**What didn't work**
+- Initial bulk `edit` call failed because `oldText` blocks were too large and had whitespace mismatches.
+- Second Python attempt failed because bash interpreted the heredoc as shell commands rather than passing it to Python.
+
+**What should be done in the future**
+- For large document edits, write a Python script to a file first, then execute it.
+- For single insertions, the `edit` tool with a small `oldText` anchor is more reliable than bulk replacement.
+
+---
+
+## Final handoff summary
+
+- **Ticket path:** `ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/`
+- **Design docs:**
+  - `design-doc/01-js-discord-bot-code-quality-report.md` (~50KB, **updated** with colleague findings)
+  - `design-doc/02-glazed-command-framework-migration-and-jsverb-integration-design.md` (~28KB, Glazed migration + jsverbs)
+- **Diary:** `reference/01-investigation-diary.md`
+- **Validation:** `docmgr doctor` passed cleanly
+- **reMarkable upload:** `/ai/2026/04/21/CODEQUAL-2026-0421/js-discord-bot Code Quality Review.pdf` (re-uploaded with v2 content)

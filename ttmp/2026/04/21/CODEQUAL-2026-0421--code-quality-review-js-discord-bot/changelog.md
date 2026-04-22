@@ -31,3 +31,21 @@ User decisions recorded: flat bots <bot> UX accepted (breaking change), jsverbs 
 
 - /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command.go — UX decision affects all bot CLI commands
 
+
+## 2026-04-21
+
+Updated Glazed migration doc: removed Cobra framing, deferred JS bot cleanup (Phase 4), aligned terminology to Glazed
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/botcli/command.go — Glazed migration terminology update
+
+
+## 2026-04-21
+
+Incorporated colleague review findings: typed internal structs (5.1.6), test splitting (5.2.4), run_schema naming (5.4.1), stale artifacts with bootstrap evidence (5.4.2), runtime.go unused surfaces (5.5.4). Rewrote Section 6 as 4-pass priority model. Re-uploaded to reMarkable.
+
+### Related Files
+
+- ttmp/2026/04/21/CODEQUAL-2026-0421--code-quality-review-js-discord-bot/design-doc/01-js-discord-bot-code-quality-report.md — Updated with colleague findings
+

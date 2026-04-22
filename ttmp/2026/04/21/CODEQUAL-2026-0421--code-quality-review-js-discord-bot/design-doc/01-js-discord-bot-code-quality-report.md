@@ -599,6 +599,74 @@ func dispatchEvent[T any](b *Bot, s *discordgo.Session, evt T, dispatchFn func(c
 
 ---
 
+#### 5.1.6 The Go↔JS boundary uses too much `map[string]any` instead of typed internal contracts
+
+**Problem:** The Go↔JS boundary understandably uses plain objects, but the *interior* of the system continues to rely on `map[string]any` longer than necessary. That makes the code harder to refactor, harder to autocomplete, and easier to drift.
+
+**Where to look:**
+- `internal/jsdiscord/bot.go:97` — `DispatchRequest` fields are map-heavy
+- `internal/jsdiscord/descriptor.go:115` — `descriptorFromDescribe(...)`
+- `internal/jsdiscord/descriptor.go:153` through `344` — repeated `parse*Descriptor` helpers from raw maps
+- `internal/jsdiscord/host_maps.go` — many functions produce anonymous map shapes used transitively elsewhere
+
+**Example snippet:**
+```go
+type DispatchRequest struct {
+    Name        string
+    Args        map[string]any
+    Values      any
+    Command     map[string]any
+    Interaction map[string]any
+    Message     map[string]any
+    Before      map[string]any
+    User        map[string]any
+    Guild       map[string]any
+    Channel     map[string]any
+    ...
+}
+```
+
+**Why it matters:**
+`map[string]any` is good at the *edge* of the system, but weaker as the *interior* representation. The current approach increases:
+- typo risk in keys,
+- drift between maps produced in `host_maps.go` and maps expected in JS-facing docs/tests,
+- reviewer difficulty when tracing shape changes,
+- and the amount of ad hoc conversion code in parsing layers.
+
+**Cleanup sketch:**
+Do not remove plain-object export at the JS boundary. Instead, introduce typed internal structs and convert to maps at the last step.
+
+```go
+type DispatchEnvelope struct {
+    Name        string
+    Args        map[string]any
+    Interaction InteractionSnapshot
+    Message     MessageSnapshot
+    User        UserSnapshot
+    Guild       GuildSnapshot
+    Channel     ChannelSnapshot
+    ...
+}
+
+func (e DispatchEnvelope) ToJSMap() map[string]any { ... }
+```
+
+Likewise for descriptor parsing:
+
+```go
+type rawDescribeSnapshot struct {
+    Metadata      map[string]any
+    Commands      []map[string]any
+    Events        []map[string]any
+    Components    []map[string]any
+    ...
+}
+```
+
+This keeps the JS authoring API flexible without forcing the internal Go code to stay loosely typed forever.
+
+---
+
 ### 5.2 Repetitive / duplicated code
 
 #### 5.2.1 `DispatchRequest` construction in `host_dispatch.go`
@@ -709,16 +777,17 @@ Keep as-is for now, but consider a code-generation approach if the Discord API s
 
 ---
 
-#### 5.2.4 Test helper duplication
+#### 5.2.4 Test organization
 
-**Problem:** `runtime_test.go` (1,205 lines) and `knowledge_base_runtime_test.go` (298 lines) both contain `loadTestBot`, `writeBotScript`, and `repoRootJSDiscord` helpers. These are defined in the test files themselves.
+**Problem:** The runtime tests are valuable, but they are very concentrated. `internal/jsdiscord/runtime_test.go` alone is over 1,200 lines, and it acts as a catch-all for many unrelated behaviors.
 
 **Where to look:**
-- `internal/jsdiscord/runtime_test.go` — helper definitions
-- `internal/jsdiscord/knowledge_base_runtime_test.go` — duplicated patterns
+- `internal/jsdiscord/runtime_test.go` — mixes command snapshots, async settlement, event dispatch, Discord ops, autocomplete, thread utilities, moderation APIs
+- `internal/jsdiscord/knowledge_base_runtime_test.go` — integration test with its own inline helpers
 
 **Cleanup sketch:**
-Move helpers into a `jsdiscord_test` package or an `internal/jsdiscord/testutil/` subpackage:
+
+**Step 1 — extract shared helpers:**
 
 ```go
 package testutil
@@ -726,6 +795,22 @@ package testutil
 func LoadTestBot(t *testing.T, script string) *BotHandle { ... }
 func WriteBotScript(t *testing.T, source string) string { ... }
 ```
+
+**Step 2 — split by behavior family:**
+
+```text
+internal/jsdiscord/
+  runtime_descriptor_test.go
+  runtime_dispatch_test.go
+  runtime_events_test.go
+  runtime_payloads_test.go
+  runtime_ops_messages_test.go
+  runtime_ops_members_test.go
+  runtime_ops_threads_test.go
+  runtime_knowledge_base_test.go
+```
+
+This is a quality-of-life improvement for maintainers and reviewers, not a functional change.
 
 ---
 
@@ -953,17 +1038,34 @@ req := DispatchRequest{
 
 #### 5.4.1 Manual flag parsing in `botcli/run_schema.go`
 
-**Problem:** The `bots run` command uses `DisableFlagParsing: true` and then implements its own flag parser (`preparseRunArgs`). It manually handles `--bot-token`, `--sync-on-start`, etc., then passes unknown flags into a dynamic Glazed schema parser.
+**Problem:** The `bots run` command disables normal flag parsing and then implements its own flag parser (`preparseRunArgs`). It manually handles `--bot-token`, `--sync-on-start`, etc., then passes unknown flags into a dynamic Glazed schema parser.
 
 **Where to look:** `internal/botcli/run_schema.go`, lines 1–346; `internal/botcli/command.go`, lines 80–140.
 
 **Why it matters:**
-- Cobra already knows how to parse flags. Reimplementing this is error-prone.
+- The CLI framework already knows how to parse flags. Reimplementing this is error-prone.
 - The manual parser does not support shorthand flags.
-- It is 200+ lines of string-splitting logic that could be replaced by Cobra's built-in mechanism combined with `cmd.SetArgs(...)` and `cmd.ParseFlags(...)`.
+- It is 200+ lines of string-splitting logic.
+- Some flags appear in help because they are declared on the command, but their values are consumed by separate code paths, making it hard to know which parser is authoritative.
 
-**Cleanup sketch:**
-Use Cobra normally. Define all known flags on the command. Collect remaining args after `--` as dynamic args. This is how most CLIs work:
+**Cleanup sketch — low-risk (recommended first):**
+Keep the two-phase model if necessary, but make it explicit in the code structure:
+
+```text
+internal/botcli/
+  run_static_args.go     // static flag parsing only
+  run_dynamic_schema.go  // buildRunSchema + parseRuntimeConfigArgs
+  run_help.go            // printRunSchema + selector-aware help rendering
+```
+
+Also rename the static phase to signal intent:
+
+```go
+func parseStaticRunnerArgs(...) (StaticRunnerArgs, error)
+```
+
+**Cleanup sketch — larger change (discuss before doing):**
+Replace the custom pre-parser entirely. Define all known flags on the command normally. Collect remaining args after `--` as dynamic args:
 
 ```bash
 discord-bot bots run ping --bot-repository ./examples -- --db-path ./data.sqlite
@@ -973,20 +1075,41 @@ If the `--` separator is unacceptable, use `cmd.FParseErrWhitelist.UnknownFlags 
 
 ---
 
-#### 5.4.2 The `examples/bots` vs `examples/discord-bots` duality
+#### 5.4.2 Stale example artifacts
 
-**Problem:** There are two example directories:
-- `examples/discord-bots/` — the real, maintained examples (ping, knowledge-base, moderation, ...)
-- `examples/bots/` — old examples (math, nested, issues)
+**Problem:** There are at least two stale example surfaces that no longer match the current single-bot `defineBot(...)` runtime model:
 
-**Where to look:** `examples/bots/` and `examples/discord-bots/`.
+1. `examples/discord-bots/knowledge-base/lib/register-knowledge-bot.js` appears unreferenced.
+2. `examples/bots/` still documents an old `__verb__`-based example repository even though current bot discovery explicitly looks for `defineBot` + `require("discord")`.
+
+**Where to look:**
+- `examples/discord-bots/knowledge-base/lib/register-knowledge-bot.js`
+- `examples/bots/README.md` and `examples/bots/discord.js`
+- `internal/botcli/bootstrap.go:184` — `looksLikeBotScript(...)`:
+
+```go
+func looksLikeBotScript(path string) (bool, error) {
+    ...
+    if !strings.Contains(text, "defineBot") {
+        return false, nil
+    }
+    if strings.Contains(text, `require("discord")`) || strings.Contains(text, `require('discord')`) {
+        return true, nil
+    }
+    return false, nil
+}
+```
 
 **Why it matters:**
-- New contributors don't know which directory is canonical.
-- The old examples may drift out of compatibility with the current JS API.
+This is exactly the kind of stale code that confuses a new intern:
+- one directory says "this is the local example repository,"
+- but the current discovery code will never treat its scripts as live bot implementations,
+- and the knowledge-base bot has an older alternate registration file that is no longer wired in.
 
 **Cleanup sketch:**
-Delete `examples/bots/` and `examples/bots-dupe-a/`, `examples/bots-dupe-b/`. Move anything valuable into `examples/discord-bots/`. Update `README.md`.
+- Delete `examples/bots/` and `examples/bots-dupe-a/`, `examples/bots-dupe-b/`. Move anything valuable into `examples/discord-bots/`.
+- Delete or archive `register-knowledge-bot.js`.
+- Update `README.md`.
 
 ---
 
@@ -1074,7 +1197,148 @@ Document the tradeoff. If goja does not support event-driven promises, consider 
 
 ---
 
+#### 5.5.4 `internal/jsdiscord/runtime.go` exposes unused lifecycle surfaces
+
+**Problem:** The runtime registrar still contains global runtime-state registration and lookup helpers whose public shape suggests they matter broadly, but they do not appear to be used outside `runtime.go` itself.
+
+**Where to look:**
+- `internal/jsdiscord/runtime.go:14` — `RuntimeStateContextKey`
+- `internal/jsdiscord/runtime.go:16` — `runtimeStateByVM`
+- `internal/jsdiscord/runtime.go:74` — `RegisterRuntimeState(...)`
+- `internal/jsdiscord/runtime.go:81` — `UnregisterRuntimeState(...)`
+- `internal/jsdiscord/runtime.go:88` — `LookupRuntimeState(...)`
+
+**Example snippet:**
+```go
+const RuntimeStateContextKey = "discord.runtime"
+
+var runtimeStateByVM sync.Map
+
+func LookupRuntimeState(vm *goja.Runtime) *RuntimeState {
+    if vm == nil {
+        return nil
+    }
+    value, ok := runtimeStateByVM.Load(vm)
+    if !ok {
+        return nil
+    }
+    state, _ := value.(*RuntimeState)
+    return state
+}
+```
+
+**Why it matters:**
+Unused lifecycle surfaces imply an API contract that future maintainers may preserve unnecessarily. A newcomer reading this file may assume:
+- some other subsystem relies on `LookupRuntimeState`,
+- the context key is part of a broader contract,
+- or VM-level state lookup is a supported extension seam.
+
+If none of that is true anymore, the code should say so by becoming smaller.
+
+**Cleanup sketch:**
+Choose one of two options and document it explicitly.
+
+**Option A — delete the unused surfaces:**
+If lookup is no longer needed:
+- remove `LookupRuntimeState`
+- remove the unused context key if nothing reads it
+- collapse the implementation to the minimum runtime registration required
+
+**Option B — keep them, but write a comment:**
+```go
+// RuntimeStateContextKey and VM registration are retained as future extension seams
+// for runtime-level inspectors. They are intentionally unused today.
+```
+
+Right now the code reads like an API in search of consumers.
+
+---
+
 ## 6. Recommendations
+
+These recommendations incorporate findings from both this review and a parallel review by a colleague. The priorities are ordered by risk and by what unblocks later work.
+
+### Pass 1 — stale code and dead branches (lowest risk)
+
+1. **Delete or archive stale artifacts:**
+   - `examples/bots/` and `examples/bots-dupe-a/`, `examples/bots-dupe-b/`
+   - `examples/discord-bots/knowledge-base/lib/register-knowledge-bot.js`
+   - One commit. ~30 minutes.
+
+2. **Remove dead fallback interaction code** from `internal/bot/bot.go` (`handleInteractionCreate` ping/echo branch).
+   - One commit. ~15 minutes.
+
+3. **Add a comment or delete unused surfaces** in `internal/jsdiscord/runtime.go` (`LookupRuntimeState`, context key, sync.Map).
+   - One commit. ~15 minutes.
+
+### Pass 2 — file-size cleanup without semantic changes (low risk)
+
+4. **Split `internal/jsdiscord/bot.go`** by responsibility:
+   ```text
+   bot_compile.go    // CompileBot, botDraft registration/finalize
+   bot_dispatch.go   // BotHandle dispatch + settleValue + promise waiting
+   bot_context.go    // DispatchRequest, buildDispatchInput, buildContext
+   bot_store.go      // storeObject
+   bot_ops.go        // DiscordOps + discordOpsObject
+   bot_logging.go    // loggerObject + applyFields
+   ```
+   - Pure move refactor. ~2 hours.
+
+5. **Split `internal/jsdiscord/host_payloads.go`** by payload concern:
+   ```text
+   payload_model.go      // normalizedResponse + shared types
+   payload_message.go    // message send/edit normalization
+   payload_embeds.go     // embed normalization
+   payload_components.go // component normalization
+   payload_files.go      // file normalization
+   payload_mentions.go   // allowedMentions
+   ```
+   - Pure move refactor. ~2 hours.
+
+6. **Split large test files** by behavior family:
+   ```text
+   runtime_descriptor_test.go
+   runtime_dispatch_test.go
+   runtime_events_test.go
+   runtime_payloads_test.go
+   runtime_ops_messages_test.go
+   runtime_ops_members_test.go
+   runtime_ops_threads_test.go
+   runtime_knowledge_base_test.go
+   ```
+   - Quality-of-life improvement. ~1 hour.
+
+### Pass 3 — API clarity improvements (medium risk)
+
+7. **Introduce typed internal envelopes** around the Go↔JS boundary (`DispatchEnvelope`, `InteractionSnapshot`, `MessageSnapshot`, etc.).
+   - Converts `map[string]any` to typed structs internally; maps produced only at the JS boundary.
+   - ~3 hours.
+
+8. **Refactor `host_dispatch.go`** around base request builders:
+   - `baseRequest()`, `eventRequest()`, `withChannelResponder()` helpers.
+   - Eliminates 18 repetitions. ~1 hour.
+
+9. **Make `internal/botcli` parsing phases explicit** in file and type names:
+   - `preparseRunArgs` → `parseStaticRunnerArgs`
+   - Split `run_schema.go` into `run_static_args.go`, `run_dynamic_schema.go`, `run_help.go`.
+   - ~1 hour.
+
+10. **Refactor `DiscordOps`** into a registry pattern (`map[string]DiscordOp`).
+    - Reduces 4-place edit burden for new API surfaces. ~3 hours.
+
+### Pass 4 — larger changes (discuss before doing)
+
+11. **Replace manual flag parsing** with native CLI parsing.
+    - May require `--` separator for dynamic args. ~3 hours.
+
+12. **Code-generate map converters** (`host_maps.go`) from discordgo structs.
+    - Requires a small codegen tool. ~1 day.
+
+13. **Add structured error types** instead of `fmt.Errorf` everywhere.
+    - Would enable better error classification in JS. ~1 day.
+
+14. **Evaluate event-driven promise resolution** instead of polling.
+    - Depends on goja capabilities.
 
 ### 6.1 Low-risk refactors (do these first)
 
@@ -1123,7 +1387,7 @@ Document the tradeoff. If goja does not support event-driven promises, consider 
 | `internal/jsdiscord/host_ops_messages.go` | 163 | Message ops closures | Repetitive pattern; use helper |
 | `internal/jsdiscord/host_ops_members.go` | 163 | Member ops closures | Repetitive pattern; use helper |
 | `internal/jsdiscord/store.go` | 148 | In-memory KV store | Fine |
-| `internal/jsdiscord/runtime.go` | 147 | Module registration | Fine |
+| `internal/jsdiscord/runtime.go` | 147 | Module registration | **Unused surfaces**; document or delete |
 | `internal/botcli/runtime.go` | 108 | Run loop | Fine |
 | `internal/botcli/model.go` | 99 | Bot model types | Fine |
 | `internal/jsdiscord/host.go` | 95 | Host loader | Fine |
