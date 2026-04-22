@@ -50,6 +50,25 @@ func TestScannedRunVerbHelpShowsFields(t *testing.T) {
 	require.Contains(t, output, "Run the demo bot")
 }
 
+func TestUnifiedDemoHelpShowsCommandAndEventRows(t *testing.T) {
+	root := NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(examplesFixtureDir(t), "examples")}})
+	output, err := executeCaptured(t, root, []string{"help", "unified-demo", "--output", "json"})
+	require.NoError(t, err)
+	require.Contains(t, output, `"name": "unified-ping"`)
+	require.Contains(t, output, `"kind": "event"`)
+	require.Contains(t, output, `"name": "ready"`)
+}
+
+func TestUnifiedDemoRunHelpShowsConfigFlags(t *testing.T) {
+	root := NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(examplesFixtureDir(t), "examples")}})
+	output, err := executeCaptured(t, root, []string{"unified-demo", "run", "--help"})
+	require.NoError(t, err)
+	require.Contains(t, output, "--bot-token")
+	require.Contains(t, output, "--application-id")
+	require.Contains(t, output, "--db-path")
+	require.Contains(t, output, "--api-key")
+}
+
 func executeCaptured(t *testing.T, root *cobra.Command, args []string) (string, error) {
 	t.Helper()
 	oldStdout := os.Stdout

@@ -131,9 +131,49 @@ cat /home/manuel/workspaces/2026-04-22/discord-bot-framework/go-go-goja/pkg/jsve
 - **Scanning too much source**: scanning whole bot repos inferred verbs from helper libraries (e.g. `knowledge-base/lib/reactions.js`), which then failed binding because of destructured parameters. Restricting scanning to `discoverScriptCandidates()` fixed this.
 - **Preserving command parents**: directly calling `BuildCobraCommandFromCommand` and `root.AddCommand` flattened discovered verbs. Switching to `AddCommandsToRootCommand` preserved inferred parent commands (`demo-bot status`, `demo-bot run`).
 
+## 2026-04-22 — Unified demo script and docs
+
+### What changed
+
+1. **Added `examples/discord-bots/unified-demo/index.js`**.
+   - Uses `defineBot(...)` for Discord behavior.
+   - Exposes `__verb__("status")` for one-shot CLI metadata output.
+   - Exposes `__verb__("run")` with fields `bot-token`, `application-id`, `guild-id`, `db-path`, and `api-key`.
+   - Demonstrates `ctx.config.db_path` and `ctx.config.api_key` inside bot handlers.
+
+2. **Extended the command tests**.
+   - Added coverage for `bots help unified-demo --output json`.
+   - Added coverage for `bots unified-demo run --help`, verifying the config flags show up.
+
+3. **Updated `examples/discord-bots/README.md`**.
+   - Documented the new `__verb__` pattern.
+   - Replaced the old `--bot-repository` examples with the new default-bootstrap / `DISCORD_BOT_REPOSITORIES` workflow.
+   - Added examples for `bots unified-demo status` and `bots unified-demo run --help`.
+
+### What worked
+
+Manual commands now behave as expected:
+
+```bash
+cd /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot
+
+go run ./cmd/discord-bot bots help unified-demo --output json
+go run ./cmd/discord-bot bots unified-demo run --help
+```
+
+The `help` output shows:
+- one `command` row for `unified-ping`
+- one `event` row for `ready`
+
+The `run --help` output shows the expected CLI fields:
+- `--bot-token`
+- `--application-id`
+- `--guild-id`
+- `--db-path`
+- `--api-key`
+
 ### What to do next
 
-1. Add a richer example bot script that uses the unified `__verb__("run")` + `defineBot` pattern in `examples/discord-bots/`.
-2. Decide whether to migrate existing example bots from `configure({ run: ... })` to `__verb__("run", { fields: ... })`.
-3. Add higher-level docs for the new usage pattern in `examples/discord-bots/README.md`.
-4. Consider whether root-level `--bot-repository` flags should be added later, or whether the environment-variable bootstrap is sufficient.
+1. Decide whether to migrate existing example bots from `configure({ run: ... })` to `__verb__("run", { fields: ... })`.
+2. Update the ticket design doc to document the additional discoveries from implementation (entrypoint-only scanning, custom botVerbInvoker, stdout capture in tests).
+3. Consider whether root-level `--bot-repository` flags should be added later, or whether the environment-variable bootstrap is sufficient.

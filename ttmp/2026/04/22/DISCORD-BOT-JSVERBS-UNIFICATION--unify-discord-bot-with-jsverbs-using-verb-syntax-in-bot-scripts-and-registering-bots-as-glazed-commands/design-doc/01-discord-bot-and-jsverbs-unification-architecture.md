@@ -1039,6 +1039,12 @@ This means a single JS file can contain:
 
 ### 5.4 Phase 4: Scan bot repos with jsverbs
 
+**Implementation note (discovered while building it):** scanning whole bot repositories is too broad. It causes helper libraries such as `knowledge-base/lib/reactions.js` to be treated as standalone verbs, which then fail binding because they contain ordinary helper functions with destructured parameters. The practical solution is to reuse `discoverScriptCandidates()` and scan **only the bot entrypoint scripts** (for example `knowledge-base/index.js`, `support/index.js`, `announcements.js`).
+
+The implementation also needs a custom `botVerbInvoker` for standard non-run verbs (`status`, `doctor`, etc.) discovered in bot scripts. Without it, `require("discord")` fails because the default jsverbs runtime does not register the Discord module. The custom invoker builds an engine runtime with both:
+- `registry.RequireLoader()` for the jsverbs source overlay, and
+- `jsdiscord.NewRegistrar(...)` so top-level `require("discord")` works.
+
 In the discord-bot's `main.go` (or a new subcommand):
 
 ```go
@@ -1107,6 +1113,12 @@ These commands get registered under `discord-bot bots <verb-path>` just like any
 | 5 | `pkg/cmds/cmds.go` | `Command`, `GlazeCommand`, `WriterCommand` interfaces |
 
 ---
+
+### 5.5 Additional implementation notes from the first working prototype
+
+- **Capturing Glazed output in tests**: `root.SetOut()` is not enough for Glazed table/json output because the Glazed execution path writes to `os.Stdout` directly. Tests must temporarily redirect `os.Stdout` / `os.Stderr` with `os.Pipe()` while executing the command.
+- **Preserving inferred parent commands**: discovered bot verbs should be registered with `glazed_cli.AddCommandsToRootCommand(...)`, not by calling `BuildCobraCommandFromCommand(...)` and `root.AddCommand(...)` one by one. The latter flattens the tree and loses inferred parents like `demo-bot status`.
+- **Bootstrap source**: the current prototype resolves repositories from `DISCORD_BOT_REPOSITORIES`, falling back to `examples/discord-bots` only when the env var is unset. This is enough for local development, but a future version may want a real root-level `--bot-repository` flag.
 
 ## Part 7: Testing Strategy
 

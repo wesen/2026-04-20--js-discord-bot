@@ -25,25 +25,44 @@ The source files for those help pages live in the repo at:
 - `interaction-types/` — demo of all Discord application command interaction types: slash commands, subcommands, user context menu commands, and message context menu commands
 - `ui-showcase/` — comprehensive UI DSL showcase: builder patterns, modal forms, stateful search/review screens, paginated lists, card galleries, confirmations, all select menu types, and alias registration
 - `announcements.js` — root-level bot script to exercise direct file discovery
+- `unified-demo/` — demonstrates the new unified pattern: `defineBot(...)` for Discord behavior plus `__verb__("run")` / `__verb__("status")` metadata for CLI integration
 
 ## Example commands
 
+By default, `discord-bot` falls back to `./examples/discord-bots` when `DISCORD_BOT_REPOSITORIES` is unset. You can also point it at a different repo root via:
+
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots help ping --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots help knowledge-base --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots help poker --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots run ping --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run poker --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run ui-showcase --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
+export DISCORD_BOT_REPOSITORIES=./examples/discord-bots
+```
+
+Structured bot inventory and metadata:
+
+```bash
+GOWORK=off go run ./cmd/discord-bot bots list --output json
+GOWORK=off go run ./cmd/discord-bot bots help ping --output json
+GOWORK=off go run ./cmd/discord-bot bots help unified-demo --output json
+```
+
+Run a discovered bot verb exposed from a bot script:
+
+```bash
+GOWORK=off go run ./cmd/discord-bot bots unified-demo status --output json
+GOWORK=off go run ./cmd/discord-bot bots unified-demo run --help
+GOWORK=off go run ./cmd/discord-bot bots unified-demo run \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --db-path ./examples/discord-bots/unified-demo/data/demo.sqlite \
+  --api-key local-demo-key
 ```
 
 ## Runtime notes
 
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
-- `knowledge-base` now demonstrates bot startup config via `configure({ run: ... })`; for example `dbPath` becomes the CLI flag `--db-path` and is exposed in JavaScript as `ctx.config.dbPath`.
+- `unified-demo` demonstrates the new unified pattern: `__verb__("run", { fields: ... })` declares the CLI schema, Glazed parses the flags, and the host injects the parsed values into the running bot as `ctx.config.*`.
+- The field-name bridge converts kebab-case CLI flags into snake_case config keys; for example `--db-path` becomes `ctx.config.db_path` and `--api-key` becomes `ctx.config.api_key`.
+- Older bots such as `knowledge-base` still demonstrate the historical `configure({ run: ... })` pattern; these can be migrated incrementally to the new `__verb__("run")` approach.
 - `support` now also includes `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` to demonstrate the DISCORD-BOT-014 thread utility helpers.
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.

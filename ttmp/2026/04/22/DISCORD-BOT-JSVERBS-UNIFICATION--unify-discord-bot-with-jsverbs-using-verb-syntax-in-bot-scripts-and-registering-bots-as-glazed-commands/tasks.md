@@ -27,7 +27,7 @@
 - [x] Delete `run_static_args.go`, `run_dynamic_schema.go`, `run_help.go`
 
 ### 5. Example unified bot script
-- [ ] Create `examples/discord-bots/unified-demo/index.js`
+- [x] Create `examples/discord-bots/unified-demo/index.js`
   - `defineBot` for Discord behavior
   - `__verb__("run")` with fields: `bot-token`, `api-key`, `db-path`
   - `__verb__("status")` for CLI metadata
@@ -36,13 +36,13 @@
 ### 6. Test & validate
 - [x] `go test ./internal/botcli/...`
 - [x] `go run ./cmd/discord-bot bots list --output json`
-- [ ] `go run ./cmd/discord-bot bots help unified-demo --output json`
-- [ ] `go run ./cmd/discord-bot bots run unified-demo --help` (shows config flags)
+- [x] `go run ./cmd/discord-bot bots help unified-demo --output json`
+- [x] `go run ./cmd/discord-bot bots unified-demo run --help` (shows config flags)
 - [x] `discord-bot run` / `validate-config` / `sync-commands` still work
 
 ### 7. Docs
-- [ ] Update `examples/discord-bots/README.md` with `__verb__` syntax
-- [ ] Update ticket design doc with any changes
+- [x] Update `examples/discord-bots/README.md` with `__verb__` syntax
+- [x] Update ticket design doc with any changes
 
 ## Done
 - [x] Created ticket and architecture analysis
