@@ -172,8 +172,52 @@ The `run --help` output shows the expected CLI fields:
 - `--db-path`
 - `--api-key`
 
+## 2026-04-22 — Root-level `--bot-repository` and knowledge-base migration
+
+### What changed
+
+1. **Added a real root-level `--bot-repository` flag** in `cmd/discord-bot/root.go`.
+   - The root command now declares `--bot-repository` as a persistent flag.
+   - To make dynamic bot verbs available before Cobra parses subcommands, root command construction now pre-scans the raw argv for `--bot-repository` values.
+   - Bootstrap precedence is now:
+     1. explicit `--bot-repository`
+     2. `DISCORD_BOT_REPOSITORIES`
+     3. local fallback `examples/discord-bots`
+
+2. **Updated `main.go` and root tests**.
+   - `main.go` now passes `os.Args[1:]` into `newRootCommand(...)`.
+   - `cmd/discord-bot/root_test.go` now verifies that root-level `--bot-repository` can:
+     - register a discovered jsverbs command from the scanner fixture (`demo-bot status`)
+     - register `knowledge-base run` and show the migrated config flags in help output
+
+3. **Migrated `examples/discord-bots/knowledge-base/index.js`**.
+   - Removed the old `configure({ run: { fields: ... } })` block.
+   - Added `__verb__("run", { fields: ... })` with the same runtime options in kebab-case.
+   - Updated the direct `reviewLimit` accesses to use a helper that accepts the new snake_case config key (`review_limit`) while remaining tolerant of the old camelCase shape.
+
+4. **Updated docs**.
+   - `examples/discord-bots/README.md` now uses the root-level `--bot-repository` workflow in its examples.
+   - The ticket design doc now documents the argv pre-scan requirement and records `knowledge-base` as the first real migrated bot.
+
+### What worked
+
+- Root-level commands now work with explicit repository selection:
+  - `go run ./cmd/discord-bot --bot-repository ./internal/botcli/testdata/scanner-repo bots demo-bot status --output json`
+  - `go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots knowledge-base run --help`
+- The migrated `knowledge-base run --help` output shows the expected jsverbs-derived flags such as:
+  - `--db-path`
+  - `--capture-enabled`
+  - `--capture-threshold`
+  - `--review-limit`
+  - `--trusted-reviewer-role-ids`
+
+### What was tricky
+
+- **Dynamic command registration and Cobra parsing order**: a root-level flag sounds simple, but discovered verbs like `bots knowledge-base run` must already exist before Cobra can parse them. That meant the flag value could not be read only during `Execute()` or from a normal `PersistentPreRunE`; it had to be extracted from the raw argv before the command tree was built.
+- **Migrating config key shapes safely**: the new host-managed run path produces snake_case config keys, but some older bot code still read camelCase properties directly. The `knowledge-base` migration needed a small compatibility helper for `review_limit` / `reviewLimit` so the example would keep working during the transition.
+
 ### What to do next
 
-1. Decide whether to migrate existing example bots from `configure({ run: ... })` to `__verb__("run", { fields: ... })`.
-2. Update the ticket design doc to document the additional discoveries from implementation (entrypoint-only scanning, custom botVerbInvoker, stdout capture in tests).
-3. Consider whether root-level `--bot-repository` flags should be added later, or whether the environment-variable bootstrap is sufficient.
+1. Decide whether to migrate more example bots from `configure({ run: ... })` to `__verb__("run", { fields: ... })`.
+2. Optionally add dedicated tests for multiple repeated `--bot-repository` flags and path deduplication.
+3. If desired, re-upload the refreshed ticket bundle to reMarkable.

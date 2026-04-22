@@ -1118,7 +1118,8 @@ These commands get registered under `discord-bot bots <verb-path>` just like any
 
 - **Capturing Glazed output in tests**: `root.SetOut()` is not enough for Glazed table/json output because the Glazed execution path writes to `os.Stdout` directly. Tests must temporarily redirect `os.Stdout` / `os.Stderr` with `os.Pipe()` while executing the command.
 - **Preserving inferred parent commands**: discovered bot verbs should be registered with `glazed_cli.AddCommandsToRootCommand(...)`, not by calling `BuildCobraCommandFromCommand(...)` and `root.AddCommand(...)` one by one. The latter flattens the tree and loses inferred parents like `demo-bot status`.
-- **Bootstrap source**: the current prototype resolves repositories from `DISCORD_BOT_REPOSITORIES`, falling back to `examples/discord-bots` only when the env var is unset. This is enough for local development, but a future version may want a real root-level `--bot-repository` flag.
+- **Bootstrap source**: the current implementation now supports a real root-level `--bot-repository` flag. Because discovered bot verbs must exist before Cobra parses subcommands like `bots knowledge-base run`, the root command pre-scans the raw argv for `--bot-repository` values, builds the bootstrap up front, and then registers the discovered command tree. If the flag is omitted, it still falls back to `DISCORD_BOT_REPOSITORIES` and then `examples/discord-bots` for local development.
+- **Real migration proof point**: `examples/discord-bots/knowledge-base/index.js` has been migrated from `configure({ run: { fields: ... } })` to `__verb__("run", { fields: ... })`. That matters because it proves the pattern works for a non-trivial bot with many config fields, not just a tiny demo.
 
 ## Part 7: Testing Strategy
 

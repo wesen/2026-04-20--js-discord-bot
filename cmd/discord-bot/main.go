@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	rootCmd, err := newRootCommand()
+	rootCmd, err := newRootCommand(os.Args[1:]...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error building command: %v\n", err)
 		os.Exit(1)

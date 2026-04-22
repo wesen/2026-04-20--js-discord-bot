@@ -29,40 +29,47 @@ The source files for those help pages live in the repo at:
 
 ## Example commands
 
-By default, `discord-bot` falls back to `./examples/discord-bots` when `DISCORD_BOT_REPOSITORIES` is unset. You can also point it at a different repo root via:
-
-```bash
-export DISCORD_BOT_REPOSITORIES=./examples/discord-bots
-```
+Use the root-level `--bot-repository` flag to choose which bot repository roots are scanned. The flag is repeatable and applies to `bots list`, `bots help`, and discovered bot verbs such as `bots knowledge-base run`.
 
 Structured bot inventory and metadata:
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots list --output json
-GOWORK=off go run ./cmd/discord-bot bots help ping --output json
-GOWORK=off go run ./cmd/discord-bot bots help unified-demo --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots list --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots help ping --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots help unified-demo --output json
 ```
 
-Run a discovered bot verb exposed from a bot script:
+Run discovered bot verbs exposed from bot scripts:
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots unified-demo status --output json
-GOWORK=off go run ./cmd/discord-bot bots unified-demo run --help
-GOWORK=off go run ./cmd/discord-bot bots unified-demo run \
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots unified-demo status --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots unified-demo run --help
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots unified-demo run \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
   --guild-id "$DISCORD_GUILD_ID" \
   --db-path ./examples/discord-bots/unified-demo/data/demo.sqlite \
   --api-key local-demo-key
+
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots knowledge-base run --help
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots knowledge-base run \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite \
+  --capture-enabled \
+  --review-limit 10
 ```
+
+If `--bot-repository` is omitted, `discord-bot` still falls back to `DISCORD_BOT_REPOSITORIES` and then `./examples/discord-bots` for local development.
 
 ## Runtime notes
 
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
 - `unified-demo` demonstrates the new unified pattern: `__verb__("run", { fields: ... })` declares the CLI schema, Glazed parses the flags, and the host injects the parsed values into the running bot as `ctx.config.*`.
-- The field-name bridge converts kebab-case CLI flags into snake_case config keys; for example `--db-path` becomes `ctx.config.db_path` and `--api-key` becomes `ctx.config.api_key`.
-- Older bots such as `knowledge-base` still demonstrate the historical `configure({ run: ... })` pattern; these can be migrated incrementally to the new `__verb__("run")` approach.
+- `knowledge-base` has also been migrated to the same host-managed `__verb__("run")` pattern, so a real non-trivial example now uses jsverbs-declared run metadata instead of `configure({ run: ... })`.
+- The field-name bridge converts kebab-case CLI flags into snake_case config keys; for example `--db-path` becomes `ctx.config.db_path`, `--api-key` becomes `ctx.config.api_key`, and `--review-limit` becomes `ctx.config.review_limit`.
 - `support` now also includes `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` to demonstrate the DISCORD-BOT-014 thread utility helpers.
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.

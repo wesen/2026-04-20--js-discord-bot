@@ -44,6 +44,11 @@
 - [x] Update `examples/discord-bots/README.md` with `__verb__` syntax
 - [x] Update ticket design doc with any changes
 
+### 8. Follow-up migration and CLI UX
+- [x] Add a real root-level `--bot-repository` flag for dynamic bot command discovery
+- [x] Migrate `examples/discord-bots/knowledge-base/index.js` from `configure({ run: ... })` to `__verb__("run", { fields: ... })`
+- [x] Test: `knowledge-base run --help` exposes migrated jsverbs fields
+
 ## Done
 - [x] Created ticket and architecture analysis
 - [x] Documented `BareCommand` approach + `ctx.config` bridge

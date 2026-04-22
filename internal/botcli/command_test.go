@@ -69,6 +69,17 @@ func TestUnifiedDemoRunHelpShowsConfigFlags(t *testing.T) {
 	require.Contains(t, output, "--api-key")
 }
 
+func TestKnowledgeBaseRunHelpShowsMigratedJsverbsFields(t *testing.T) {
+	root := NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(examplesFixtureDir(t), "examples")}})
+	output, err := executeCaptured(t, root, []string{"knowledge-base", "run", "--help"})
+	require.NoError(t, err)
+	require.Contains(t, output, "--db-path")
+	require.Contains(t, output, "--capture-enabled")
+	require.Contains(t, output, "--capture-threshold")
+	require.Contains(t, output, "--review-limit")
+	require.Contains(t, output, "--trusted-reviewer-role-ids")
+}
+
 func executeCaptured(t *testing.T, root *cobra.Command, args []string) (string, error) {
 	t.Helper()
 	oldStdout := os.Stdout
