@@ -250,3 +250,58 @@ Implement the Go-side `require("ui")` module following the implementation guide,
 
 ### Commit
 `975becd` — feat(ui): implement Phase 1 + 2
+
+---
+
+## Step 5: Implement Phase 3 + 4 (button/select/form/helpers)
+
+### Prompt Context
+**User prompt (verbatim):** "now do phase 3 + 4"
+
+**Inferred user intent:** Continue implementing the Go-side UI DSL module with component builders (button, select, typed selects) and helper functions (form, row, pager, actions, confirm, card, flow).
+
+### What I built
+
+**Phase 3 — Component builders (`ui_components.go`):**
+
+1. **ButtonBuilder** — Proxy-based chain with `disabled()`, `emoji()`, `url()`, `build()`. Style resolved at construction from string (primary/secondary/success/danger/link). Link buttons auto-switch to URL mode. `build()` returns `discordgo.Button`.
+
+2. **SelectBuilder** — Proxy-based chain with `placeholder()`, `option(label, value, description?)`, `options(array)`, `minValues()`, `maxValues()`, `disabled()`, `build()`. Returns `discordgo.SelectMenu` with `MenuType = StringSelectMenu`.
+
+3. **Typed selects** — `userSelect`, `roleSelect`, `channelSelect`, `mentionableSelect` each returns a SelectBuilder with the correct `MenuType` and a reduced method set (no `option()`/`options()` since typed selects don't have string options).
+
+**Phase 4 — Form builder + helpers:**
+
+4. **FormBuilder** (`ui_form.go`) — Tracks a "current field" for chain-style property setting. `text(label, id)` and `textarea(label, id)` start a new field; `required()`, `value()`, `placeholder()`, `min()`, `max()` modify the current field. `finishField()` appends completed fields to rows. `build()` returns `map[string]any` compatible with existing `normalizeModalPayload()`.
+
+5. **Helper functions** (`ui_helpers.go`):
+   - `row(...builders)` — wraps `buildRowFromArgs`, returns `discordgo.ActionsRow`
+   - `pager(prevId, nextId)` — Previous/Next button row
+   - `actions(array)` — row from `{id, label, style}` definitions
+   - `confirm(msg, confirmId, cancelId)` — ephemeral `*normalizedResponse` with embed + confirm/cancel buttons
+   - `card(title)` — embed builder with extra `.meta(name, value)` for inline key-value fields
+   - `flow(namespace)` — ID generation helper: `id(suffix)`, `componentIds(array)`, `pagerIds()`
+
+### Key decisions
+
+- **`discordgo.SelectMenu.MinValues` is `*int`** not `int` — required pointer for the struct literal.
+- **`tryCall()` now recovers Proxy Get trap panics** — Goja propagates panics from Proxy Get traps, so `tryCall` wraps `obj.Get()` in a `defer/recover` to catch them as errors.
+- **Row functions auto-build builders** — `message.row(b1, b2)` and `ui.row(b1, b2)` call `.build()` on each argument. JS should pass builder proxies, not pre-built values.
+- **Card inherits embed methods** — `ui.card()` has its own Proxy with embed methods plus `.meta()`, not wrapping `EmbedBuilder` directly.
+- **Flow is simplified** — just ID generation, not state management (state will use `ctx.store` directly, deferred to Phase 5 if needed).
+
+### Tests: 42 new, all pass
+
+- Button: basic chain, 8 styles, link+URL, emoji, wrong-parent, unknown method
+- Select: basic chain, options array, max 25, required label/value
+- Typed selects: user/role/channel/mentionable all produce correct MenuType, reject `option()`
+- Message+components: buttons in row, select in row
+- Form: basic chain, max 5 fields, no-active-field error, required label+id, wrong-parent
+- Helpers: row, pager, actions, confirm, confirm defaults, card, card meta N/A default, card wrong-parent
+- Flow: id generation, pagerIds, componentIds, namespace required
+- Full integration: message with embed + 2 buttons + select, through normalizePayload
+
+### Full suite: 99 tests, 0 failures, 0 regressions
+
+### Commit
+`49b5ec5` — feat(ui): implement Phase 3+4
