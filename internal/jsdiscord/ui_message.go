@@ -2,6 +2,7 @@ package jsdiscord
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/dop251/goja"
@@ -161,30 +162,10 @@ func buildRowFromArgs(vm *goja.Runtime, args []goja.Value) discordgo.ActionsRow 
 // extractRowComponents extracts one or more discordgo.MessageComponent values from
 // a builder proxy, an already-built Go component, or an already-built row.
 func extractRowComponents(vm *goja.Runtime, arg goja.Value) []discordgo.MessageComponent {
-	// First: try already-built Go types
+	// First: try already-built Go / exported values.
 	if !goja.IsUndefined(arg) && arg != nil {
-		exported := arg.Export()
-		switch v := exported.(type) {
-		case discordgo.ActionsRow:
-			return v.Components
-		case *discordgo.ActionsRow:
-			if v != nil {
-				return v.Components
-			}
-		case discordgo.MessageComponent:
-			return []discordgo.MessageComponent{v}
-		case discordgo.Button:
-			return []discordgo.MessageComponent{v}
-		case *discordgo.Button:
-			if v != nil {
-				return []discordgo.MessageComponent{*v}
-			}
-		case discordgo.SelectMenu:
-			return []discordgo.MessageComponent{v}
-		case *discordgo.SelectMenu:
-			if v != nil {
-				return []discordgo.MessageComponent{*v}
-			}
+		if comps, ok := rowComponentsFromAny(arg.Export()); ok {
+			return comps
 		}
 	}
 
@@ -207,23 +188,68 @@ func extractRowComponents(vm *goja.Runtime, arg goja.Value) []discordgo.MessageC
 	if err != nil {
 		panic(err)
 	}
-	exported := result.Export()
-	switch v := exported.(type) {
-	case discordgo.ActionsRow:
-		return v.Components
-	case *discordgo.ActionsRow:
-		if v != nil {
-			return v.Components
-		}
-	case discordgo.MessageComponent:
-		return []discordgo.MessageComponent{v}
-	case discordgo.Button:
-		return []discordgo.MessageComponent{v}
-	case discordgo.SelectMenu:
-		return []discordgo.MessageComponent{v}
+	if comps, ok := rowComponentsFromAny(result.Export()); ok {
+		return comps
 	}
 	typeMismatchError(vm, "ui.message.row", "component", "a ui.button() or ui.select() builder", arg)
 	return nil // unreachable
+}
+
+func rowComponentsFromAny(value any) ([]discordgo.MessageComponent, bool) {
+	switch v := value.(type) {
+	case nil:
+		return nil, false
+	case discordgo.ActionsRow:
+		return v.Components, true
+	case *discordgo.ActionsRow:
+		if v != nil {
+			return v.Components, true
+		}
+		return nil, false
+	case []discordgo.MessageComponent:
+		return v, true
+	case []any:
+		comps := make([]discordgo.MessageComponent, 0, len(v))
+		for _, item := range v {
+			itemComps, ok := rowComponentsFromAny(item)
+			if !ok {
+				continue
+			}
+			comps = append(comps, itemComps...)
+		}
+		return comps, len(comps) > 0
+	case discordgo.Button:
+		return []discordgo.MessageComponent{v}, true
+	case *discordgo.Button:
+		if v != nil {
+			return []discordgo.MessageComponent{*v}, true
+		}
+		return nil, false
+	case discordgo.SelectMenu:
+		return []discordgo.MessageComponent{v}, true
+	case *discordgo.SelectMenu:
+		if v != nil {
+			return []discordgo.MessageComponent{*v}, true
+		}
+		return nil, false
+	case map[string]any:
+		if kind := strings.ToLower(strings.TrimSpace(fmt.Sprint(v["type"]))); kind == "actionrow" || kind == "action-row" || kind == "row" || kind == "" {
+			if rawChildren, ok := v["components"].([]any); ok {
+				comps := make([]discordgo.MessageComponent, 0, len(rawChildren))
+				for _, child := range rawChildren {
+					childComps, ok := rowComponentsFromAny(child)
+					if !ok {
+						continue
+					}
+					comps = append(comps, childComps...)
+				}
+				return comps, len(comps) > 0
+			}
+		}
+		return nil, false
+	default:
+		return nil, false
+	}
 }
 
 // extractEmbedBuilder attempts to get an EmbedBuilder from a proxy argument.

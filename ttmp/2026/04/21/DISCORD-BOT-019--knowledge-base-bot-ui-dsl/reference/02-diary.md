@@ -427,4 +427,4 @@ User reported `/demo-pager` failed with Discord rejecting the message body becau
 - Re-ran the full suite successfully
 
 ### Commit
-`<pending>` — fix(ui): flatten nested action rows passed to message.row
+`b041b51` — fix(ui): flatten nested action rows passed to message.row
