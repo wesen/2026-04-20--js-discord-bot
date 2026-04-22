@@ -52,8 +52,12 @@ function message() {
 
     row(...components) {
       const flat = Array.isArray(components[0]) ? components[0] : components
-      if (flat.length > 0) {
-        parts._components.push({ type: "actionRow", components: flat })
+      const built = flat.map((c) => {
+        if (c && typeof c.build === 'function') return c.build()
+        return c
+      })
+      if (built.length > 0) {
+        parts._components.push({ type: "actionRow", components: built })
       }
       return builder
     },
@@ -272,6 +276,8 @@ function selectMenu(customId) {
     disabled: false,
   }
 
+  // Chain wraps s but delegates to it.
+  // row() and message().row() auto-call build() before serializing.
   const chain = {
     placeholder(text) {
       s.placeholder = String(text || "")
@@ -405,12 +411,17 @@ function mentionableSelect(customId) {
 
 /**
  * Wrap components into an action row.
+ * Auto-calls .build() on any builder objects.
  *
- *   ui.row(ui.button("a", "A"), ui.button("b", "B"))
+ *   ui.row(ui.button("a", "A"), ui.select("b").placeholder("Pick").option("X", "x"))
  */
 function row(...components) {
   const flat = Array.isArray(components[0]) ? components[0] : components
-  return { type: "actionRow", components: flat }
+  const built = flat.map((c) => {
+    if (c && typeof c.build === 'function') return c.build()
+    return c
+  })
+  return { type: "actionRow", components: built }
 }
 
 /**
