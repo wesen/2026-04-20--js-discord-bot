@@ -359,3 +359,35 @@ Full suite: 99 tests, 0 failures, 0 regressions.
 
 ### Commit
 `ac18bd9` — feat(ui): migrate ui-showcase bot to Go-side require('ui') module
+
+---
+
+## Step 7: Fix live bot crash — double-serialization bug
+
+### Prompt Context
+User ran `/demo-cards` on the live bot and got Discord error: `url: "0x125f8a0"` — a Go pointer address leaking into non-link button payloads.
+
+### Root cause
+
+`settleValue` converted `*normalizedResponse` → `map[string]any` → `normalizePayload()` → new `discordgo.Button` objects. This double-serialization was lossy:
+
+1. `componentToMap()` stored `v.Style` as `uint(1)` in the map
+2. `buttonStyleFromValue()` called `intValue()` which had no `uint` case
+3. Style fell through to string matching, failed, produced corrupt button state
+4. Discord received buttons with `url: "0x125f8a0"` instead of correct `customId`
+
+### Fix
+
+- `settleValue` now returns `*normalizedResponse` as-is, NOT `toMap()`
+- The live path: `DispatchCommand` → `*normalizedResponse` → `normalizeResponsePayload` → fast path (zero-copy)
+- Test path: new `DispatchCommandAsMap()` / `DispatchComponentAsMap()` / `DispatchModalAsMap()` helpers
+- Added `uint` case to `intValue()` as safety net
+- Added `*normalizedResponse` case to `payloadLogFields()` for structured logging
+- Added error-level logging when normalization fails or Discord rejects the response
+
+### Lesson learned
+
+The `toMap()` intermediate representation was a bad idea. Go structs should flow directly to the Discord library. The `map[string]any` path is for legacy JS objects only.
+
+### Commit
+`9a09d66` — fix(ui): live bot crash
