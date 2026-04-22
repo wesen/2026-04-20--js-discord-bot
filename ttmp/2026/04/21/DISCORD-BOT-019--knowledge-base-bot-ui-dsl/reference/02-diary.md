@@ -87,3 +87,39 @@ The user asked for more than a quick opinion: they wanted a new docmgr ticket, a
 - Relate the analyzed files to the ticket.
 - Validate the ticket with `docmgr doctor`.
 - Commit the documentation checkpoint.
+
+---
+
+## Step 2: Plan and build the UI showcase example bot
+
+### Prompt Context
+**User prompt (verbatim):** "Work on the UI DSL ticket, add tasks to the ticket if there are none. Keep a diary as you work. Then work on tasks one by one, committing at appropriate intervals. Create an example bot that showcases a lot of different aspects of the DSL"
+
+**Assistant interpretation:** The design analysis is done. Now it's time to build a concrete implementation — a new example bot called `ui-showcase` that demonstrates the UI DSL primitives from the design docs in a real, runnable Discord bot.
+
+**Inferred user intent:** Produce working code, not more docs. The showcase bot should cover builders, forms, stateful screens, pagers, search, review-style queues, confirmations, card galleries, and alias registration — the full palette of DSL concepts from the design brainstorm.
+
+### What I did
+- Updated `tasks.md` with concrete implementation tasks.
+- Updated this diary.
+
+### Implementation plan
+The showcase bot lives at `examples/discord-bots/ui-showcase/` with this structure:
+
+```
+examples/discord-bots/ui-showcase/
+  index.js          — bot wiring, commands, component/modal/autocomplete handlers
+  lib/
+    ui/
+      primitives.js — generic UI builders: message(), embed(), row(), button(), select(), form()
+      screen.js     — stateful screen helper: flow namespace, state key management, screen renderer
+      index.js      — re-exports everything
+    demo-store.js   — in-memory demo data for the showcase (articles, items, etc.)
+```
+
+### Design decisions
+1. **Builders over framework**: The DSL uses builder pattern (`.ephemeral()`, `.content(...)`, `.embed(...)`, `.row(...)`), not React-like components. This keeps the API flat and debuggable.
+2. **Generic primitives in `lib/ui/`**: `message()`, `embed()`, `row()`, `button()`, `select()`, `form()`, `field()`, `textarea()` — reusable across any bot.
+3. **Stateful screen in `screen.js`**: `flow(namespace, { stateKey, ... })` manages per-user per-channel state keys, generates custom IDs, and provides a `render()` helper that returns the full Discord payload.
+4. **Showcase commands**: Each command demos a different DSL feature.
+5. **No external dependencies**: The bot runs in the Goja runtime, same as all other example bots.
