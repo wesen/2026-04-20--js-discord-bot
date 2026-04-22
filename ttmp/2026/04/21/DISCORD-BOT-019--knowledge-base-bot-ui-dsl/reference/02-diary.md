@@ -200,3 +200,53 @@ The existing `normalizePayload()` already handles typed Go values (`[]*discordgo
 
 ### What to do next
 Implement the Go-side `require("ui")` module following the implementation guide, task by task.
+
+---
+
+## Step 4: Implement Phase 1 + 2 of the Go-side UI DSL module
+
+### Prompt Context
+**User prompt (verbatim):** "Alright, now work on phase 1 + 2, task by task, commit at appropriate intervals, keep a diary."
+
+**Inferred user intent:** Implement the infrastructure (module registration, error system, fast path) and the two core builders (message, embed) following the phased task list.
+
+### What I built
+
+**Phase 1 — Infrastructure (4 files):**
+
+1. `ui_module.go` — `UIRegistrar` registers `require("ui")` as a native Goja module. `UILoader` exports 19 builder/helper names. Wire into `host.go` alongside existing `Registrar`.
+
+2. `ui_errors.go` — `methodOwner` map (every DSL method → which builder it belongs to). Three error functions: `wrongParentError()`, `unknownMethodError()`, `typeMismatchError()`. Each builder's Proxy Get trap has three branches: own methods, wrong-parent, truly unknown.
+
+3. `payload_model.go` — added `case *normalizedResponse: return v, nil` as first case in `normalizePayload()`. This is the typed fast path — Go builders skip all map parsing.
+
+4. `host.go` + `helpers_test.go` — added `&UIRegistrar{}` to `WithRuntimeModuleRegistrars()`.
+
+**Phase 2 — Core builders (3 files):**
+
+5. `ui_embed.go` — `EmbedBuilder` struct wrapped in Goja Proxy. Chain methods: `title()`, `description()`, `color()`, `field()`, `fields()`, `footer()`, `author()`, `timestamp()`, `build()`. Validates max 25 fields. `build()` returns `*discordgo.MessageEmbed` directly.
+
+6. `ui_message.go` — `MessageBuilder` struct wrapped in Goja Proxy. Chain methods: `content()`, `ephemeral()`, `tts()`, `embed()`, `row()`, `file()`, `build()`. `extractEmbed()` and `extractComponent()` call `.build()` on the passed-in builder Proxy and reject raw JS objects. `build()` returns `*normalizedResponse` (the typed fast path).
+
+7. `ui_stubs.go` — stubs for Phase 3+ builders that panic with "not yet implemented".
+
+### Key decisions
+
+- **Proxy `Get` trap returns Go functions** that close over the builder struct. JS calls these functions and gets `receiver` back for chaining. `.build()` unwraps the proxy and returns the raw Go struct.
+- **Raw JS objects are rejected** — `extractEmbed()` and `extractComponent()` check for a `.build()` method on the argument. If missing, they panic with `typeMismatchError()`.
+- **Goja converts panics to errors** — so tests use `tryCall()` (returns error) instead of `require.Panics()` for negative tests.
+- **`fmtStr` and `fmtBool` helpers** in `ui_message.go` for extracting from `map[string]any` (used by `fields()` method).
+
+### Tests: 15 new, all pass
+
+- Module loading + export check
+- Embed: basic chain, fields, footer/author, timestamp, max 25 fields, wrong-parent error, unknown method
+- Message: basic chain, with embed, normalizePayload fast path, reject raw embed, reject raw row, wrong-parent error, unknown method
+- Error message content (mentions correct builder)
+- Multiple embeds on one message
+- Helper functions: ok, error, emptyResults
+
+### Full suite: 50 tests, 0 failures, 0 regressions
+
+### Commit
+`975becd` — feat(ui): implement Phase 1 + 2
