@@ -15,6 +15,7 @@ func uiRow(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 }
 
 // uiPager creates an ActionsRow with Previous/Next navigation buttons.
+// Supports optional controls object: { hasPrevious: bool, hasNext: bool }
 func uiPager(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 	prevID := argString(call, 0)
 	nextID := argString(call, 1)
@@ -26,15 +27,30 @@ func uiPager(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 		nextID = "next"
 	}
 
+	// Check for optional controls object (3rd arg)
+	hasPrevious := true
+	hasNext := true
+	controls := argMap(vm, call.Argument(2))
+	if controls != nil {
+		if v, ok := controls["hasPrevious"]; ok {
+			hasPrevious = fmtBool(v)
+		}
+		if v, ok := controls["hasNext"]; ok {
+			hasNext = fmtBool(v)
+		}
+	}
+
 	prevBtn := discordgo.Button{
 		Style:    discordgo.SecondaryButton,
 		Label:    "◀ Previous",
 		CustomID: prevID,
+		Disabled: !hasPrevious,
 	}
 	nextBtn := discordgo.Button{
 		Style:    discordgo.SecondaryButton,
 		Label:    "Next ▶",
 		CustomID: nextID,
+		Disabled: !hasNext,
 	}
 
 	row := discordgo.ActionsRow{
@@ -78,10 +94,63 @@ func uiActions(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 }
 
 // uiConfirm returns a *normalizedResponse with an embed and confirm/cancel buttons.
+// Supports two calling conventions:
+//   ui.confirm(message, confirmId, cancelId)            — Go-style (positional)
+//   ui.confirm(confirmId, cancelId, {body, title, ...}) — JS-style (options object)
 func uiConfirm(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
-	message := argString(call, 0)
-	confirmID := argString(call, 1)
+	arg0 := argString(call, 0)
+	arg1 := argString(call, 1)
+
+	// Try to detect JS-style: ui.confirm(confirmId, cancelId, {body, title, ...})
+	opts := argMap(vm, call.Argument(2))
+	if opts != nil {
+		// JS-style: (confirmId, cancelId, {body, title, confirmLabel, cancelLabel, confirmStyle})
+		confirmID := arg0
+		cancelID := arg1
+		body := fmtStr(opts["body"])
+		title := fmtStr(opts["title"])
+		if title == "" {
+			title = "Confirm"
+		}
+		if body == "" {
+			body = "Are you sure?"
+		}
+		confirmLabel := fmtStr(opts["confirmLabel"])
+		if confirmLabel == "" {
+			confirmLabel = "Confirm"
+		}
+		cancelLabel := fmtStr(opts["cancelLabel"])
+		if cancelLabel == "" {
+			cancelLabel = "Cancel"
+		}
+		confirmStyle := discordgo.DangerButton
+		if styleStr := fmtStr(opts["confirmStyle"]); styleStr != "" {
+			confirmStyle = resolveButtonStyle(styleStr)
+		}
+
+		embed := &discordgo.MessageEmbed{
+			Title:       title,
+			Description: body,
+			Color:       0xFEE75C,
+		}
+		row := discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{Style: confirmStyle, Label: confirmLabel, CustomID: confirmID},
+				discordgo.Button{Style: discordgo.SecondaryButton, Label: cancelLabel, CustomID: cancelID},
+			},
+		}
+		return vm.ToValue(&normalizedResponse{
+			Content:    body,
+			Embeds:     []*discordgo.MessageEmbed{embed},
+			Components: []discordgo.MessageComponent{row},
+			Ephemeral:  true,
+		})
+	}
+
+	// Go-style: (message, confirmId, cancelId)
 	cancelID := argString(call, 2)
+	message := arg0
+	confirmID := arg1
 
 	if message == "" {
 		message = "Are you sure?"
@@ -95,7 +164,7 @@ func uiConfirm(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 
 	embed := &discordgo.MessageEmbed{
 		Description: message,
-		Color:       0xFEE75C, // yellow
+		Color:       0xFEE75C,
 	}
 
 	row := discordgo.ActionsRow{

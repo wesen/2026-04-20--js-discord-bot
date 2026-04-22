@@ -3,6 +3,7 @@ package jsdiscord
 import (
 	"fmt"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
@@ -103,6 +104,27 @@ func uiLoader(vm *goja.Runtime, moduleObj *goja.Object) {
 		}
 		return vm.ToValue(&normalizedResponse{Content: msg, Ephemeral: true})
 	})
+
+	// Utility
+	_ = exports.Set("truncate", func(call goja.FunctionCall) goja.Value {
+		text := argString(call, 0)
+		maxLen := argInt(call, 1)
+		if maxLen <= 0 {
+			maxLen = 100
+		}
+		return vm.ToValue(truncateString(text, maxLen))
+	})
+
+	// Alias helpers — these are thin wrappers; bots can also use them from screen.js
+	_ = exports.Set("rows", func(call goja.FunctionCall) goja.Value {
+		// Not commonly used, returns an array of action rows
+		var rows []discordgo.MessageComponent
+		for _, arg := range call.Arguments {
+			row := buildRowFromArgs(vm, []goja.Value{arg})
+			rows = append(rows, row)
+		}
+		return vm.ToValue(rows)
+	})
 }
 
 // argString extracts argument i as a string, defaulting to "".
@@ -161,4 +183,20 @@ func argArrayMaps(vm *goja.Runtime, arg goja.Value) []map[string]any {
 		}
 	}
 	return result
+}
+
+// argMap extracts a JS object into map[string]any.
+func argMap(vm *goja.Runtime, arg goja.Value) map[string]any {
+	if arg == nil || goja.IsUndefined(arg) {
+		return nil
+	}
+	obj, ok := arg.(*goja.Object)
+	if !ok {
+		return nil
+	}
+	m, ok := obj.Export().(map[string]any)
+	if !ok {
+		return nil
+	}
+	return m
 }

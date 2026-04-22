@@ -102,6 +102,13 @@ func (b *MessageBuilder) build() *normalizedResponse {
 // extractEmbed extracts a *discordgo.MessageEmbed from a builder proxy or panics
 // with a type error if the argument is not a ui.embed() builder.
 func extractEmbed(vm *goja.Runtime, arg goja.Value) *discordgo.MessageEmbed {
+	// First: try already-built *discordgo.MessageEmbed
+	if !goja.IsUndefined(arg) && arg != nil {
+		if emb, ok := arg.Export().(*discordgo.MessageEmbed); ok {
+			return emb
+		}
+	}
+
 	obj, ok := arg.(*goja.Object)
 	if !ok {
 		typeMismatchError(vm, "ui.message", "embed", "a ui.embed() builder", arg)
@@ -143,9 +150,24 @@ func buildRowFromArgs(vm *goja.Runtime, args []goja.Value) discordgo.ActionsRow 
 	return discordgo.ActionsRow{Components: components}
 }
 
-// extractComponent extracts a discordgo.MessageComponent from a builder proxy
-// or panics with a type error.
+// extractComponent extracts a discordgo.MessageComponent from a builder proxy,
+// an already-built Go component, or panics with a type error.
 func extractComponent(vm *goja.Runtime, arg goja.Value) discordgo.MessageComponent {
+	// First: try already-built Go types
+	if !goja.IsUndefined(arg) && arg != nil {
+		exported := arg.Export()
+		switch v := exported.(type) {
+		case discordgo.MessageComponent:
+			return v
+		case discordgo.Button:
+			return v
+		case discordgo.SelectMenu:
+			return v
+		case discordgo.ActionsRow:
+			return v
+		}
+	}
+
 	obj, ok := arg.(*goja.Object)
 	if !ok {
 		typeMismatchError(vm, "ui.message.row", "component", "a ui.button() or ui.select() builder", arg)

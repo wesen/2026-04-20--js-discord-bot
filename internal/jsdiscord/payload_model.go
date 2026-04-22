@@ -292,3 +292,151 @@ func stringSlice(values []any) []string {
 	}
 	return ret
 }
+
+// toMap converts a normalizedResponse to map[string]any for the JS/test layer.
+// This is used by settleValue so that Go builder outputs work in dispatch results.
+func (r *normalizedResponse) toMap() map[string]any {
+	m := map[string]any{}
+	if r.Content != "" {
+		m["content"] = r.Content
+	}
+	if r.Ephemeral {
+		m["ephemeral"] = true
+	}
+	if r.TTS {
+		m["tts"] = true
+	}
+	if len(r.Embeds) > 0 {
+		embeds := make([]any, len(r.Embeds))
+		for i, e := range r.Embeds {
+			embeds[i] = embedToMap(e)
+		}
+		m["embeds"] = embeds
+	}
+	if len(r.Components) > 0 {
+		components := make([]any, len(r.Components))
+		for i, c := range r.Components {
+			components[i] = componentToMap(c)
+		}
+		m["components"] = components
+	}
+	if len(r.Files) > 0 {
+		m["files"] = r.Files
+	}
+	if r.Reference != nil {
+		m["replyTo"] = r.Reference
+	}
+	return m
+}
+
+func embedToMap(e *discordgo.MessageEmbed) map[string]any {
+	m := map[string]any{}
+	if e.Title != "" {
+		m["title"] = e.Title
+	}
+	if e.Description != "" {
+		m["description"] = e.Description
+	}
+	if e.Color != 0 {
+		m["color"] = e.Color
+	}
+	if e.URL != "" {
+		m["url"] = e.URL
+	}
+	if len(e.Fields) > 0 {
+		fields := make([]any, len(e.Fields))
+		for i, f := range e.Fields {
+			fields[i] = map[string]any{
+				"name":   f.Name,
+				"value":  f.Value,
+				"inline": f.Inline,
+			}
+		}
+		m["fields"] = fields
+	}
+	if e.Footer != nil {
+		m["footer"] = map[string]any{"text": e.Footer.Text}
+	}
+	if e.Author != nil {
+		m["author"] = map[string]any{"name": e.Author.Name}
+	}
+	if e.Timestamp != "" {
+		m["timestamp"] = e.Timestamp
+	}
+	return m
+}
+
+func componentToMap(c discordgo.MessageComponent) map[string]any {
+	switch v := c.(type) {
+	case discordgo.ActionsRow:
+		children := make([]any, len(v.Components))
+		for i, child := range v.Components {
+			children[i] = componentToMap(child)
+		}
+		return map[string]any{
+			"type":       "actionRow",
+			"components": children,
+		}
+	case discordgo.Button:
+		m := map[string]any{
+			"type":     "button",
+			"style":    v.Style,
+			"label":    v.Label,
+			"customId": v.CustomID,
+		}
+		if v.Disabled {
+			m["disabled"] = true
+		}
+		if v.URL != "" {
+			m["url"] = v.URL
+		}
+		if v.Emoji != nil {
+			m["emoji"] = map[string]any{"name": v.Emoji.Name}
+		}
+		return m
+	case discordgo.SelectMenu:
+		m := map[string]any{
+			"type":     selectTypeStr(v.MenuType),
+			"customId": v.CustomID,
+			"style":    v.MenuType,
+		}
+		if v.Placeholder != "" {
+			m["placeholder"] = v.Placeholder
+		}
+		if v.Disabled {
+			m["disabled"] = true
+		}
+		if len(v.Options) > 0 {
+			opts := make([]any, len(v.Options))
+			for i, o := range v.Options {
+				opt := map[string]any{"label": o.Label, "value": o.Value}
+				if o.Description != "" {
+					opt["description"] = o.Description
+				}
+				if o.Default {
+					opt["default"] = true
+				}
+				opts[i] = opt
+			}
+			m["options"] = opts
+		}
+		return m
+	default:
+		return map[string]any{"type": "unknown"}
+	}
+}
+
+func selectTypeStr(t discordgo.SelectMenuType) string {
+	switch t {
+	case discordgo.UserSelectMenu:
+		return "userSelect"
+	case discordgo.RoleSelectMenu:
+		return "roleSelect"
+	case discordgo.ChannelSelectMenu:
+		return "channelSelect"
+	case discordgo.MentionableSelectMenu:
+		return "mentionableSelect"
+	default:
+		return "select"
+	}
+}

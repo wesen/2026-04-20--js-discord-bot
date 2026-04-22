@@ -60,6 +60,11 @@ func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request Disp
 	return settleValue(ctx, bindings.Owner, ret)
 }
 
+// SettleValue exports settleValue for testing.
+func SettleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any, error) {
+	return settleValue(ctx, owner, value)
+}
+
 func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any, error) {
 	if value == nil {
 		return nil, nil
@@ -89,6 +94,8 @@ func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any
 			out[key] = settled
 		}
 		return out, nil
+	case *normalizedResponse:
+		return v.toMap(), nil
 	default:
 		return value, nil
 	}
@@ -132,7 +139,7 @@ func waitForPromise(ctx context.Context, owner runtimeowner.Runner, promise *goj
 			}
 			return nil, fmt.Errorf("promise rejected: %s", message)
 		case goja.PromiseStateFulfilled:
-			return snapshot.Result, nil
+			return settleValue(ctx, owner, snapshot.Result)
 		}
 	}
 }

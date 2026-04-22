@@ -114,7 +114,7 @@ type SelectBuilder struct {
 	menuType    discordgo.SelectMenuType
 }
 
-var selectAvailable = []string{"placeholder", "option", "options", "minValues", "maxValues", "disabled", "build"}
+var selectAvailable = []string{"placeholder", "option", "options", "optionEntries", "minValues", "maxValues", "disabled", "build"}
 
 // Typed selects (user, role, channel, mentionable) have a reduced method set.
 var typedSelectAvailable = []string{"placeholder", "minValues", "maxValues", "disabled", "build"}
@@ -212,6 +212,44 @@ func newSelectBuilderWithType(vm *goja.Runtime, customID string, menuType discor
 					}
 					return receiver
 				})
+			case "optionEntries":
+				if isTypedSelect {
+					checkMethod(vm, "ui."+selectName(b.menuType), property, available)
+					return goja.Undefined()
+				}
+				return vm.ToValue(func(call goja.FunctionCall) goja.Value {
+					items := argArrayMaps(vm, call.Argument(0))
+					selectedID := argString(call, 1)
+					for _, item := range items {
+						if len(b.options) >= 25 {
+							panic(vm.NewTypeError("ui.select: maximum 25 options exceeded"))
+						}
+						label := fmtStr(item["label"])
+						if label == "" {
+							label = fmtStr(item["title"])
+						}
+						if label == "" {
+							label = fmtStr(item["name"])
+						}
+						value := fmtStr(item["value"])
+						if value == "" {
+							value = fmtStr(item["id"])
+						}
+						if label == "" || value == "" {
+							panic(vm.NewTypeError("ui.select.optionEntries: each entry requires label or value"))
+						}
+						description := fmtStr(item["description"])
+						opt := discordgo.SelectMenuOption{Label: truncateString(label, 100), Value: value}
+						if description != "" {
+							opt.Description = truncateString(description, 100)
+						}
+						if value == selectedID {
+							opt.Default = true
+						}
+						b.options = append(b.options, opt)
+					}
+					return receiver
+				})
 			case "minValues":
 				return vm.ToValue(func(call goja.FunctionCall) goja.Value {
 					b.minValues = argInt(call, 0)
@@ -273,4 +311,15 @@ func selectName(menuType discordgo.SelectMenuType) string {
 	default:
 		return "select"
 	}
+}
+
+// truncateString truncates text to maxLen with ellipsis.
+func truncateString(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
+	}
+	if maxLen <= 3 {
+		return text[:maxLen]
+	}
+	return strings.TrimSpace(text[:maxLen-3]) + "..."
 }
