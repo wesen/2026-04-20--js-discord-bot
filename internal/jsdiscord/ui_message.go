@@ -209,6 +209,9 @@ func extractEmbedBuilder(vm *goja.Runtime, arg goja.Value) *EmbedBuilder {
 
 // fmtStr is a helper for map[string]any values.
 func fmtStr(v any) string {
+	if v == nil {
+		return ""
+	}
 	return fmt.Sprint(v)
 }
 
