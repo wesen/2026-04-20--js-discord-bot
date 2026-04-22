@@ -182,6 +182,8 @@ func normalizeChannelMessageEdit(channelID, messageID string, payload any) (*dis
 
 func normalizePayload(payload any) (*normalizedResponse, error) {
 	switch v := payload.(type) {
+	case *normalizedResponse:
+		return v, nil
 	case nil:
 		return &normalizedResponse{}, nil
 	case string:

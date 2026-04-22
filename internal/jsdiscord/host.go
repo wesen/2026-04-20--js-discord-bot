@@ -29,7 +29,7 @@ func NewHost(ctx context.Context, scriptPath string) (*Host, error) {
 	factory, err := engine.NewBuilder(
 		engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
 	).WithModules(engine.DefaultRegistryModules()).
-		WithRuntimeModuleRegistrars(NewRegistrar(Config{})).
+		WithRuntimeModuleRegistrars(NewRegistrar(Config{}), &UIRegistrar{}).
 		WithRequireOptions(require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules"))).
 		Build()
 	if err != nil {
