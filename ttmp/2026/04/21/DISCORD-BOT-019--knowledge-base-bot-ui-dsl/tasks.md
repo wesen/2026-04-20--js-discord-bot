@@ -81,9 +81,9 @@
 
 ### Resolve helpers
 
-- [ ] Create `internal/jsdiscord/ui_resolve.go` — resolveComponent, resolveEmbed, resolveRow, extractBuilder
-- [ ] Handle both Proxy-wrapped Go builders and raw JS objects (backward compat)
-- [ ] Write unit tests for resolve helpers
+- [ ] Create `internal/jsdiscord/ui_errors.go` — methodOwner map, wrongParentError(), typeMismatchError(), unknownMethodError()
+- [ ] Every builder's Get trap uses three branches: own methods, wrong-parent methods, truly unknown
+- [ ] Write unit tests: wrong-parent error messages, type-mismatch errors, unknown-method errors
 
 ### Helper functions
 

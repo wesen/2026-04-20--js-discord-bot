@@ -164,74 +164,30 @@ func newMessageBuilder(vm *goja.Runtime) goja.Value {
 }
 ```
 
-### The `resolveX` helpers
+### No backward compat — builders are the only path
 
-When `row()` receives arguments, they could be:
-- A Goja Proxy wrapping a Go builder (the happy path)
-- A plain `map[string]any` from raw JS (the backward-compat path)
+The `ui` module is strict: `row()`, `embed()`, `form()`, etc. only accept Go builder proxies. Passing a raw JS object produces a clear error like `"expected a ui.button() builder, got object"`. This eliminates the `resolveX` bridge layer entirely.
 
-The `resolveX` helpers detect which and handle both:
+Existing bots that don't use `require("ui")` continue returning raw JS objects to the dispatch pipeline — that path (`normalizePayload()` → `map[string]any` normalization) is unchanged. The `ui` module is opt-in: use it for clean payloads, or return raw objects if you prefer. But you can't mix them.
 
-```go
-func resolveComponent(vm *goja.Runtime, arg goja.Value) discordgo.MessageComponent {
-    // Try to unwrap our Go builder
-    if proxy, ok := arg.(*goja.Proxy); ok {
-        if builder, ok := extractBuilder(proxy); ok {
-            return builder.Build() // returns discordgo.MessageComponent
-        }
-    }
-    // Fall back to normalizing raw JS objects
-    mapping, _ := arg.Export().(map[string]any)
-    comp, _ := normalizeComponent(mapping)
-    return comp
-}
-```
+### The `build()` bridge — typed fast path
 
-This means **existing bots that return raw JS objects still work**. The Go-side builders are an additional fast path.
-
-### The `build()` bridge
-
-When JS calls `.build()` on a message builder, the Go side needs to produce something the existing `normalizePayload()` in `payload_model.go` can consume. There are two options:
-
-**Option A: Return `map[string]any` (simplest, immediate compatibility)**
-
-```go
-func buildMessagePayload(b *MessageBuilder) map[string]any {
-    payload := map[string]any{}
-    if b.content != "" {
-        payload["content"] = b.content
-    }
-    if b.ephemeral {
-        payload["ephemeral"] = true
-    }
-    if len(b.embeds) > 0 {
-        payload["embeds"] = b.embeds
-    }
-    if len(b.components) > 0 {
-        payload["components"] = b.components
-    }
-    // ...
-    return payload
-}
-```
-
-The existing `normalizePayload()` already handles `map[string]any` with `[]*discordgo.MessageEmbed` and `[]discordgo.MessageComponent` values — it was written generically enough. This is the recommended first step.
-
-**Option B: Return a typed `normalizedResponse` (future optimization)**
-
-Later, add a fast path in `normalizePayload()`:
+When JS calls `.build()` on a message builder, the Go side returns a `*normalizedResponse` directly. A single 3-line addition to `normalizePayload()` handles it:
 
 ```go
 func normalizePayload(payload any) (*normalizedResponse, error) {
-    // Fast path for Go-side builders
-    if nr, ok := payload.(*normalizedResponse); ok {
-        return nr, nil
-    }
-    // ... existing map[string]any path
-}
+    switch v := payload.(type) {
+    case *normalizedResponse:
+        return v, nil          // ← Go-side builder fast path
+    case nil:
+        return &normalizedResponse{}, nil
+    case string:
+        // ... existing cases unchanged
 ```
 
-This skips all the map parsing entirely. Only worth doing once the builders prove stable.
+This skips all `map[string]any` parsing. No `payload_components.go` involvement for `ui` module users. The builder already holds `[]*discordgo.MessageEmbed` and `[]discordgo.MessageComponent` — the exact types the dispatch pipeline needs.
+
+Bots that don't use `require("ui")` continue to hit the `map[string]any` case as before. No breakage.
 
 ## Builder specifications
 
@@ -364,16 +320,18 @@ case *normalizedResponse:
 ```
 internal/jsdiscord/
   ui_module.go        — UIRegistrar, UILoader, export table
-  ui_message.go       — MessageBuilder, newMessageBuilder(vm)
-  ui_embed.go         — EmbedBuilder, newEmbedBuilder(vm, title)
-  ui_components.go    — ButtonBuilder, SelectBuilder, FormBuilder
+  ui_message.go       — MessageBuilder struct + Proxy, build() returns *normalizedResponse
+  ui_embed.go         — EmbedBuilder struct + Proxy
+  ui_components.go    — ButtonBuilder, SelectBuilder, FormBuilder + Proxies
   ui_selects.go       — UserSelectBuilder, RoleSelectBuilder, etc.
   ui_helpers.go       — row, pager, actions, confirm, ok, error, card, emptyResults
-  ui_flow.go          — FlowHelper, newFlowHelper(vm, namespace, init)
-  ui_resolve.go       — resolveComponent, resolveEmbed, resolveRow, extractBuilder
+  ui_flow.go          — FlowHelper for stateful screens
+  ui_errors.go        — methodOwner map, wrongParentError, typeMismatchError
 ```
 
-No changes to existing files during implementation. The `UIRegistrar` is wired into the host separately.
+Changes to existing files:
+- `payload_model.go` — add 1 case (`*normalizedResponse`) to `normalizePayload()`
+- Host registration — add `UIRegistrar` alongside existing `Registrar`
 
 ## Testing strategy
 
@@ -428,30 +386,164 @@ func TestProxyBuilderChainReturnsSelf(t *testing.T) {
 - `lib/ui/primitives.js` — replaced by Go native module
 - `lib/ui/index.js` — no longer needed
 
-## Error messages design
+## Error messages and wrong-parent detection
 
-Go-side builders can produce clear, actionable errors:
+The Go-side builders track their own type identity. Each Proxy's `Get` trap knows what struct it wraps, so it can distinguish between "unknown method" and "method that belongs to a different builder".
 
+### The method-owner map
+
+`ui_errors.go` holds a global lookup:
+
+```go
+var methodOwner = map[string]string{
+    // MessageBuilder
+    "content": "ui.message()",
+    "ephemeral": "ui.message()",
+    "tts":      "ui.message()",
+    "embed":    "ui.message()",
+    "row":      "ui.message()",
+    "file":     "ui.message()",
+
+    // EmbedBuilder
+    "description": "ui.embed()",
+    "color":      "ui.embed()",
+    "field":      "ui.embed()",
+    "fields":     "ui.embed()",
+    "footer":     "ui.embed()",
+    "author":     "ui.embed()",
+    "timestamp":  "ui.embed()",
+
+    // ButtonBuilder
+    "disabled": "ui.button()",
+    "emoji":    "ui.button()",
+
+    // SelectBuilder
+    "placeholder": "ui.select()",
+    "option":      "ui.select()",
+    "options":     "ui.select()",
+    "minValues":   "ui.select()",
+    "maxValues":   "ui.select()",
+
+    // FormBuilder
+    "text":     "ui.form()",
+    "textarea": "ui.form()",
+    "required": "ui.form()",
+    "value":    "ui.form()",
+    "min":      "ui.form()",
+    "max":      "ui.form()",
+}
+```
+
+### How each builder uses it
+
+Every Proxy `Get` trap has three branches:
+
+```go
+Get: func(target *goja.Object, property string, receiver goja.Value) goja.Value {
+    // 1. Methods that belong to THIS builder → return the chain function
+    switch property {
+    case "content", "ephemeral", "embed", "row", "build":
+        return /* the method */
+    }
+
+    // 2. Methods that belong to a DIFFERENT builder → "wrong parent" error
+    if owner, ok := methodOwner[property]; ok {
+        panic(vm.NewTypeError(
+            "ui.message: .%s() is not available here. "+
+            "You probably meant to call this on %s.",
+            property, owner))
+    }
+
+    // 3. Truly unknown → generic error
+    panic(vm.NewTypeError(
+        "ui.message: unknown method .%s(). "+
+        "Available: content, ephemeral, embed, row, file, build.",
+        property))
+}
+```
+
+### Examples
+
+**Wrong parent — method exists but on the wrong builder:**
+```
+ui.button("id", "Click", "primary").ephemeral()
+→ Error: ui.button: .ephemeral() is not available here.
+         You probably meant to call this on ui.message().
+```
+
+```
+ui.button("id", "Click", "primary").footer("text")
+→ Error: ui.button: .footer() is not available here.
+         You probably meant to call this on ui.embed().
+```
+
+**Bad arguments at construction:**
 ```
 ui.button("", "Click", "primary")
-→ panic: ui.button: customId must not be empty
+→ Error: ui.button: customId must not be empty
 
 ui.button("id", "Click", "badstyle")
-→ panic: ui.button: unknown style "badstyle", use one of: primary, secondary, success, danger, link
-
-ui.select("id").option("", "value")
-→ panic: ui.select.option: label must not be empty
-
-ui.message().embed("not a builder")
-→ panic: ui.message.embed: expected an embed builder (from ui.embed()), got string
-
-ui.form("", "Title")
-→ panic: ui.form: customId must not be empty
+→ Error: ui.button: unknown style "badstyle", use one of: primary, secondary, success, danger, link
 ```
 
-Compare with the old error:
+**Type mismatch — raw JS object where a builder is expected:**
+```
+ui.message().embed({title: "Hello"})
+→ Error: ui.message.embed: expected a ui.embed() builder, got object.
+         Use ui.embed("Hello").description("...") to create an embed.
+
+ui.message().row({type: "button", label: "Click"})
+→ Error: ui.message.row: expected a ui.button() or ui.select() builder, got object.
+         Use ui.button("id", "Label", "primary") to create a button.
+```
+
+**Truly unknown method:**
+```
+ui.message().unknownThing()
+→ Error: ui.message: unknown method .unknownThing().
+         Available: content, ephemeral, embed, row, file, build.
+```
+
+### Raw JS objects are errors in ui methods
+
+The `ui` module does **not** accept raw `map[string]any` or plain JS objects as component/embed arguments. This is intentional:
+
+- `ui.message().embed(<raw object>)` → type error, "expected a ui.embed() builder"
+- `ui.message().row(<raw object>)` → type error, "expected a ui.button() or ui.select() builder"
+- `ui.row(<raw object>)` → type error
+
+Bots that don't use `require("ui")` continue to return raw JS objects through the existing `normalizePayload()` → `map[string]any` path. That pipeline is unchanged and still works. The `ui` module is opt-in: use it for validated, type-safe payloads, or return raw objects if you prefer — but you can't mix them.
+
+In the future, heuristics could be added to detect common raw-object shapes and suggest the equivalent builder call:
+```
+ui.message().embed({title: "Hello", color: 0xFF0000})
+→ Error: ui.message.embed: expected a ui.embed() builder, got object.
+         Did you mean: ui.embed("Hello").color(0xFF0000)?
+```
+
+This is a future enhancement, not a day-one requirement.
+
+### Compare with the old errors
+
+**Before (JS-side builders):**
 ```
 unsupported component type %!q(<nil>)
+```
+Three layers deep in Go normalization, no indication what JS code caused it.
+
+**Before (raw JS typo):**
+```
+ui.message().ephemral()
+→ TypeError: ui.message(...).ephemral is not a function
+```
+Silent `undefined`, crashes later at an unrelated location.
+
+**After (Go-side builders):**
+```
+ui.message().ephemral()
+→ Error: ui.message: unknown method .ephemral().
+         Available: content, ephemeral, embed, row, file, build.
+         Did you mean: ephemeral()?
 ```
 
 ## Performance notes
