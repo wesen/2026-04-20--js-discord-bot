@@ -23,7 +23,7 @@ GOWORK=off go run ./cmd/discord-bot bots run show-space \
   --sync-on-start
 ```
 
-Add `--debug` if you want the debug-only role lookup command to be available while you are wiring the server.
+Add `--debug` if you want the debug-only dashboard and role lookup commands to be available while you are wiring the server.
 
 ### Phase 2 run (SQLite-backed persistence)
 
@@ -71,6 +71,20 @@ If you want to start over, delete the SQLite file and restart the bot.
 
 ## 4) Common operator actions
 
+### Open the debug dashboard
+
+Enable `--debug` and run `/debug` to open the Show Space debug dashboard.
+
+Use the buttons to switch between:
+
+- summary
+- member roles
+- guild roles
+- config values
+- permission checks
+
+The dashboard prints your user ID, member ID, and the exact role IDs the bot sees.
+
 ### Post a new show
 
 Use `/announce` for a quick post-and-pin flow, or `/add-show` when you want the bot to store the show in the DB and return an ID.
@@ -82,6 +96,12 @@ Use `/show <id>` to inspect the current record.
 ### Check role IDs
 
 Enable `--debug` and run `/debug-roles` to list the current guild role IDs and names.
+
+### Check my roles
+
+Enable `--debug` and run `/debug-my-roles` to see the roles the bot sees on your own member object.
+
+The dashboard also includes both of these views if you prefer clicking buttons instead of re-running commands.
 
 ### Cancel a show
 
@@ -120,6 +140,12 @@ Confirm the bot is running with the right `shows.json` data or with the DB path 
 ### `@booker` cannot use write commands
 
 Confirm the configured role IDs match the actual Discord role IDs and that the member has the expected role.
+
+If the bot is running with `--debug`, open `/debug` and check the **Checks** view:
+
+- **Exact matching role IDs** shows the overlap between the configured role IDs and the member roles the bot actually sees.
+- **Configured role IDs not seen on member** shows which expected IDs are missing from the invoking member object.
+- **Why the bot may deny access** gives the shortest explanation of the current mismatch.
 
 ### Archived shows never appear in `/past-shows`
 

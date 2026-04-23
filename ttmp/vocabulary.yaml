@@ -33,6 +33,12 @@ topics:
       description: Discovery of commands from JS source files, both static (Tree-sitter) and runtime
     - slug: cli
       description: Command-line interface, Cobra integration, Glazed command registration
+    - slug: diagnostics
+      description: Diagnostics, debugging, and inspection workflows
+    - slug: discord
+      description: Discord bots, APIs, and gateway/application command integrations
+    - slug: tooling
+      description: Developer tooling, operator helpers, and internal utility workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

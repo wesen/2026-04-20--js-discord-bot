@@ -137,6 +137,28 @@ A useful rule of thumb:
 - use `button()` for direct actions
 - use `select()` when the user is choosing among several similar items
 
+### Every component `customId` needs a handler
+
+Rendering a button or select is only half the job. Every interactive `customId` you put into a UI payload must also have a matching registered handler.
+
+```js
+command("debug", async (ctx) => {
+  return ui.message()
+    .ephemeral()
+    .content("Debug dashboard")
+    .row(ui.button("show-space:debug:member", "Member", "primary"))
+    .build()
+})
+
+component("show-space:debug:member", async (ctx) => {
+  return renderDebugScreen(ctx, "member")
+})
+```
+
+If you forget the `component("show-space:debug:member", ...)` registration, the message still renders, but the click fails because the bot has no handler for that `customId`.
+
+This is the most common thing to miss when you convert a static response into a real interactive screen.
+
 ## 5. Use modal forms for structured input
 
 Modal forms are the right tool when the user needs to type several values at once.
@@ -235,6 +257,10 @@ ui.message().embed(ui.embed("Title").description("...")).build()
 ### Treating component clicks as new messages by default
 
 That makes interactive UIs noisy. Prefer in-place updates.
+
+### Forgetting to register a component handler
+
+A `ui.button("some:id", ...)` or `ui.select("some:id")` call does not automatically create the handler. You still need a matching `component("some:id", async (ctx) => { ... })` registration.
 
 ### Using `ctx.store` for durable state
 

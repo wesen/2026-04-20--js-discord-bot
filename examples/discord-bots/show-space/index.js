@@ -1,8 +1,9 @@
 const { defineBot } = require("discord")
+const ui = require("ui")
 const { createShowCatalog, loadSeedShows, normalizeShow } = require("./lib/shows")
 const { createShowStore } = require("./lib/store")
 const { localDateISO } = require("./lib/dates")
-const { canAdminOnly, canManageShows, permissionDenied } = require("./lib/permissions")
+const { cleanRoleList, canAdminOnly, canManageShows, permissionDenied } = require("./lib/permissions")
 const {
   showAnnouncementPayload,
   upcomingShowsText,
@@ -40,6 +41,230 @@ function debugEnabled(ctx) {
 
 function commandError(error) {
   return { content: `❌ ${String(error || "Something went wrong.")}`, ephemeral: true }
+}
+
+function yesNo(value) {
+  return value ? "yes" : "no"
+}
+
+function guildId(ctx) {
+  return trimText((ctx && ctx.guild && ctx.guild.id) || "")
+}
+
+function guildName(ctx) {
+  return trimText((ctx && ctx.guild && ctx.guild.name) || guildId(ctx) || "(no guild)")
+}
+
+function userId(ctx) {
+  return trimText((ctx && ctx.user && ctx.user.id) || (ctx && ctx.member && ctx.member.id) || "")
+}
+
+function userName(ctx) {
+  return trimText((ctx && ctx.user && ctx.user.username) || (ctx && ctx.user && ctx.user.globalName) || (ctx && ctx.member && ctx.member.nick) || userId(ctx) || "(unknown user)")
+}
+
+function memberId(ctx) {
+  return trimText((ctx && ctx.member && ctx.member.id) || "")
+}
+
+function configuredRoleIds(ctx) {
+  const config = ctx && ctx.config ? ctx.config : {}
+  return [config.adminRoleId, config.bookerRoleId]
+    .map((roleId) => String(roleId || "").trim())
+    .filter(Boolean)
+}
+
+function intersectRoleIds(left, right) {
+  const leftList = Array.isArray(left) ? left : []
+  const rightList = Array.isArray(right) ? right : []
+  return leftList.filter((value) => rightList.includes(value))
+}
+
+function subtractRoleIds(left, right) {
+  const leftList = Array.isArray(left) ? left : []
+  const rightList = Array.isArray(right) ? right : []
+  return leftList.filter((value) => !rightList.includes(value))
+}
+
+function bulletList(items, emptyText) {
+  const list = Array.isArray(items) ? items : []
+  return list.length > 0 ? list.join("\n") : emptyText
+}
+
+function truncatedBulletList(items, emptyText, limit) {
+  const list = Array.isArray(items) ? items : []
+  const visible = list.slice(0, limit)
+  const extra = list.length - visible.length
+  const base = bulletList(visible, emptyText)
+  return extra > 0 ? `${base}\n…and ${extra} more` : base
+}
+
+function formatRoleLine(role) {
+  if (!role) {
+    return "• (unknown role) — (no id)"
+  }
+  const markers = []
+  if (role.member) {
+    markers.push("member")
+  }
+  if (role.configured) {
+    markers.push("configured")
+  }
+  const markerText = markers.length > 0 ? ` [${markers.join(", ")}]` : ""
+  return `• ${role.name || "(unnamed)"} — ${role.id || "(no id)"}${markerText}`
+}
+
+async function collectDebugSnapshot(ctx) {
+  const config = ctx && ctx.config ? ctx.config : {}
+  const guildID = guildId(ctx)
+  const roleIDs = cleanRoleList(ctx)
+  const allowedRoleIds = configuredRoleIds(ctx)
+  let guildRoles = []
+  let guildRoleError = ""
+
+  if (guildID && ctx && ctx.discord && ctx.discord.roles && typeof ctx.discord.roles.list === "function") {
+    try {
+      const listedRoles = await ctx.discord.roles.list(guildID)
+      guildRoles = Array.isArray(listedRoles) ? listedRoles : []
+    } catch (err) {
+      guildRoleError = String(err || "Unable to load guild roles.")
+    }
+  }
+
+  const roleByID = new Map(
+    Array.isArray(guildRoles)
+      ? guildRoles
+        .map((role) => [trimText(role && role.id), role])
+        .filter(([roleID]) => Boolean(roleID))
+      : []
+  )
+
+  const memberRoles = roleIDs.map((roleID) => {
+    const role = roleByID.get(roleID)
+    return {
+      id: roleID,
+      name: role ? (trimText(role.name) || "(unnamed)") : "(unknown role)",
+      member: true,
+      configured: allowedRoleIds.includes(roleID),
+    }
+  })
+
+  const guildRoleDetails = Array.isArray(guildRoles)
+    ? guildRoles
+      .map((role) => {
+        const roleID = trimText(role && role.id)
+        if (!roleID) {
+          return null
+        }
+        return {
+          id: roleID,
+          name: trimText(role && role.name) || "(unnamed)",
+          member: roleIDs.includes(roleID),
+          configured: allowedRoleIds.includes(roleID),
+        }
+      })
+      .filter(Boolean)
+    : []
+
+  return {
+    debugEnabled: debugEnabled(ctx),
+    guildID,
+    guildName: guildName(ctx),
+    userID: userId(ctx),
+    userName: userName(ctx),
+    memberID: memberId(ctx),
+    memberRoles,
+    memberRoleIDs: roleIDs,
+    allowedRoleIds,
+    guildRoles: guildRoleDetails,
+    guildRoleError,
+    canManageShows: canManageShows(ctx),
+    canAdminOnly: canAdminOnly(ctx),
+    config,
+  }
+}
+
+function debugViewTitle(view) {
+  const labels = {
+    summary: "Summary",
+    member: "Member roles",
+    guild: "Guild roles",
+    config: "Config",
+    checks: "Permission checks",
+  }
+  return labels[view] || labels.summary
+}
+
+function debugButtons(view) {
+  const style = (name) => view === name ? "primary" : "secondary"
+  return [
+    ui.button("show-space:debug:summary", "Summary", style("summary")),
+    ui.button("show-space:debug:member", "Member", style("member")),
+    ui.button("show-space:debug:guild", "Guild", style("guild")),
+    ui.button("show-space:debug:config", "Config", style("config")),
+    ui.button("show-space:debug:checks", "Checks", style("checks")),
+  ]
+}
+
+async function renderDebugMessage(ctx, view) {
+  const activeView = ["summary", "member", "guild", "config", "checks"].includes(view) ? view : "summary"
+  const snapshot = await collectDebugSnapshot(ctx)
+  const content = `🔎 Show Space debug — ${debugViewTitle(activeView).toLowerCase()} view\nUser ID: ${snapshot.userID || "(unknown)"}\nMember ID: ${snapshot.memberID || "(none)"}\nGuild: ${snapshot.guildName} (${snapshot.guildID || "no guild"})`
+
+  let embed = ui.embed(`Show Space Debug — ${debugViewTitle(activeView)}`)
+    .color(0x5865F2)
+    .description(`Use the buttons to switch between the debug views.\n\nUser: ${snapshot.userName} — ${snapshot.userID || "(unknown)"}`)
+
+  if (activeView === "summary") {
+    embed = embed
+      .field("Permission checks", `canManageShows: ${yesNo(snapshot.canManageShows)}\ncanAdminOnly: ${yesNo(snapshot.canAdminOnly)}`, false)
+      .field("Allowed role IDs", bulletList(snapshot.allowedRoleIds.map((roleID) => `• ${roleID}`), "(not configured)"), false)
+      .field("Member role IDs", bulletList(snapshot.memberRoleIDs.map((roleID) => `• ${roleID}`), "(none)"), false)
+  } else if (activeView === "member") {
+    embed = embed
+      .field("Member role IDs", bulletList(snapshot.memberRoleIDs.map((roleID) => `• ${roleID}`), "(none)"), false)
+      .field("Resolved member roles", bulletList(snapshot.memberRoles.map(formatRoleLine), "(none)"), false)
+      .field("Matched configured roles", bulletList(snapshot.memberRoles.filter((role) => role.configured).map(formatRoleLine), "(none)"), false)
+  } else if (activeView === "guild") {
+    embed = embed
+      .field("Guild roles", truncatedBulletList(snapshot.guildRoles.map(formatRoleLine), snapshot.guildRoleError || "(no guild roles found)", 20), false)
+      .field("Configured roles", bulletList(snapshot.allowedRoleIds.map((roleID) => `• ${roleID}`), "(not configured)"), false)
+  } else if (activeView === "config") {
+    embed = embed
+      .field("Runtime config", [
+        `debug: ${String(snapshot.debugEnabled)}`,
+        `upcomingShowsChannelId: ${snapshot.config.upcomingShowsChannelId ? String(snapshot.config.upcomingShowsChannelId) : "(not configured)"}`,
+        `announcementsChannelId: ${snapshot.config.announcementsChannelId ? String(snapshot.config.announcementsChannelId) : "(not configured)"}`,
+        `staffChannelId: ${snapshot.config.staffChannelId ? String(snapshot.config.staffChannelId) : "(not configured)"}`,
+        `adminRoleId: ${snapshot.config.adminRoleId ? String(snapshot.config.adminRoleId) : "(not configured)"}`,
+        `bookerRoleId: ${snapshot.config.bookerRoleId ? String(snapshot.config.bookerRoleId) : "(not configured)"}`,
+        `dbPath: ${snapshot.config.dbPath ? String(snapshot.config.dbPath) : "(not configured)"}`,
+        `seedFromJson: ${String(snapshot.config.seedFromJson)}`,
+        `timeZone: ${snapshot.config.timeZone ? String(snapshot.config.timeZone) : "(not configured)"}`,
+      ].join("\n"), false)
+  } else if (activeView === "checks") {
+    const matchingRoleIds = intersectRoleIds(snapshot.allowedRoleIds, snapshot.memberRoleIDs)
+    const missingRoleIds = subtractRoleIds(snapshot.allowedRoleIds, snapshot.memberRoleIDs)
+    embed = embed
+      .field("Permission result", `canManageShows: ${yesNo(snapshot.canManageShows)}\ncanAdminOnly: ${yesNo(snapshot.canAdminOnly)}`, false)
+      .field("Exact matching role IDs", bulletList(matchingRoleIds.map((roleId) => `• ${roleId}`), "(none)"), false)
+      .field("Configured role IDs not seen on member", bulletList(missingRoleIds.map((roleId) => `• ${roleId}`), "(none)"), false)
+      .field("Intersection", bulletList(snapshot.memberRoles.filter((role) => role.configured).map(formatRoleLine), "(none)"), false)
+      .field("Why the bot may deny access", matchingRoleIds.length > 0
+        ? "The bot sees at least one configured role ID on your member object. If access still fails, compare the exact configured IDs, the specific command gate, and the live runtime config."
+        : "The bot does not see any configured role IDs on your member object. Compare the configured admin/booker role IDs against the exact Discord role IDs in the guild.", false)
+  }
+
+  if (snapshot.guildRoleError) {
+    embed = embed.field("Guild role lookup", snapshot.guildRoleError, false)
+  }
+
+  return ui.message()
+    .ephemeral()
+    .content(content)
+    .embed(embed)
+    .row(...debugButtons(activeView))
+    .build()
 }
 
 function hasDatabase(ctx) {
@@ -215,7 +440,7 @@ async function archiveExpiredShows(ctx, options) {
   return { archived: expired.length, unpinned }
 }
 
-module.exports = defineBot(({ command, event, configure }) => {
+module.exports = defineBot(({ command, component, event, configure }) => {
   configure({
     name: "show-space",
     description: "Venue operations bot for upcoming shows and pinned announcements",
@@ -255,6 +480,21 @@ module.exports = defineBot(({ command, event, configure }) => {
     }
   })
 
+  command("debug", {
+    description: "Open the show-space debug dashboard (requires --debug)",
+  }, async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "summary")
+  })
+
   command("debug-roles", {
     description: "List guild role IDs for debugging (requires --debug)",
   }, async (ctx) => {
@@ -264,19 +504,90 @@ module.exports = defineBot(({ command, event, configure }) => {
         ephemeral: true,
       }
     }
-    const guildId = ctx.guild && ctx.guild.id
-    if (!guildId) {
+    if (!guildId(ctx)) {
       return commandError("This command requires a guild context.")
     }
-    const roles = await ctx.discord.roles.list(guildId)
-    const guildName = trimText((ctx.guild && ctx.guild.name) || guildId)
-    const lines = Array.isArray(roles) && roles.length > 0
-      ? roles.map((role) => `• ${trimText(role && role.name) || "(unnamed)"} — ${trimText(role && role.id) || "(no id)"}`).join("\n")
-      : "No roles found."
-    return {
-      content: `Guild roles for ${guildName}:\n\n${lines}`,
-      ephemeral: true,
+    return renderDebugMessage(ctx, "guild")
+  })
+
+  command("debug-my-roles", {
+    description: "List the roles the bot sees on your member object (requires --debug)",
+  }, async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
     }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "member")
+  })
+
+  component("show-space:debug:summary", async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "summary")
+  })
+
+  component("show-space:debug:member", async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "member")
+  })
+
+  component("show-space:debug:guild", async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "guild")
+  })
+
+  component("show-space:debug:config", async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "config")
+  })
+
+  component("show-space:debug:checks", async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    if (!guildId(ctx)) {
+      return commandError("This command requires a guild context.")
+    }
+    return renderDebugMessage(ctx, "checks")
   })
 
   command("announce", {
@@ -291,7 +602,10 @@ module.exports = defineBot(({ command, event, configure }) => {
     },
   }, async (ctx) => {
     if (!canManageShows(ctx)) {
-      return permissionDenied()
+      return permissionDenied(ctx, {
+        requiredRoleIds: [ctx.config && ctx.config.adminRoleId, ctx.config && ctx.config.bookerRoleId],
+        requirementLabel: "adminRoleId or bookerRoleId",
+      })
     }
     const normalized = buildAnnouncementInput(ctx, ctx.args)
     if (!normalized.ok) {
@@ -319,7 +633,10 @@ module.exports = defineBot(({ command, event, configure }) => {
     },
   }, async (ctx) => {
     if (!canManageShows(ctx)) {
-      return permissionDenied()
+      return permissionDenied(ctx, {
+        requiredRoleIds: [ctx.config && ctx.config.adminRoleId, ctx.config && ctx.config.bookerRoleId],
+        requirementLabel: "adminRoleId or bookerRoleId",
+      })
     }
     const normalized = buildAnnouncementInput(ctx, {
       artist: ctx.args.artist,
@@ -365,7 +682,10 @@ module.exports = defineBot(({ command, event, configure }) => {
     },
   }, async (ctx) => {
     if (!canManageShows(ctx)) {
-      return permissionDenied()
+      return permissionDenied(ctx, {
+        requiredRoleIds: [ctx.config && ctx.config.adminRoleId, ctx.config && ctx.config.bookerRoleId],
+        requirementLabel: "adminRoleId or bookerRoleId",
+      })
     }
     const show = repoGetShow(ctx, ctx.args.id)
     if (!show) {
@@ -403,7 +723,10 @@ module.exports = defineBot(({ command, event, configure }) => {
     },
   }, async (ctx) => {
     if (!canAdminOnly(ctx)) {
-      return permissionDenied()
+      return permissionDenied(ctx, {
+        requiredRoleIds: [ctx.config && ctx.config.adminRoleId],
+        requirementLabel: "adminRoleId",
+      })
     }
     const show = repoGetShow(ctx, ctx.args.id)
     if (!show) {
@@ -440,7 +763,10 @@ module.exports = defineBot(({ command, event, configure }) => {
     description: "Unpin expired show announcements from #upcoming-shows",
   }, async (ctx) => {
     if (!canAdminOnly(ctx)) {
-      return permissionDenied()
+      return permissionDenied(ctx, {
+        requiredRoleIds: [ctx.config && ctx.config.adminRoleId],
+        requirementLabel: "adminRoleId",
+      })
     }
     const channelId = configChannelId(ctx, "upcomingShowsChannelId")
     if (!channelId) {
@@ -472,7 +798,10 @@ module.exports = defineBot(({ command, event, configure }) => {
     description: "Archive expired shows and post a quiet staff summary",
   }, async (ctx) => {
     if (!canAdminOnly(ctx)) {
-      return permissionDenied()
+      return permissionDenied(ctx, {
+        requiredRoleIds: [ctx.config && ctx.config.adminRoleId],
+        requirementLabel: "adminRoleId",
+      })
     }
     const result = await archiveExpiredShows(ctx, { logStaff: true })
     return {
