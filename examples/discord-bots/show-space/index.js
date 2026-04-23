@@ -29,6 +29,15 @@ function configChannelId(ctx, key) {
   return configValue(ctx, key)
 }
 
+function debugEnabled(ctx) {
+  const value = ctx && ctx.config ? ctx.config.debug : false
+  if (typeof value === "boolean") {
+    return value
+  }
+  const text = String(value || "").trim().toLowerCase()
+  return ["1", "true", "yes", "on"].includes(text)
+}
+
 function commandError(error) {
   return { content: `❌ ${String(error || "Something went wrong.")}`, ephemeral: true }
 }
@@ -221,6 +230,7 @@ module.exports = defineBot(({ command, event, configure }) => {
         timeZone: { type: "string", help: "IANA timezone for display formatting", default: "America/New_York" },
         dbPath: { type: "string", help: "SQLite database path for phase-2 persistence", default: "" },
         seedFromJson: { type: "bool", help: "Seed the database from shows.json when empty", default: true },
+        debug: { type: "bool", help: "Enable debug-only helper commands like role lookup", default: false },
       },
     },
   })
@@ -241,6 +251,30 @@ module.exports = defineBot(({ command, event, configure }) => {
     const shows = repoListUpcoming(ctx, 25)
     return {
       content: upcomingShowsText(shows),
+      ephemeral: true,
+    }
+  })
+
+  command("debug-roles", {
+    description: "List guild role IDs for debugging (requires --debug)",
+  }, async (ctx) => {
+    if (!debugEnabled(ctx)) {
+      return {
+        content: "Debug mode is disabled. Re-run the bot with --debug to use this command.",
+        ephemeral: true,
+      }
+    }
+    const guildId = ctx.guild && ctx.guild.id
+    if (!guildId) {
+      return commandError("This command requires a guild context.")
+    }
+    const roles = await ctx.discord.roles.list(guildId)
+    const guildName = trimText((ctx.guild && ctx.guild.name) || guildId)
+    const lines = Array.isArray(roles) && roles.length > 0
+      ? roles.map((role) => `• ${trimText(role && role.name) || "(unnamed)"} — ${trimText(role && role.id) || "(no id)"}`).join("\n")
+      : "No roles found."
+    return {
+      content: `Guild roles for ${guildName}:\n\n${lines}`,
       ephemeral: true,
     }
   })

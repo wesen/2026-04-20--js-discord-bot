@@ -367,3 +367,58 @@ func TestShowSpaceArchiveExpiredSummarizesAndUnpins(t *testing.T) {
 		t.Fatalf("counts = sends:%d unpins:%d", sends, unpins)
 	}
 }
+
+func TestShowSpaceDebugRolesRequiresDebugFlag(t *testing.T) {
+	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
+	called := false
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "debug-roles",
+		Config: map[string]any{
+			"debug": false,
+		},
+		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Discord: &DiscordOps{
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				called = true
+				return nil, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch debug-roles: %v", err)
+	}
+	if called {
+		t.Fatalf("role list should not be called when debug is disabled")
+	}
+	if got := fmt.Sprint(result); !strings.Contains(got, "Debug mode is disabled") {
+		t.Fatalf("disabled result = %s", got)
+	}
+}
+
+func TestShowSpaceDebugRolesListsGuildRolesWhenEnabled(t *testing.T) {
+	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
+	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+		Name: "debug-roles",
+		Config: map[string]any{
+			"debug": true,
+		},
+		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Discord: &DiscordOps{
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				if guildID != "guild-1" {
+					t.Fatalf("guildID = %s", guildID)
+				}
+				return []map[string]any{
+					{"id": "role-admin", "name": "admin"},
+					{"id": "role-booker", "name": "booker"},
+				}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch debug-roles: %v", err)
+	}
+	if got := fmt.Sprint(result); !strings.Contains(got, "Guild roles for The Venue") || !strings.Contains(got, "role-admin") || !strings.Contains(got, "role-booker") {
+		t.Fatalf("enabled result = %s", got)
+	}
+}
