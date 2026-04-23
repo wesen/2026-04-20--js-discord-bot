@@ -172,7 +172,7 @@ func examplesFixtureDir(t *testing.T) string {
 
 func scannerFixtureDir(t *testing.T) string {
 	t.Helper()
-	return filepath.Join(repoRoot(t), "internal", "botcli", "testdata", "scanner-repo")
+	return filepath.Join(repoRoot(t), "pkg", "botcli", "testdata", "scanner-repo")
 }
 
 func repoRoot(t *testing.T) string {

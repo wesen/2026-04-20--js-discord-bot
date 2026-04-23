@@ -59,7 +59,7 @@ as the repo-driven bot repository, but you can still override it with the public
 
 ```bash
 GOWORK=off go run ./examples/framework-combined \
-  --bot-repository ./internal/botcli/testdata/scanner-repo \
+  --bot-repository ./pkg/botcli/testdata/scanner-repo \
   bots demo-bot status --output json
 ```
 

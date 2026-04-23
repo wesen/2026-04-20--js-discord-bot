@@ -365,7 +365,7 @@ Common validation commands:
 
 ```bash
 GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
-GOWORK=off go test ./internal/botcli ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
+GOWORK=off go test ./pkg/botcli ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
 GOWORK=off go test ./...
 ```
 
