@@ -470,3 +470,101 @@ The design document explicitly calls out custom runtime/module injection as a co
 - `WithRuntimeModuleRegistrars(...)` appends additional `engine.RuntimeModuleRegistrar` values after the built-ins.
 - The public option accepts `engine.RuntimeModuleRegistrar`, so downstream embedders can define native modules without importing any internal package.
 - The custom example registers an `app` native module and uses it from a normal `defineBot(...)` script via `require("app")`.
+
+## Step 8: Conclude the main merge and start Track B with a public bootstrap package
+
+Before starting the next implementation slice I had to deal with the repository state: the branch was already in the middle of a `main` merge. The merge itself turned out to be straightforward — mostly the new show-space bot work from `main` — and the index was already in the "all conflicts fixed" state. I validated the combined branch, concluded the merge commit, and then immediately used the clean branch to start Track B with the smallest public extraction: a bootstrap package for repo-driven bot repository resolution.
+
+### Prompt Context
+
+**User prompt (verbatim):** "merge main, which shouldn't have too many changes affecting us.
+
+Then continue"
+
+**Assistant interpretation:** Finish the pending merge cleanly, make sure the branch is healthy, and then continue the framework extraction instead of stopping at the merge.
+
+**Inferred user intent:** The user wants the branch rebased mentally onto current project reality before more framework work lands, and wants progress to continue immediately after the merge.
+
+### What I did
+
+- Inspected `git status` and confirmed the repository was already in an unfinished merge state with all conflicts resolved and the merged files staged.
+- Ran:
+  - `go test ./...`
+- Concluded the merge with:
+  - `git commit -m "Merge main into task/discord-bot-framework"`
+- Started Track B by adding a new public package:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go`
+- Exposed a first public repo-bootstrap API there:
+  - `Repository`
+  - `Bootstrap`
+  - `BuildBootstrap(rawArgs, opts...)`
+  - `WithWorkingDirectory(...)`
+  - `WithEnvironmentVariable(...)`
+  - `WithDefaultRepositories(...)`
+  - `WithRepositoryFlagName(...)`
+- Wrote focused tests in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap_test.go`
+- Switched `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go` to use the new public `pkg/botcli.BuildBootstrap(...)` helper instead of keeping that logic private in the command package.
+- Ran:
+  - `gofmt -w pkg/botcli/bootstrap.go pkg/botcli/bootstrap_test.go cmd/discord-bot/root.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./internal/botcli ./...`
+
+### Why
+
+Track B is about making the repo-driven `botcli` behavior embeddable. The smallest useful public piece is not full Cobra integration yet — it is the bootstrap/repository resolution logic, because dynamic command registration depends on knowing the repositories before Cobra parses subcommands. By making that logic public first, the next slices can build on a stable embeddable foundation.
+
+### What worked
+
+- The merge from `main` was indeed low-drama once I recognized the repo was already mid-merge; `go test ./...` passed before I concluded it.
+- Extracting the bootstrap logic into `pkg/botcli` was straightforward because `cmd/discord-bot/root.go` already contained a compact precedence implementation.
+- The public package tests now cover the essential precedence rules:
+  - CLI repositories override env and default
+  - env repositories apply when CLI is absent
+  - default repositories apply when both CLI and env are absent
+  - repeated CLI repositories are deduplicated
+  - downstream apps can override the flag name and env var name
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The root bootstrap logic was already a clean candidate for public extraction. It was application-owned only because of file placement, not because of deep coupling.
+- Starting Track B with bootstrap extraction feels much safer than jumping directly to public Cobra integration; it lets the public package own the most awkward pre-parse behavior first.
+
+### What was tricky to build
+
+- The main subtlety was choosing the shape of the public types. For this slice I used public aliases for `Bootstrap`, `Repository`, and `DiscoveredBot` to avoid unnecessary conversion churn while the package is still being promoted incrementally.
+- Another subtle point was preserving the exact precedence semantics of the existing root command so the public helper stays behaviorally identical to the app's current bootstrap.
+
+### What warrants a second pair of eyes
+
+- Whether the public type aliases should remain aliases, or whether the next Track B slice should convert them into explicitly owned `pkg/botcli` structs before more API surface lands.
+- Whether `BuildBootstrap(...)` should grow additional public hooks next (for example app name or default source labels), or whether the next slice should jump to `pkg/botcli.NewCommand(...)` and Cobra integration.
+
+### What should be done in the future
+
+- Continue Track B with a public embeddable Cobra integration entrypoint that consumes the new bootstrap package.
+- Move the dynamic command registration behavior itself behind the public package after that.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go`.
+- Review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap_test.go` for precedence and customization coverage.
+- Then inspect `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go` to verify the app now consumes the public helper.
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./internal/botcli ./...`
+
+### Technical details
+
+- `BuildBootstrap(...)` preserves the same precedence as the root command had before extraction:
+  1. raw argv `--bot-repository`
+  2. `DISCORD_BOT_REPOSITORIES`
+  3. `examples/discord-bots` if present
+- The helper also preserves raw-argv pre-scan semantics by parsing the repository flag directly from `rawArgs` before Cobra command construction.
+- The public package supports downstream customization of:
+  - working directory
+  - env var name
+  - repository flag name
+  - default repository paths

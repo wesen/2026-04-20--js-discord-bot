@@ -38,11 +38,12 @@
 
 #### Track B — optional public `botcli` package for repo-driven bots
 - [ ] Promote `internal/botcli` into an optional public package (`pkg/botcli` or `framework/botcli`)
+  - [x] Create an initial public `pkg/botcli` bootstrap package
 - [ ] Define the public bootstrap / repository API
-  - `Repository`
-  - `Bootstrap`
-  - `BuildBootstrap(rawArgs []string, opts ...)`
-  - CLI/env/default repository precedence helpers
+  - [x] `Repository`
+  - [x] `Bootstrap`
+  - [x] `BuildBootstrap(rawArgs []string, opts ...)`
+  - [x] CLI/env/default repository precedence helpers
 - [ ] Expose a public embeddable Cobra integration entrypoint
   - `NewCommand(bootstrap, opts...)`
   - or `NewRootCommand(rawArgs, opts...)`

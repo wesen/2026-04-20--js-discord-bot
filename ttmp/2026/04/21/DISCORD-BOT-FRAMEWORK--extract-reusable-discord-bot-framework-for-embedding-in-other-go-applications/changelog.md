@@ -69,3 +69,13 @@ Extended the public single-bot framework path so downstream embedders can inject
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/main.go — Explicit bot embedding example with custom `require("app")` module
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/bot/index.js — JS bot script that consumes the injected `app` module
 
+## 2026-04-22
+
+Merged `main` into `task/discord-bot-framework`, validated the combined branch with `go test ./...`, and then started Track B by extracting the repository bootstrap layer into a new public `pkg/botcli` package. The new package exposes `Repository`, `Bootstrap`, and `BuildBootstrap(rawArgs, opts...)` with the same CLI > env > default precedence currently used by `discord-bot`, and the root command now consumes that public bootstrap helper instead of keeping the logic private in `cmd/discord-bot/root.go`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go — Public bootstrap/repository API for repo-driven bot discovery
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap_test.go — Regression tests for CLI/env/default precedence and custom flag/env options
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Root command now uses `pkg/botcli.BuildBootstrap(...)`
+
