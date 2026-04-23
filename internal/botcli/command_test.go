@@ -54,6 +54,43 @@ func TestScannedRunVerbHelpShowsFields(t *testing.T) {
 	require.Contains(t, output, "Run the demo bot")
 }
 
+func TestNewBotsCommandFailsWithoutRequiredCustomRuntimeModule(t *testing.T) {
+	repo := writeBotCLIRepoBot(t, `
+const { defineBot } = require("discord");
+const app = require("app");
+module.exports = defineBot(({ configure }) => {
+  configure({ name: "custom-module-bot", description: app.description() });
+});
+function status() { return { active: true, module: app.name() }; }
+__verb__("status", { output: "glaze", short: "Show custom module status" });
+`)
+
+	_, err := NewBotsCommand(Bootstrap{Repositories: []Repository{repo}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Invalid module")
+}
+
+func TestNewBotsCommandSupportsCustomRuntimeModuleRegistrars(t *testing.T) {
+	repo := writeBotCLIRepoBot(t, `
+const { defineBot } = require("discord");
+const app = require("app");
+module.exports = defineBot(({ configure }) => {
+  configure({ name: "custom-module-bot", description: app.description() });
+});
+function status() { return { active: true, module: app.name() }; }
+__verb__("status", { output: "glaze", short: "Show custom module status" });
+`)
+
+	root := NewCommand(
+		Bootstrap{Repositories: []Repository{repo}},
+		WithRuntimeModuleRegistrars(testAppRegistrar{}),
+	)
+	output, err := executeCaptured(t, root, []string{"custom-module-bot", "status", "--output", "json"})
+	require.NoError(t, err)
+	require.Contains(t, output, `"active": true`)
+	require.Contains(t, output, `"module": "app"`)
+}
+
 func TestUnifiedDemoHelpShowsCommandAndEventRows(t *testing.T) {
 	root := NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(examplesFixtureDir(t), "examples")}})
 	output, err := executeCaptured(t, root, []string{"help", "unified-demo", "--output", "json"})

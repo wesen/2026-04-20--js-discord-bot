@@ -7,16 +7,18 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
 // listBotsCommand implements cmds.GlazeCommand and emits discovered bots as structured rows.
 type listBotsCommand struct {
 	*cmds.CommandDescription
 	bootstrap Bootstrap
+	hostOpts  []jsdiscord.HostOption
 }
 
 func (c *listBotsCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
-	bots, err := DiscoverBots(ctx, c.bootstrap)
+	bots, err := DiscoverBots(ctx, c.bootstrap, c.hostOpts...)
 	if err != nil {
 		return err
 	}

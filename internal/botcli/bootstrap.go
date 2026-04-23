@@ -110,7 +110,7 @@ func normalizeFilesystemRepositoryPath(path string, baseDir string) (string, err
 	return path, nil
 }
 
-func DiscoverBots(ctx context.Context, bootstrap Bootstrap) ([]DiscoveredBot, error) {
+func DiscoverBots(ctx context.Context, bootstrap Bootstrap, hostOpts ...jsdiscord.HostOption) ([]DiscoveredBot, error) {
 	ret := []DiscoveredBot{}
 	seen := map[string]DiscoveredBot{}
 	for _, repo := range bootstrap.Repositories {
@@ -119,7 +119,7 @@ func DiscoverBots(ctx context.Context, bootstrap Bootstrap) ([]DiscoveredBot, er
 			return nil, fmt.Errorf("discover scripts in %s: %w", repo.RootDir, err)
 		}
 		for _, script := range scripts {
-			descriptor, err := jsdiscord.InspectScript(ctx, script)
+			descriptor, err := jsdiscord.InspectScript(ctx, script, hostOpts...)
 			if err != nil {
 				return nil, fmt.Errorf("inspect bot script %s: %w", script, err)
 			}

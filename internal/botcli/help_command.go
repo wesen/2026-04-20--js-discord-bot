@@ -10,12 +10,14 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
 // helpBotsCommand implements cmds.GlazeCommand and emits bot metadata as rows.
 type helpBotsCommand struct {
 	*cmds.CommandDescription
 	bootstrap Bootstrap
+	hostOpts  []jsdiscord.HostOption
 }
 
 func (c *helpBotsCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Values, gp middlewares.Processor) error {
@@ -31,7 +33,7 @@ func (c *helpBotsCommand) RunIntoGlazeProcessor(ctx context.Context, vals *value
 		return fmt.Errorf("bot name is required")
 	}
 
-	bots, err := DiscoverBots(ctx, c.bootstrap)
+	bots, err := DiscoverBots(ctx, c.bootstrap, c.hostOpts...)
 	if err != nil {
 		return err
 	}

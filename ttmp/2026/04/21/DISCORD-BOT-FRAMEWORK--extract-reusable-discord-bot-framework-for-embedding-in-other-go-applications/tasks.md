@@ -58,6 +58,7 @@
   - register both `bots <bot> run` and `bots run <bot>` compatibility paths
 - [ ] Make the public package configurable for downstream apps
   - [x] `WithAppName(...)` so dynamic commands use Glazed env middleware correctly
+  - [x] `WithRuntimeModuleRegistrars(...)` as the first public runtime-extension hook
   - `WithRuntimeFactory(...)` / framework hooks for custom runtimes and modules
   - optional custom repository flag/env names for embedders
 - [ ] Add regression tests for the public package

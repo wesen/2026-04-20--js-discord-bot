@@ -42,6 +42,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 	listCmd := &listBotsCommand{
 		CommandDescription: listDesc,
 		bootstrap:          bootstrap,
+		hostOpts:           cfg.hostOptions(),
 	}
 	listCobra, err := glazed_cli.BuildCobraCommandFromCommand(listCmd,
 		glazed_cli.WithParserConfig(parserConfig),
@@ -67,6 +68,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 	helpCmd := &helpBotsCommand{
 		CommandDescription: helpDesc,
 		bootstrap:          bootstrap,
+		hostOpts:           cfg.hostOptions(),
 	}
 	helpCobra, err := glazed_cli.BuildCobraCommandFromCommand(helpCmd,
 		glazed_cli.WithParserConfig(parserConfig),
@@ -80,7 +82,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 	if len(bootstrap.Repositories) == 0 {
 		return root, nil
 	}
-	discoveredBots, err := DiscoverBots(context.Background(), bootstrap)
+	discoveredBots, err := DiscoverBots(context.Background(), bootstrap, cfg.hostOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("discover bots: %w", err)
 	}
@@ -107,6 +109,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 				discoveredCommands = append(discoveredCommands, &botRunCommand{
 					CommandDescription: desc,
 					scriptPath:         verb.File.AbsPath,
+					hostOpts:           cfg.hostOptions(),
 				})
 				if bot, ok := botByScriptPath[verb.File.AbsPath]; ok {
 					runCommandByBot[bot.Name()] = desc
@@ -114,7 +117,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 				continue
 			}
 
-			cmd, err := registry.CommandForVerbWithInvoker(verb, botVerbInvoker)
+			cmd, err := registry.CommandForVerbWithInvoker(verb, makeBotVerbInvoker(cfg))
 			if err != nil {
 				return nil, fmt.Errorf("build jsverb command for %s: %w", verb.SourceRef(), err)
 			}
@@ -128,6 +131,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 			discoveredCommands = append(discoveredCommands, &botRunCommand{
 				CommandDescription: baseDesc,
 				scriptPath:         discoveredBot.ScriptPath(),
+				hostOpts:           cfg.hostOptions(),
 			})
 			runCommandByBot[discoveredBot.Name()] = baseDesc
 		}
@@ -142,6 +146,7 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 		discoveredCommands = append(discoveredCommands, &botRunCommand{
 			CommandDescription: aliasDesc,
 			scriptPath:         discoveredBot.ScriptPath(),
+			hostOpts:           cfg.hostOptions(),
 		})
 	}
 

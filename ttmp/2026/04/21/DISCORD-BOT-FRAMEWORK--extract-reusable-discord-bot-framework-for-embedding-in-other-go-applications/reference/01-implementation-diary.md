@@ -781,3 +781,109 @@ This is the most useful kind of validation at this stage. It proves the env-pref
 ### What should be done next
 
 Only after this checkpoint does it make sense to continue Track B. The next slice should probably target a deeper public-behavior seam such as runtime-factory/configurability or moving more scanning/host-managed-run ownership into `pkg/botcli`.
+
+## Step 12: Add runtime-module customization to the public botcli package
+
+With the bootstrap layer, public Cobra entrypoint, and `WithAppName(...)` in place, the biggest remaining asymmetry between Track A and Track B was runtime extensibility. The single-bot public package could already inject custom runtime modules, but the repo-driven public `pkg/botcli` path still assumed the fixed built-in runtime. This slice closes that gap by making custom runtime module registrars flow through the repo-driven command system too.
+
+The key realization here was that repo-driven runtime customization is not just about the final `run` command. It affects three different places:
+1. bot discovery/inspection (`InspectScript`) because top-level `require("app")` must work while discovering bots,
+2. ordinary jsverbs invocation (`status`, etc.), and
+3. host-managed `run` construction for Discord bot scripts.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do the whole slice"
+
+**Assistant interpretation:** Implement the complete Track B runtime-customization slice rather than stopping at partial plumbing.
+
+**Inferred user intent:** The user wants one coherent chunk of progress: public API, internal plumbing, tests, and validation together.
+
+### What I did
+
+- Added shared test helpers for custom-module bot repositories in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/test_helpers_test.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/test_helpers_test.go`
+- Extended internal command options in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/options.go`
+  with:
+  - `WithRuntimeModuleRegistrars(...)`
+  - conversion into `jsdiscord.HostOption`
+- Updated discovery/inspection plumbing:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bootstrap.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/jsdiscord/descriptor.go`
+  so bot discovery can inspect scripts that require custom modules.
+- Updated command helpers:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/list_command.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/help_command.go`
+  to use the customized discovery path.
+- Updated ordinary jsverbs execution in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/jsverbs_invoker.go`
+  so normal discovered verbs get the extra runtime registrars too.
+- Updated the host-managed run path in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bot_run_command.go`
+  so the actual bot runtime receives the same host options.
+- Exposed the public option in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`
+- Added regression tests in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command_test.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+- Ran:
+  - `gofmt -w ...`
+  - `go test ./internal/botcli ./pkg/botcli ./pkg/framework ./cmd/discord-bot ./internal/jsdiscord ./...`
+- Performed a real downstream-style manual validation by creating a tiny temporary Cobra app that mounted `pkg/botcli.NewCommand(...)` with `WithRuntimeModuleRegistrars(...)`, pointed it at a temp bot repository whose script calls `require("app")`, and executed:
+  - `bots custom-module-bot status --output json`
+
+### What worked
+
+- Discovery now succeeds for bot scripts that require a custom module, as long as the registrar is provided.
+- Ordinary jsverbs execution (`status`) now also sees the custom runtime module.
+- The public package test and the manual downstream app both showed the same success case: the custom-module bot was discovered and the `status` verb returned structured data from `require("app")`.
+- The manual run produced JSON proving the custom module was actually active:
+  - `{"active": true, "module": "app", "description": "manual custom module works"}`
+
+### What didn't work
+
+- There were no code-level failures in the slice itself, but one manual-validation shell command initially failed because I passed temporary-file environment variables incorrectly in a one-off shell/python snippet. I reran the validation with a simpler shell-only setup and it worked.
+
+### Why this mattered
+
+Before this change, `pkg/botcli` looked public but still could not support one of the most important embedding requirements: top-level custom `require()` modules in repo-driven bot scripts. After this slice, the public repo-driven path is much closer to parity with the single-bot public path.
+
+### What I learned
+
+- Runtime customization for the repo-driven path is more cross-cutting than for the single-bot path, because discovery itself is runtime-backed.
+- The right abstraction boundary here is not just a public option on `pkg/botcli`; it is consistent propagation through discovery, verb invocation, and run construction.
+
+### What was tricky to build
+
+- The subtle part was remembering that `InspectScript()` loads the script, so custom-module support had to be threaded into discovery before any command tree could even exist.
+- Another subtlety was keeping internal and public options aligned without duplicating too much logic. I handled that the same way as the `WithAppName(...)` slice: public options convert into internal command options, and the implementation remains centralized internally.
+
+### What warrants a second pair of eyes
+
+- Whether the next runtime-related public seam should be `WithRuntimeFactory(...)` rather than just more registrar-based hooks.
+- Whether we should start moving more of the scanning/registration internals physically into `pkg/botcli` now that the behavioral seams are becoming public and stable.
+
+### What should be done in the future
+
+- Decide whether to add a broader runtime factory hook next, or move to the next public-behavior extraction slice (entrypoint-only scan policy / host-managed run ownership).
+- Add a durable downstream example app combining `pkg/framework` and `pkg/botcli` once the remaining Track B seams settle.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/options.go` and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command.go`.
+- Then review the three runtime touchpoints:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bootstrap.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/jsverbs_invoker.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bot_run_command.go`
+- Review the public option surface in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`.
+- Validate with:
+  - `go test ./internal/botcli ./pkg/botcli ./pkg/framework ./cmd/discord-bot ./internal/jsdiscord ./...`
+
+### Technical details
+
+- `WithRuntimeModuleRegistrars(...)` is now available on both the internal and public botcli command builders.
+- Discovery uses `jsdiscord.InspectScript(..., hostOpts...)`, so top-level custom-module imports work while building the command tree.
+- Ordinary jsverbs invocation builds a runtime with the built-in Discord registrar plus any custom registrars.
+- Host-managed `run` forwards the same host options into `bot.NewWithScript(...)`, which keeps the final live runtime consistent with discovery and jsverb invocation.

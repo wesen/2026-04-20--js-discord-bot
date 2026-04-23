@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 
 	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/bot"
 	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
@@ -19,6 +20,7 @@ import (
 type botRunCommand struct {
 	*cmds.CommandDescription
 	scriptPath string
+	hostOpts   []jsdiscord.HostOption
 }
 
 // Run extracts Discord credentials and runtime config from parsed CLI values,
@@ -35,7 +37,7 @@ func (c *botRunCommand) Run(ctx context.Context, parsedValues *values.Values) er
 	runtimeConfig := buildRuntimeConfig(parsedValues)
 	syncOnStart := boolField(parsedValues, schema.DefaultSlug, "sync-on-start")
 
-	b, err := bot.NewWithScript(cfg, c.scriptPath, runtimeConfig)
+	b, err := bot.NewWithScript(cfg, c.scriptPath, runtimeConfig, c.hostOpts...)
 	if err != nil {
 		return err
 	}

@@ -101,3 +101,17 @@ Added public `WithAppName(...)` configurability to `pkg/botcli` and threaded the
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go — Public `WithAppName(...)` option
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go — Public command wrappers now accept command options
 
+## 2026-04-23
+
+Completed the next Track B runtime-customization slice by adding public `WithRuntimeModuleRegistrars(...)` support to `pkg/botcli` and threading it through the repo-driven command flow. The option now affects all three relevant runtime touchpoints: bot discovery/inspection, ordinary jsverbs invocation, and host-managed bot `run` construction. Added internal and public regression tests using bot scripts that require a custom `app` module, and manually validated a tiny downstream app that mounted `pkg/botcli.NewCommand(...)` with the new option and successfully executed a `status` verb from a custom-module bot repository.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/options.go — Internal `WithRuntimeModuleRegistrars(...)` plumbing and host-option conversion
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bootstrap.go — Bot discovery now supports host options for custom modules
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/jsverbs_invoker.go — Ordinary jsverbs runtime now receives custom registrars
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bot_run_command.go — Host-managed run path now forwards host options into bot construction
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command_test.go — Internal regression tests for missing/present custom runtime modules
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go — Public `WithRuntimeModuleRegistrars(...)` option
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public package regression tests and downstream-style coverage
+

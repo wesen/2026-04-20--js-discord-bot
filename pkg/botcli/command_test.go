@@ -46,6 +46,29 @@ func TestNewCommandAcceptsWithAppNameOption(t *testing.T) {
 	require.Contains(t, output, `"active": true`)
 }
 
+func TestNewCommandSupportsCustomRuntimeModuleRegistrars(t *testing.T) {
+	repo := writeBotCLIRepoBot(t, `
+const { defineBot } = require("discord");
+const app = require("app");
+module.exports = defineBot(({ configure }) => {
+  configure({ name: "custom-module-bot", description: app.description() });
+});
+function status() { return { active: true, module: app.name() }; }
+__verb__("status", { output: "glaze", short: "Show custom module status" });
+`)
+
+	root := &cobra.Command{Use: "downstream-app"}
+	root.AddCommand(NewCommand(
+		Bootstrap{Repositories: []Repository{repo}},
+		WithRuntimeModuleRegistrars(testAppRegistrar{}),
+	))
+
+	output, err := executeCaptured(t, root, []string{"bots", "custom-module-bot", "status", "--output", "json"})
+	require.NoError(t, err)
+	require.Contains(t, output, `"active": true`)
+	require.Contains(t, output, `"module": "app"`)
+}
+
 func executeCaptured(t *testing.T, root interface {
 	SetArgs([]string)
 	Execute() error

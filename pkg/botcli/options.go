@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-go-golems/go-go-goja/engine"
 	internalbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
 )
 
 type commandOptions struct {
-	appName string
+	appName                 string
+	runtimeModuleRegistrars []engine.RuntimeModuleRegistrar
 }
 
 type CommandOption func(*commandOptions) error
@@ -42,8 +44,23 @@ func WithAppName(name string) CommandOption {
 	}
 }
 
-func toInternalCommandOptions(cfg commandOptions) []internalbotcli.CommandOption {
-	return []internalbotcli.CommandOption{
-		internalbotcli.WithAppName(cfg.appName),
+// WithRuntimeModuleRegistrars appends custom runtime-scoped native module registrars.
+func WithRuntimeModuleRegistrars(registrars ...engine.RuntimeModuleRegistrar) CommandOption {
+	return func(cfg *commandOptions) error {
+		for i, registrar := range registrars {
+			if registrar == nil {
+				return fmt.Errorf("runtime module registrar at index %d is nil", i)
+			}
+		}
+		cfg.runtimeModuleRegistrars = append(cfg.runtimeModuleRegistrars, registrars...)
+		return nil
 	}
+}
+
+func toInternalCommandOptions(cfg commandOptions) []internalbotcli.CommandOption {
+	ret := []internalbotcli.CommandOption{internalbotcli.WithAppName(cfg.appName)}
+	if len(cfg.runtimeModuleRegistrars) > 0 {
+		ret = append(ret, internalbotcli.WithRuntimeModuleRegistrars(cfg.runtimeModuleRegistrars...))
+	}
+	return ret
 }

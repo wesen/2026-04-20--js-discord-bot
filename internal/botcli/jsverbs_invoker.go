@@ -14,48 +14,51 @@ import (
 	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
-// botVerbInvoker executes standard jsverbs discovered in Discord bot scripts.
-// It extends the default jsverbs runtime with the Discord module registrar so
-// scripts that require("discord") at top level can still run as CLI verbs.
-func botVerbInvoker(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
-	if registry == nil {
-		return nil, fmt.Errorf("registry is nil")
-	}
-	if verb == nil {
-		return nil, fmt.Errorf("verb is nil")
-	}
+func makeBotVerbInvoker(cfg commandOptions) func(context.Context, *jsverbs.Registry, *jsverbs.VerbSpec, *values.Values) (interface{}, error) {
+	return func(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec, parsedValues *values.Values) (interface{}, error) {
+		if registry == nil {
+			return nil, fmt.Errorf("registry is nil")
+		}
+		if verb == nil {
+			return nil, fmt.Errorf("verb is nil")
+		}
 
-	absScript := ""
-	if verb.File != nil {
-		absScript = strings.TrimSpace(verb.File.AbsPath)
-	}
-	builder := engine.NewBuilder().
-		WithModules(engine.DefaultRegistryModules()).
-		WithRequireOptions(require.WithLoader(registry.RequireLoader())).
-		WithRuntimeModuleRegistrars(jsdiscord.NewRegistrar(jsdiscord.Config{}))
+		absScript := ""
+		if verb.File != nil {
+			absScript = strings.TrimSpace(verb.File.AbsPath)
+		}
 
-	if absScript != "" {
-		builder = engine.NewBuilder(
-			engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
-		).WithModules(engine.DefaultRegistryModules()).
-			WithRequireOptions(
-				require.WithLoader(registry.RequireLoader()),
-				require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules")),
-			).
-			WithRuntimeModuleRegistrars(jsdiscord.NewRegistrar(jsdiscord.Config{}))
-	}
+		runtimeRegistrars := []engine.RuntimeModuleRegistrar{jsdiscord.NewRegistrar(jsdiscord.Config{})}
+		runtimeRegistrars = append(runtimeRegistrars, cfg.runtimeModuleRegistrars...)
 
-	factory, err := builder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("build runtime for %s: %w", verb.SourceRef(), err)
-	}
-	runtime, err := factory.NewRuntime(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("create runtime for %s: %w", verb.SourceRef(), err)
-	}
-	defer func() {
-		_ = runtime.Close(context.Background())
-	}()
+		builder := engine.NewBuilder().
+			WithModules(engine.DefaultRegistryModules()).
+			WithRequireOptions(require.WithLoader(registry.RequireLoader())).
+			WithRuntimeModuleRegistrars(runtimeRegistrars...)
 
-	return registry.InvokeInRuntime(ctx, runtime, verb, parsedValues)
+		if absScript != "" {
+			builder = engine.NewBuilder(
+				engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
+			).WithModules(engine.DefaultRegistryModules()).
+				WithRequireOptions(
+					require.WithLoader(registry.RequireLoader()),
+					require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules")),
+				).
+				WithRuntimeModuleRegistrars(runtimeRegistrars...)
+		}
+
+		factory, err := builder.Build()
+		if err != nil {
+			return nil, fmt.Errorf("build runtime for %s: %w", verb.SourceRef(), err)
+		}
+		runtime, err := factory.NewRuntime(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("create runtime for %s: %w", verb.SourceRef(), err)
+		}
+		defer func() {
+			_ = runtime.Close(context.Background())
+		}()
+
+		return registry.InvokeInRuntime(ctx, runtime, verb, parsedValues)
+	}
 }
