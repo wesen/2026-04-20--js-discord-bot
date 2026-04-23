@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 
 	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/bot"
@@ -32,6 +33,7 @@ func (c *botRunCommand) Run(ctx context.Context, parsedValues *values.Values) er
 	}
 
 	runtimeConfig := buildRuntimeConfig(parsedValues)
+	syncOnStart := boolField(parsedValues, schema.DefaultSlug, "sync-on-start")
 
 	b, err := bot.NewWithScript(cfg, c.scriptPath, runtimeConfig)
 	if err != nil {
@@ -39,12 +41,33 @@ func (c *botRunCommand) Run(ctx context.Context, parsedValues *values.Values) er
 	}
 	defer func() { _ = b.Close() }()
 
+	if syncOnStart {
+		if _, err := b.SyncCommands(); err != nil {
+			return err
+		}
+	}
+
 	if err := b.Open(); err != nil {
 		return err
 	}
 
 	<-ctx.Done()
 	return nil
+}
+
+func boolField(parsedValues *values.Values, sectionSlug, fieldName string) bool {
+	if parsedValues == nil {
+		return false
+	}
+	fv, ok := parsedValues.GetField(sectionSlug, fieldName)
+	if !ok || fv == nil || fv.Value == nil {
+		return false
+	}
+	value, ok := fv.Value.(bool)
+	if !ok {
+		return false
+	}
+	return value
 }
 
 // buildRuntimeConfig walks all parsed sections/fields and builds a map

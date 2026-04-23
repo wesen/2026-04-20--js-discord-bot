@@ -7,8 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	glazed_cli "github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
 func TestListCommandOutputsNamedBots(t *testing.T) {
@@ -78,6 +82,46 @@ func TestKnowledgeBaseRunHelpShowsMigratedJsverbsFields(t *testing.T) {
 	require.Contains(t, output, "--capture-threshold")
 	require.Contains(t, output, "--review-limit")
 	require.Contains(t, output, "--trusted-reviewer-role-ids")
+	require.Contains(t, output, "--sync-on-start")
+}
+
+func TestLegacyRunSyntaxWorksForUiShowcase(t *testing.T) {
+	root := NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(examplesFixtureDir(t), "examples")}})
+	output, err := executeCaptured(t, root, []string{"run", "ui-showcase", "--help"})
+	require.NoError(t, err)
+	require.Contains(t, output, "bots run ui-showcase")
+	require.Contains(t, output, "--bot-token")
+	require.Contains(t, output, "--application-id")
+	require.Contains(t, output, "--sync-on-start")
+}
+
+func TestUiShowcaseParentDoesNotExposeLeakedHelperFunctions(t *testing.T) {
+	root := NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(examplesFixtureDir(t), "examples")}})
+	output, err := executeCaptured(t, root, []string{"ui-showcase"})
+	require.NoError(t, err)
+	require.Contains(t, output, "run         Run the ui-showcase Discord bot")
+	require.NotContains(t, output, "first-value")
+}
+
+func TestLegacyRunSyntaxLoadsDiscordEnvVarsViaGlazedMiddleware(t *testing.T) {
+	t.Setenv("DISCORD_BOT_TOKEN", "token-from-env")
+	t.Setenv("DISCORD_APPLICATION_ID", "app-from-env")
+	desc := buildSyntheticBotRunDescription(DiscoveredBot{Descriptor: &jsdiscord.BotDescriptor{Name: "ui-showcase"}}, "ui-showcase")
+	parser, err := glazed_cli.NewCobraParserFromSections(desc.Schema.Clone(), &glazed_cli.CobraParserConfig{
+		AppName:           botCLIParserConfig().AppName,
+		ShortHelpSections: botCLIParserConfig().ShortHelpSections,
+	})
+	require.NoError(t, err)
+	cmd := glazed_cli.NewCobraCommandFromCommandDescription(desc)
+	require.NoError(t, parser.AddToCobraCommand(cmd))
+	require.NoError(t, cmd.ParseFlags(nil))
+
+	parsed, err := parser.Parse(cmd, nil)
+	require.NoError(t, err)
+	cfg, err := appconfig.FromValues(parsed)
+	require.NoError(t, err)
+	require.Equal(t, "token-from-env", cfg.BotToken)
+	require.Equal(t, "app-from-env", cfg.ApplicationID)
 }
 
 func executeCaptured(t *testing.T, root *cobra.Command, args []string) (string, error) {

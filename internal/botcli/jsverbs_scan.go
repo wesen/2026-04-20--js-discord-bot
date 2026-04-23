@@ -43,7 +43,7 @@ func ScanBotRepositories(repos []Repository) ([]*jsverbs.Registry, error) {
 			})
 		}
 
-		registry, err := jsverbs.ScanSources(inputs)
+		registry, err := jsverbs.ScanSources(inputs, jsverbs.ScanOptions{IncludePublicFunctions: false})
 		if err != nil {
 			return nil, fmt.Errorf("scan bot scripts in %s: %w", repo.RootDir, err)
 		}

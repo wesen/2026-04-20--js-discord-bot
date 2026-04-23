@@ -43,7 +43,7 @@ The goal is practical fluency. By the end, you should be able to build a complet
 
 > ⚠️ **Runtime Environment**
 > Bot scripts run inside a Goja JavaScript engine embedded in Go, **not Node.js**.
-> - **Available modules:** `require("discord")`, `require("timer")`, `require("database")`
+> - **Available modules:** `require("discord")`, `require("timer")`, `require("database")`, `require("ui")`
 > - **Unavailable:** `fs`, `path`, `http`, `fetch`, `process`, npm packages, or any Node.js standard library
 > - **No file system access from JS.** Deliver generated content as Discord file attachments via `ctx.discord.channels.send()` with `files: [...]`
 

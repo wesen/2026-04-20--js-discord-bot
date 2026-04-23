@@ -67,6 +67,7 @@ If `--bot-repository` is omitted, `discord-bot` still falls back to `DISCORD_BOT
 
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
+- Component interactions in `ui-showcase` now default to in-place updates (`UPDATE_MESSAGE`) so button/select flows stay in one message thread unless the handler explicitly opts into a new follow-up.
 - `unified-demo` demonstrates the new unified pattern: `__verb__("run", { fields: ... })` declares the CLI schema, Glazed parses the flags, and the host injects the parsed values into the running bot as `ctx.config.*`.
 - `knowledge-base` has also been migrated to the same host-managed `__verb__("run")` pattern, so a real non-trivial example now uses jsverbs-declared run metadata instead of `configure({ run: ... })`.
 - The field-name bridge converts kebab-case CLI flags into snake_case config keys; for example `--db-path` becomes `ctx.config.db_path`, `--api-key` becomes `ctx.config.api_key`, and `--review-limit` becomes `ctx.config.review_limit`.
@@ -80,7 +81,7 @@ If `--bot-repository` is omitted, `discord-bot` still falls back to `DISCORD_BOT
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
 - `moderation` now also includes `mod-list-messages`, `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, `mod-fetch-role`, `mod-fetch-member`, and `mod-list-members` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities, the DISCORD-BOT-011 guild/role lookup helpers, the DISCORD-BOT-012 member lookup helpers, and the new DISCORD-BOT-013 message history helpers.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
-- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration).
+- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration). The showcase now uses the Go-side `require("ui")` module for builders, so component interactions update messages in place instead of creating a new message for every click.
 
 ## Moderation / event prerequisites
 

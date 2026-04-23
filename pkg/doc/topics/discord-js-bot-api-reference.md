@@ -40,7 +40,7 @@ The main idea is simple: the bot repository owns the process, but the bot behavi
 
 > ⚠️ **Runtime Environment**
 > Bot scripts run inside a Goja JavaScript engine embedded in Go, **not Node.js**.
-> - **Available modules:** `require("discord")`, `require("timer")`, `require("database")`
+> - **Available modules:** `require("discord")`, `require("timer")`, `require("database")`, `require("ui")`
 > - **Unavailable:** `fs`, `path`, `http`, `fetch`, `process`, npm packages, or any Node.js standard library
 > - **No file system access from JS.** Deliver generated content as Discord file attachments via `ctx.discord.channels.send()` with `files: [...]`
 
@@ -75,6 +75,79 @@ The CLI discovers bots by scanning the repository, loading each script, and read
 | `component(customId, handler)` | Handle button or select-menu interactions |
 | `modal(customId, handler)` | Handle modal submissions |
 | `autocomplete(commandName, optionName, handler)` | Return autocomplete choices |
+| `require("ui")` | Go-side fluent builders for Discord messages, embeds, components, modals, and screen helpers |
+
+## `require("ui")` — Go-side UI DSL builders
+
+`require("ui")` exposes a native builder DSL implemented in Go and surfaced through Goja Proxy traps. This module exists for cases where you want JavaScript to keep the fluent authoring experience, but you want the host to own validation, type checks, and response-shape control.
+
+The most important design rule is that `ui` returns **typed builders**, not plain JS objects. Call `.build()` at the end of a chain to get a typed Discord payload or the host's `normalizedResponse` fast path.
+
+### Available builders and helpers
+
+| Helper | Purpose |
+| --- | --- |
+| `ui.message()` | Build a message / interaction response payload |
+| `ui.embed(title?)` | Build an embed payload |
+| `ui.card(title?)` | Embed-style helper with `.meta()` for inline key/value fields |
+| `ui.button(customId, label, style?)` | Build a button component |
+| `ui.select(customId)` | Build a string select menu |
+| `ui.userSelect(customId)` | Build a user select menu |
+| `ui.roleSelect(customId)` | Build a role select menu |
+| `ui.channelSelect(customId)` | Build a channel select menu |
+| `ui.mentionableSelect(customId)` | Build a mentionable select menu |
+| `ui.form(customId, title)` | Build a modal form payload |
+| `ui.row(...components)` | Wrap components in an action row |
+| `ui.pager(prevId, nextId, controls?)` | Build previous/next pager buttons |
+| `ui.actions(definitions)` | Build a button row from `{id, label, style}` definitions |
+| `ui.confirm(confirmId, cancelId, options?)` | Build a confirmation response with buttons |
+| `ui.ok(content)` | Convenience ephemeral success response |
+| `ui.error(content)` | Convenience ephemeral error response |
+| `ui.emptyResults(query?)` | Convenience empty-results response |
+| `ui.flow(namespace, options?)` | Generate stable component IDs and flow helpers |
+
+### Usage model
+
+```js
+const ui = require("ui")
+
+return ui.message()
+  .content("Search results")
+  .embed(ui.embed("Results").description("Found 3 items"))
+  .row(ui.button("search:next", "Next", "primary"))
+  .build()
+```
+
+A few rules matter here:
+
+- **Wrong-parent calls should fail loudly.** `ui.message().field(...)` is an error, and the error should tell you that you probably meant `ui.embed()`.
+- **Raw JS objects are not accepted where builders are expected.** Pass a `ui.embed()` builder to `message.embed(...)`, not a plain object.
+- **Component interactions default to in-place updates.** A component click should usually edit the original message instead of creating a new one.
+- **Use `.followUp()` when you explicitly want a new message.** The DSL allows the host to distinguish between update-in-place and follow-up responses.
+
+### Modal fields
+
+Modal fields are keyed by `customId`, so the form builder uses a `customId`-first API:
+
+```js
+ui.form("feedback:submit", "Feedback")
+  .text("title", "Title")
+  .textarea("feedback", "Your feedback")
+  .build()
+```
+
+On submit, those `customId` values become the keys in `ctx.values`.
+
+### Screen helpers and state
+
+The `ui` module also includes helpers for stable screen behavior:
+
+- `ui.flow(namespace)` generates deterministic component IDs like `namespace:next`
+- `ui.pager(...)` builds pager button rows
+- `ui.actions(...)` turns small definitions into button rows
+- `ui.card(...)` is a convenient embed variant for browsable items
+
+In the showcase bot, these helpers drive search screens, card galleries, and review flows that update in place instead of spamming the channel with new messages.
 
 ## `defineBot(builderFn)`
 
@@ -748,6 +821,24 @@ await sleep(2000)
 
 Use this for simulated search, background work, or tests that need a visible pause. It is not a Discord API, but it is part of the runtime environment that the example bots use.
 
+### `require("database")`
+
+`require("database")` is the runtime module for durable data access from JavaScript bots. Use it when the state must survive restarts or when the bot owns real application data such as knowledge entries, reviews, or long-lived records.
+
+The knowledge-base bot is the best example in this repository. It initializes SQLite through the database module and then uses SQL queries from JavaScript to search, insert, update, and review entries.
+
+A minimal shape looks like this:
+
+```js
+const database = require("database")
+
+database.configure("sqlite3", "./data/bot.sqlite")
+database.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)`)
+const rows = database.query(`SELECT id, body FROM notes ORDER BY id LIMIT 10`)
+```
+
+Use `ctx.store` for ephemeral per-interaction or per-session screen state. Use `require("database")` for durable state that you want to query later.
+
 ## Common mistakes and how to avoid them
 
 ### 1. Using static choices and autocomplete together
@@ -784,6 +875,7 @@ It is a normal channel message. Use interaction replies when you want ephemeral/
 ## See Also
 
 - `build-and-run-discord-js-bots` — step-by-step tutorial for creating and running bots
+- `go-side-ui-dsl-for-discord-bots` — tutorial for the Go-backed `require("ui")` DSL and in-place interaction updates
 - `examples/discord-bots/ping/index.js` — button, select, modal, autocomplete, and outbound ops showcase
 - `examples/discord-bots/poker/index.js` — a richer bot with game state and action advice
 - `examples/discord-bots/knowledge-base/index.js` — runtime config and docs-search example
