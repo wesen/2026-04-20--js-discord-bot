@@ -124,6 +124,24 @@ function createShowCatalog(seedShows, options) {
     return { ok: true, show: clone(normalized.show) }
   }
 
+  function findByDiscordMessage(channelId, messageId) {
+    const channelNeedle = trimText(channelId)
+    const messageNeedle = trimText(messageId)
+    if (!messageNeedle) {
+      return null
+    }
+    const found = state.find((show) => trimText(show.discordMessageId) === messageNeedle && (!channelNeedle || trimText(show.discordChannelId) === channelNeedle))
+    return found ? clone(found) : null
+  }
+
+  function archiveByDiscordMessage(channelId, messageId) {
+    const found = findByDiscordMessage(channelId, messageId)
+    if (!found) {
+      return { ok: false, error: "No show found for the pinned Discord message." }
+    }
+    return updateShow(found.id, { status: "archived" })
+  }
+
   function attachDiscordMessage(id, channelId, messageId) {
     return updateShow(id, {
       discordChannelId: trimText(channelId),
@@ -174,6 +192,8 @@ function createShowCatalog(seedShows, options) {
     attachDiscordMessage,
     cancelShow,
     archiveShow,
+    findByDiscordMessage,
+    archiveByDiscordMessage,
     findExpiredShows,
     markExpiredArchived,
     _state: state,
