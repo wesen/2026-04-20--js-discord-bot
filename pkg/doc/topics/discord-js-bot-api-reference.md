@@ -879,5 +879,6 @@ It is a normal channel message. Use interaction replies when you want ephemeral/
 - `examples/discord-bots/ping/index.js` — button, select, modal, autocomplete, and outbound ops showcase
 - `examples/discord-bots/poker/index.js` — a richer bot with game state and action advice
 - `examples/discord-bots/knowledge-base/index.js` — runtime config and docs-search example
+- `examples/discord-bots/show-space/index.js` — venue operations bot with show announcements, DB-backed records, and pin cleanup
 - `examples/discord-bots/README.md` — repository-level usage notes and command examples
 - `examples/discord-bots/interaction-types/index.js` — demo of all command and interaction types
