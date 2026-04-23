@@ -202,3 +202,15 @@ Started the dedicated `pkg/botcli` cleanup pass by splitting the oversized comma
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_help.go — Focused help command implementation
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_run.go — Focused host-managed run command implementation
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go — Shared bool/runtime-config helpers after the split
+
+## 2026-04-23
+
+Finished the remaining `pkg/botcli` cleanup by adding real package-level/runtime-customization guidance and validating the cleaned layout. Added a public `doc.go` package overview, strengthened the option/interface comments so embedders can tell when `WithRuntimeFactory(...)` is really necessary versus when `WithRuntimeModuleRegistrars(...)` is enough, updated the top-level README and combined example with the same decision ladder, and validated the result with `go test`, `go doc ./pkg/botcli`, and a manual canonical run-help check.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/doc.go — Public package overview and runtime-customization decision guide
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go — Stronger comments for `RuntimeFactory`, `HostOptionsProvider`, `WithRuntimeModuleRegistrars(...)`, and `WithRuntimeFactory(...)`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go — Default runtime-factory comment clarified
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Public decision ladder for the botcli customization hooks
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Example docs now explain which hook to choose first

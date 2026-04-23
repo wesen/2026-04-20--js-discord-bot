@@ -16,7 +16,7 @@ Owners: []
 RelatedFiles:
     - Path: internal/bot/bot.go
       Note: Live bot host wiring — session creation
-    - Path: pkg/botcli/commands_impl.go
+    - Path: pkg/botcli/command_root.go
       Note: Public repo-driven command tree and host-managed bot run orchestration
     - Path: internal/config/config.go
       Note: Settings struct — Glazed-backed bot credentials

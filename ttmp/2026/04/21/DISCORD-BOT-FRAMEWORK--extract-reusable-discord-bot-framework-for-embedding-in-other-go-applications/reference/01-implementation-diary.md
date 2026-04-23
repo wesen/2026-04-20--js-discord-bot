@@ -1545,3 +1545,84 @@ Add missing tasks, then do task by task as usual"
 - `NewBotsCommand(...)` still owns the public constructor, but the individual command implementations no longer share a single oversized file.
 - The placeholder `pkg/botcli/command.go` file is gone.
 - Shared bool/runtime-config extraction now lives together in `runtime_helpers.go`.
+
+## Step 20: Add stronger botcli runtime-customization guidance and validate the cleaned package
+
+The last part of the requested botcli cleanup was not structural but communicative: make it much clearer when a downstream embedder should stop at simple hooks and when they should reach for the most powerful hook. That especially applied to `WithRuntimeFactory(...)`, which had become real and useful but still looked more mysterious than it needed to.
+
+I handled that in three layers at once: package-level docs for `go doc`, stronger code comments on the relevant interfaces/options, and human-facing README/example guidance that gives a concrete decision ladder instead of just listing hooks.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 19)
+
+**Assistant interpretation:** Finish the botcli cleanup by making the advanced runtime hook understandable and by validating the final cleaned package/documentation state.
+
+**Inferred user intent:** The user wants the package to be easy to judge and use correctly, not just internally tidy.
+
+### What I did
+
+- Added a new package doc at:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/doc.go`
+- Strengthened the public comments in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go`
+- Updated human-facing docs in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md`
+- The guidance now explicitly says:
+  - use `WithAppName(...)` when only env-prefix behavior changes
+  - use `WithRuntimeModuleRegistrars(...)` when scripts simply need extra native modules and default runtime construction is fine
+  - use `WithRuntimeFactory(...)` only when runtime creation itself must change
+  - implement `HostOptionsProvider` when the same customization should also affect discovery and host-managed bot runs
+- Ran:
+  - `gofmt -w pkg/botcli/doc.go pkg/botcli/options.go pkg/botcli/runtime_factory.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+  - `go doc ./pkg/botcli | head -n 40`
+  - `go run ./examples/framework-combined bots ui-showcase run --help`
+
+### What worked
+
+- The package overview renders cleanly through `go doc`, which is exactly the right proof that the new package-level guidance is discoverable to embedders.
+- The decision ladder now appears in both code-facing and human-facing places, so readers do not have to reverse-engineer the intended order of hooks from the implementation.
+- The cleaned package layout still validates after the doc pass.
+
+### What didn't work
+
+- N/A in this slice. The docs/comments pass validated cleanly without follow-up fixes.
+
+### What I learned
+
+- The strongest way to explain a powerful hook is usually by giving readers permission not to use it. Once the docs explicitly say “use module registrars first; use a runtime factory only when runtime creation itself must change,” the public surface looks much less over-engineered.
+- `go doc` is a useful validation tool for package cleanup work because it confirms that the first thing embedders will read is actually coherent.
+
+### What was tricky to build
+
+- The tricky part was making the guidance specific enough to be useful without over-prescribing every future downstream use case. I solved that by framing the guidance as a "smallest hook first" decision ladder and giving concrete examples of what counts as “runtime creation itself must change” — module roots, require behavior, builder/runtime setup, and lifecycle details.
+
+### What warrants a second pair of eyes
+
+- Whether the new package doc is the right level of detail for `go doc`, or whether future downstream users would benefit from one dedicated advanced example of `RuntimeFactoryFunc` as well.
+- Whether the README wording now strikes the right balance between encouraging the simple path and still advertising the advanced hook as intentionally supported.
+
+### What should be done in the future
+
+- N/A for the requested cleanup pass. The remaining package-level structural and guidance issues identified in the review have been addressed.
+
+### Code review instructions
+
+- Start with:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/doc.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md`
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+  - `go doc ./pkg/botcli | head -n 40`
+  - `go run ./examples/framework-combined bots ui-showcase run --help`
+
+### Technical details
+
+- The public guidance now uses a deliberate “smallest hook first” model.
+- `WithRuntimeFactory(...)` is explicitly documented as the advanced escape hatch for changing runtime creation itself.
+- `HostOptionsProvider` is now documented as the bridge that keeps advanced runtime customization consistent across ordinary jsverb execution, discovery, and host-managed bot runs.
