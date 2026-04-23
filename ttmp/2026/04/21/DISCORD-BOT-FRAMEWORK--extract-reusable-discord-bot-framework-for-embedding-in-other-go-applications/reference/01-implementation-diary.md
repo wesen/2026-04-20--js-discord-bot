@@ -1186,3 +1186,94 @@ Upload 2 and 3 to remarkable once written"
 - The docs pass now explicitly explains the three main public `pkg/botcli` customization hooks.
 - The code-review report is cleanup-biased and evidence-first.
 - The design review is decision-biased and intended to help a human reviewer decide where the extraction stands and what kind of work should happen next.
+
+## Step 16: Remove the first public aliases and wrapper constructors
+
+The user’s follow-up made the direction explicit: stop treating backwards compatibility as something to preserve and make a clean cut instead. I started with the public `pkg/botcli` surface because it was the easiest place to reduce ambiguity without changing the core runtime model.
+
+This slice intentionally removed only the first layer of wrapper behavior: the public package now owns its model types directly, and first-party callers now use the canonical `NewBotsCommand(...)` constructor rather than the panic-based `NewCommand(...)` helper. That makes the next compatibility-removal slices cleaner because the app and examples already speak the public API more directly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, add tasks and do it task by task, committing at appropriate intervals, keeping a diary.
+
+We don't need backwards compatibility, so we can remove all aliases and backwawrds wrappers. do them all."
+
+**Assistant interpretation:** Add explicit cleanup tasks to the framework ticket, then implement the compatibility-removal work in focused slices with real commits and diary updates after each slice.
+
+**Inferred user intent:** The user wants a deliberate cleanup pass that follows through on the review recommendations instead of keeping transitional wrappers around for convenience.
+
+**Commit (code):** d6b09d6 — "Make public botcli own its API types and constructor"
+
+### What I did
+
+- Added a new cleanup section to:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md`
+- Added a new public model file:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/model.go`
+- Moved public ownership of:
+  - `BotRepositoryFlag`
+  - `Bootstrap`
+  - `Repository`
+  - `DiscoveredBot`
+  into `pkg/botcli` directly instead of aliasing `internal/botcli`
+- Updated:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go`
+  so it no longer imports or aliases the internal package
+- Removed the panic-based public wrapper `NewCommand(...)` from:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+- Switched first-party callers/tests to the canonical constructor:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+- Also removed explicit `WithAppName("discord")` usage from first-party roots because the default already applies.
+- Ran:
+  - `gofmt -w pkg/botcli/model.go pkg/botcli/bootstrap.go pkg/botcli/commands_impl.go pkg/botcli/command_test.go cmd/discord-bot/root.go examples/framework-combined/main.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+
+### What worked
+
+- The public package detached cleanly from the internal model types without forcing other runtime changes.
+- Removing `NewCommand(...)` was straightforward once the callers/tests were switched over.
+- The explicit default `WithAppName("discord")` plumbing really was just noise in first-party code; removing it did not affect behavior.
+
+### What didn't work
+
+- N/A in this slice. The code changes compiled and tested cleanly on the first pass.
+
+### What I learned
+
+- The public alias removal is a good first step because it improves ownership clarity immediately without forcing the larger deletion of `internal/botcli` in the same commit.
+- Once the panic wrapper is gone, the remaining public surface already feels more honest: constructor errors are now handled where commands are mounted.
+
+### What was tricky to build
+
+- The subtle part was keeping the slice narrow enough. It would have been easy to remove the legacy `bots run <bot>` shape at the same time, but that would have mixed public API cleanup with CLI-behavior cleanup and made it harder to review. I kept this step focused on ownership and wrapper removal only, leaving the command-shape cut for the next slice.
+
+### What warrants a second pair of eyes
+
+- Whether any downstream-facing docs outside the active framework ticket still present `NewCommand(...)` as the public embedding API and should now be updated or explicitly treated as historical.
+- Whether we want to keep the placeholder `pkg/botcli/command.go` file around once the constructor surface now lives fully in `commands_impl.go`.
+
+### What should be done in the future
+
+- Next remove the legacy `bots run <bot>` compatibility path and its compatibility-specific helper code/tests/docs.
+- After that, delete the duplicated `internal/botcli` implementation and move any still-needed fixtures into the public package.
+
+### Code review instructions
+
+- Start with:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/model.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+- Then verify the first-party callers:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go`
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+
+### Technical details
+
+- `pkg/botcli` now owns its public model types directly instead of exporting aliases to `internal/botcli`.
+- `NewBotsCommand(...)` is now the only public constructor; the panic-based wrapper is gone.
+- First-party code now relies on the default app name implicitly instead of redundantly passing `WithAppName("discord")`.

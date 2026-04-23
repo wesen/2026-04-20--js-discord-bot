@@ -77,3 +77,17 @@
 - [x] Add one downstream example app that shows both layers together
   - [x] one explicit built-in bot via `framework.New(...)`
   - [x] plus repo-driven bots via the public `botcli` package
+
+#### Cleanup / clean cut after review
+- [x] Remove public aliases and wrapper constructors from `pkg/botcli`
+  - [x] make `pkg/botcli` own its public model types directly
+  - [x] remove the panic-based `NewCommand(...)` wrapper and switch first-party callers/tests to `NewBotsCommand(...)`
+  - [x] stop dogfooding explicit default `WithAppName("discord")` where the default already applies
+- [ ] Remove backwards-compatibility command paths and docs
+  - [ ] delete the `bots run <bot>` compatibility path and keep only `bots <bot> run`
+  - [ ] remove compatibility-specific helper code/tests/docs
+  - [ ] update operator-facing help/docs/error text to the canonical command shape
+- [ ] Delete the duplicated `internal/botcli` implementation once the public path stands on its own
+  - [ ] move any still-needed test fixtures/helpers into `pkg/botcli`
+  - [ ] remove redundant internal tests and command/discovery helpers
+  - [ ] validate the repo on the public path only

@@ -150,3 +150,16 @@ Added the documentation/review pass for the extracted framework surface. Wrote a
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Stabilization/docs pass for the public `pkg/botcli` option surface
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Combined example now documents the advanced public botcli customization hooks
 
+
+## 2026-04-23
+
+Started the post-review clean-cut work by removing the first set of public aliases and wrappers from `pkg/botcli`. The public package now owns its repository/bot model types directly, the panic-based `NewCommand(...)` convenience wrapper is gone, and first-party callers now use `NewBotsCommand(...)` directly without redundantly passing the default app name.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/model.go — Public `Bootstrap`, `Repository`, `DiscoveredBot`, and `BotRepositoryFlag` now live in the public package directly
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go — Public bootstrap logic no longer aliases internal botcli types
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go — Removed the panic-based `NewCommand(...)` wrapper so `NewBotsCommand(...)` is the only constructor
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public command tests now use the canonical constructor directly
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Standalone app now mounts `pkg/botcli.NewBotsCommand(...)`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go — Combined example now mounts `pkg/botcli.NewBotsCommand(...)`
