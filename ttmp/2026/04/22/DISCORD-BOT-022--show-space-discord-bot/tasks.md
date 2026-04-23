@@ -12,7 +12,7 @@
 
 Goal: ship a working venue bot that can post, list, and pin announcements with simple JSON-backed or inline show data.
 
-- [ ] **1.1** Create a new bot example under `examples/discord-bots/show-space/`
+- [x] **1.1** Create a new bot example under `examples/discord-bots/show-space/`
   - `index.js` should use `require("discord")`
   - register a bot name like `show-space` or `artist-space`
   - keep all runtime behavior in JavaScript, not Discord.js/discord.py
