@@ -61,7 +61,7 @@ func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request Disp
 	return settleValue(ctx, bindings.Owner, ret)
 }
 
-var dispatchLog = log.With().Str("component", "dispatch").Logger()
+
 
 // DispatchCommandAsMap dispatches a command and normalizes the result to map[string]any.
 // This is used by tests that expect the old map[string]any format.
@@ -109,7 +109,7 @@ func settleValue(ctx context.Context, owner runtimeowner.Runner, value any) (any
 	if value == nil {
 		return nil, nil
 	}
-	dispatchLog.Info().Str("type", fmt.Sprintf("%T", value)).Msg("settleValue")
+	log.Info().Str("component", "dispatch").Str("type", fmt.Sprintf("%T", value)).Msg("settleValue")
 	switch v := value.(type) {
 	case *goja.Promise:
 		return waitForPromise(ctx, owner, v)

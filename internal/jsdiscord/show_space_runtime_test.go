@@ -54,7 +54,7 @@ func TestShowSpaceAnnouncePinsAndRejectsUnauthorizedUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dispatch unauthorized command: %v", err)
 	}
-	if got := fmt.Sprint(unauthorized); !strings.Contains(got, "don't have permission") {
+	if got := fmt.Sprint(unauthorized); !strings.Contains(got, "don't have permission") || !strings.Contains(got, "User ID") || !strings.Contains(got, "member role IDs") || !strings.Contains(got, "Exact matching role IDs") || !strings.Contains(got, "Why denied") || !strings.Contains(got, "debug-my-roles") || !strings.Contains(got, "/debug") {
 		t.Fatalf("unauthorized result = %s", got)
 	}
 
@@ -395,13 +395,114 @@ func TestShowSpaceDebugRolesRequiresDebugFlag(t *testing.T) {
 	}
 }
 
+func TestShowSpaceDebugDashboardShowsUserAndRoleButtons(t *testing.T) {
+	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
+		Name: "debug",
+		Config: map[string]any{
+			"debug": true,
+			"adminRoleId":  "role-admin",
+			"bookerRoleId": "role-booker",
+		},
+		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
+		Discord: &DiscordOps{
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				if guildID != "guild-1" {
+					t.Fatalf("guildID = %s", guildID)
+				}
+				return []map[string]any{
+					{"id": "role-admin", "name": "admin"},
+					{"id": "role-booker", "name": "booker"},
+					{"id": "role-helper", "name": "helper"},
+				}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch debug dashboard: %v", err)
+	}
+	if got := fmt.Sprint(result["content"]); !strings.Contains(got, "User ID: user-1") || !strings.Contains(got, "Guild: The Venue") {
+		t.Fatalf("dashboard content = %s", got)
+	}
+	components, ok := result["components"].([]any)
+	if !ok || len(components) != 1 {
+		t.Fatalf("dashboard components = %#v", result["components"])
+	}
+	if got := fmt.Sprint(components[0]); !strings.Contains(got, "show-space:debug:summary") || !strings.Contains(got, "show-space:debug:member") || !strings.Contains(got, "show-space:debug:guild") || !strings.Contains(got, "show-space:debug:config") || !strings.Contains(got, "show-space:debug:checks") {
+		t.Fatalf("dashboard buttons = %s", got)
+	}
+
+	memberView, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
+		Name: "show-space:debug:member",
+		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
+		Config: map[string]any{
+			"debug": true,
+			"adminRoleId":  "role-admin",
+			"bookerRoleId": "role-booker",
+		},
+		Discord: &DiscordOps{
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				return []map[string]any{
+					{"id": "role-admin", "name": "admin"},
+					{"id": "role-booker", "name": "booker"},
+					{"id": "role-helper", "name": "helper"},
+				}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch member view: %v", err)
+	}
+	if got := fmt.Sprint(memberView["content"]); !strings.Contains(got, "User ID: user-1") || !strings.Contains(strings.ToLower(got), "member roles") {
+		t.Fatalf("member view content = %s", got)
+	}
+	if got := fmt.Sprint(memberView); !strings.Contains(got, "admin — role-admin") || !strings.Contains(got, "booker — role-booker") || !strings.Contains(got, "helper — role-helper") {
+		t.Fatalf("member view = %s", got)
+	}
+
+	checksView, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
+		Name: "show-space:debug:checks",
+		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
+		Config: map[string]any{
+			"debug": true,
+			"adminRoleId":  "role-admin",
+			"bookerRoleId": "role-booker",
+		},
+		Discord: &DiscordOps{
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				return []map[string]any{
+					{"id": "role-admin", "name": "admin"},
+					{"id": "role-booker", "name": "booker"},
+					{"id": "role-helper", "name": "helper"},
+				}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch checks view: %v", err)
+	}
+	if got := fmt.Sprint(checksView["content"]); !strings.Contains(got, "User ID: user-1") {
+		t.Fatalf("checks content = %s", got)
+	}
+	if got := fmt.Sprint(checksView); !strings.Contains(got, "canManageShows: yes") || !strings.Contains(got, "canAdminOnly: yes") || !strings.Contains(got, "Exact matching role IDs") || !strings.Contains(got, "role-admin") || !strings.Contains(got, "role-booker") {
+		t.Fatalf("checks view = %s", got)
+	}
+}
+
 func TestShowSpaceDebugRolesListsGuildRolesWhenEnabled(t *testing.T) {
 	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
-	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "debug-roles",
 		Config: map[string]any{
 			"debug": true,
 		},
+		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
 		Discord: &DiscordOps{
 			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
@@ -418,7 +519,43 @@ func TestShowSpaceDebugRolesListsGuildRolesWhenEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dispatch debug-roles: %v", err)
 	}
-	if got := fmt.Sprint(result); !strings.Contains(got, "Guild roles for The Venue") || !strings.Contains(got, "role-admin") || !strings.Contains(got, "role-booker") {
+	if got := fmt.Sprint(result["content"]); !strings.Contains(got, "User ID: user-1") || !strings.Contains(got, "Guild: The Venue") {
+		t.Fatalf("enabled content = %s", got)
+	}
+	if got := fmt.Sprint(result); !strings.Contains(got, "role-admin") || !strings.Contains(got, "role-booker") {
 		t.Fatalf("enabled result = %s", got)
+	}
+}
+
+func TestShowSpaceDebugMyRolesListsRolesVisibleOnMember(t *testing.T) {
+	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
+	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
+		Name: "debug-my-roles",
+		Config: map[string]any{
+			"debug": true,
+		},
+		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
+		Discord: &DiscordOps{
+			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
+				if guildID != "guild-1" {
+					t.Fatalf("guildID = %s", guildID)
+				}
+				return []map[string]any{
+					{"id": "role-admin", "name": "admin"},
+					{"id": "role-booker", "name": "booker"},
+				}, nil
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch debug-my-roles: %v", err)
+	}
+	if got := fmt.Sprint(result["content"]); !strings.Contains(got, "User ID: user-1") || !strings.Contains(got, "Member ID: user-1") {
+		t.Fatalf("debug-my-roles content = %s", got)
+	}
+	if got := fmt.Sprint(result); !strings.Contains(got, "admin — role-admin") || !strings.Contains(got, "booker — role-booker") || !strings.Contains(got, "(unknown role) — role-helper") {
+		t.Fatalf("debug-my-roles result = %s", got)
 	}
 }
