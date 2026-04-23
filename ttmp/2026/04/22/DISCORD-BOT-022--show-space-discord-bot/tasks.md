@@ -65,70 +65,70 @@ Goal: ship a working venue bot that can post, list, and pin announcements with s
 
 Goal: move show state into a persistent store and make show management safer.
 
-- [ ] **2.1** Decide the Phase 2 persistence strategy for this repository
+- [x] **2.1** Decide the Phase 2 persistence strategy for this repository
   - prefer the current JS runtime’s database module for the first implementation
   - if Postgres is still required later, record that as a separate host/runtime follow-up
   - document the tradeoff explicitly in the guide
 
-- [ ] **2.2** Create a database wrapper module
+- [x] **2.2** Create a database wrapper module
   - `examples/discord-bots/show-space/lib/store.js`
   - keep all SQL or persistence details behind one module boundary
   - provide simple methods like `listUpcoming()`, `getShow(id)`, `createShow()`, `cancelShow()`, `archiveShow()`
 
-- [ ] **2.3** Add a show schema/migration
+- [x] **2.3** Add a show schema/migration
   - include fields for `artist`, `date`, `doors_time`, `age`, `price`, `notes`, `status`, `discord_message_id`, `discord_channel_id`, and timestamps
   - seed from `shows.json` once, then switch to the database as the source of truth
 
-- [ ] **2.4** Implement `/add-show`
+- [x] **2.4** Implement `/add-show`
   - save the show first
   - post the announcement to `#upcoming-shows`
   - pin the message
   - store the Discord message/channel IDs on the row
   - reply with the new show ID
 
-- [ ] **2.5** Update `/upcoming`
+- [x] **2.5** Update `/upcoming`
   - read from the database instead of `shows.json`
   - filter to confirmed shows ordered by date
   - support a sensible default limit
 
-- [ ] **2.6** Implement `/show <id>`
+- [x] **2.6** Implement `/show <id>`
   - return a full detail view for one show
   - make it easy for staff to quick-check a booking or announcement
 
-- [ ] **2.7** Implement `/cancel-show <id>`
+- [x] **2.7** Implement `/cancel-show <id>`
   - update the DB status to `cancelled`
   - unpin the original Discord announcement
   - post a cancellation notice in `#upcoming-shows`
   - keep the record for later reference
 
-- [ ] **2.8** Implement `/archive-show <id>`
+- [x] **2.8** Implement `/archive-show <id>`
   - allow `@admin` only
   - archive old or completed shows
   - unpin the message if it is still pinned
 
-- [ ] **2.9** Implement `/past-shows`
+- [x] **2.9** Implement `/past-shows`
   - return the last few archived shows
   - decide whether staff-only or public access is the right default
 
-- [ ] **2.10** Implement the daily auto-archive flow
+- [x] **2.10** Implement the daily auto-archive flow
   - create a reusable `archiveExpiredShows()` helper in JS
   - trigger it from a host-side cron/job wrapper or deployment scheduler
   - avoid relying on an in-process timer unless the hosting model explicitly supports it
   - post a quiet summary to `#staff`
 
-- [ ] **2.11** Add a one-time migration from `shows.json`
+- [x] **2.11** Add a one-time migration from `shows.json`
   - seed the DB from the Phase 1 file
   - preserve dates and announcement metadata where possible
 
 ## Validation and docs
 
-- [ ] **3.1** Add runtime tests for the bot commands
+- [x] **3.1** Add runtime tests for the bot commands
   - command permission failures
   - announce/pin/unpin flows
   - DB lookups by ID
   - archived/past-show listing behavior
 
-- [ ] **3.2** Add a local operator runbook
+- [x] **3.2** Add a local operator runbook
   - how to start the bot
   - how to configure IDs and role gates
   - how to seed or migrate initial shows
@@ -139,10 +139,10 @@ Goal: move show state into a persistent store and make show management safer.
   - document the Phase 1 and Phase 2 command set
   - note any required guild/channel permissions
 
-- [ ] **3.4** Update the JS API reference if the bot reveals missing docs
+- [x] **3.4** Update the JS API reference if the bot reveals missing docs
   - add command examples if needed
   - add any new persistence guidance if the implementation needs it
 
-- [ ] **3.5** Decide whether the bot should live under one of the existing example categories or a new `venues/` category
+- [x] **3.5** Decide whether the bot should live under one of the existing example categories or a new `venues/` category
   - document the final choice in the guide
   - keep the bot name stable once the workspace is in active use

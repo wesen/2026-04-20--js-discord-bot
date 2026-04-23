@@ -30,7 +30,7 @@ RelatedFiles:
     Note: Current JS API reference for commands, contexts, `ctx.discord`, `ctx.store`, `require("database")`, and `require("ui")`
 ExternalSources: []
 Summary: Plan and analyze a Discord bot for an artist/show space that posts show announcements, pins them, and later tracks shows in a durable database.
-LastUpdated: 2026-04-22T21:02:21-04:00
+LastUpdated: 2026-04-22T21:12:51-04:00
 WhatFor: Organize the implementation plan, current-state analysis, and phase-by-phase task list for the show-space bot.
 WhenToUse: Use when building or reviewing the venue operations bot that manages upcoming shows and pinned announcements.
 ---
@@ -49,6 +49,7 @@ The implementation target in this repository is the embedded JavaScript bot runt
 - `tasks.md`
 - `changelog.md`
 - `reference/01-diary.md`
+- `reference/02-operator-runbook.md`
 
 ## Status
 

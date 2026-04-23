@@ -174,3 +174,100 @@ The only runtime-specific snag was the embedded Goja environment not exposing `I
 - Validation notes:
   - the bot shell still loads via `bots list`
   - the internal JS runtime suite remains green after the new example and tests
+
+## Step 3: Add the database-backed show store and phase-2 commands
+
+I extended the bot from the phase-1 in-memory catalog into a database-backed venue tool. The command layer now supports both modes: it still works with seeded JSON-only data, but when `dbPath` is configured it uses a SQLite store, seeds from `shows.json` once, and tracks Discord message IDs so staff can manage shows by ID.
+
+This step also added the maintenance helper for expiring shows, plus a more complete runbook and docs update so the operator path is documented alongside the implementation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue the show-space bot work through the DB-backed phase, keep committing in coherent slices, and preserve the diary/doc trail.
+
+**Inferred user intent:** Finish the venue bot through the database-backed show-management stage and keep enough narrative context to review or continue the work later.
+
+**Commit (code):** `d86dc43` — "feat(show-space): add phase-2 show store and database-backed commands"
+
+### What I did
+- Added `examples/discord-bots/show-space/lib/store.js` as a SQLite-backed persistence layer
+- Extended `examples/discord-bots/show-space/index.js` with:
+  - `dbPath` and `seedFromJson` runtime fields
+  - `/add-show`
+  - `/show`
+  - `/cancel-show`
+  - `/archive-show`
+  - `/past-shows`
+  - `/archive-expired`
+- Kept `/upcoming`, `/announce`, and `/unpin-old` working against either the in-memory catalog or the database store
+- Extended `examples/discord-bots/show-space/lib/render.js` with show detail and past-show formatting
+- Extended `examples/discord-bots/show-space/lib/shows.js` with pinned-message archive helpers for the catalog mode
+- Added runtime tests for database-backed add/show/cancel/archive/past-shows and archive-expired behavior
+- Updated `examples/discord-bots/README.md` to document the phase-2 command set and DB-backed mode
+- Added the operator runbook at `ttmp/2026/04/22/DISCORD-BOT-022--show-space-discord-bot/reference/02-operator-runbook.md`
+- Updated the JS API reference to link the new `show-space` example
+
+### Why
+- The spec wanted persistent shows by ID and a path toward a future web dashboard
+- Using the repository’s current `require("database")` module keeps the implementation aligned with the existing JS runtime patterns
+- A seed-on-empty store gives the bot an easy migration path from `shows.json` into SQLite without a separate bootstrap script
+- The maintenance helper is needed so expired shows can be archived and unpinned without relying on an always-on timer inside the bot process
+
+### What worked
+- The database-backed store seeded cleanly from `shows.json` when empty
+- The bot could add, show, cancel, archive, and list past shows under a database-backed configuration
+- The archive-expired path correctly archived past shows, unpinned the Discord message, and posted a quiet staff summary
+- The runtime suite stayed green after the phase-2 expansion
+
+### What didn't work
+- No new runtime error surfaced in this slice after the phase-1 `Intl` issue was fixed
+- The DB store needed one config-bool correction (`seedFromJson`) so a false value would not accidentally fall back to the default; that was corrected before validation
+
+### What I learned
+- The same command surface can support both a simple seed-only mode and a persistent DB mode if the repository layer is abstracted carefully
+- Recording the Discord message ID at announcement time is the key to making later cancel/archive flows deterministic
+- For this runtime, the maintenance helper is best treated as a callable JS function or command hook that an external scheduler can invoke, rather than an in-process interval loop
+
+### What was tricky to build
+- The announce flow still has to post first, discover the message ID, and then pin the message, because the channel-send helper does not return a direct message object
+- The date/title parsing needs to stay consistent between the embed renderer and the cleanup/archive paths so the bot can recognize its own announcements later
+- The DB store had to preserve the same show shape as the in-memory catalog so the command handlers did not need a second code path for presentation
+
+### What warrants a second pair of eyes
+- The new `archive-expired` maintenance command is useful as a hook, but the long-term scheduling mechanism should be reviewed when the bot is deployed
+- The store currently uses SQLite because that is what the repository runtime exposes today; if a future web dashboard needs Postgres, the store boundary should be the seam for that migration
+
+### What should be done in the future
+- Keep the operator runbook in sync if the deployment model changes
+- Decide whether `/announce` should eventually become a thin alias over `/add-show` in phase 2+
+- If a staff dashboard is added later, reuse the store boundary rather than reaching into bot internals
+
+### Code review instructions
+- Start with `examples/discord-bots/show-space/lib/store.js`
+- Review the phase-2 command handlers in `examples/discord-bots/show-space/index.js`
+- Review the new runtime tests in `internal/jsdiscord/show_space_runtime_test.go`
+- Confirm the operator runbook at `ttmp/2026/04/22/DISCORD-BOT-022--show-space-discord-bot/reference/02-operator-runbook.md`
+- Re-run:
+  - `go test ./internal/jsdiscord -run TestShowSpace -count=1`
+  - `go test ./internal/jsdiscord/... -count=1`
+  - `GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/discord-bots | rg -n "show-space|venues"`
+
+### Technical details
+- Database fields used by the store:
+  - `artist`, `date`, `doors_time`, `age`, `price`, `notes`, `status`, `discord_message_id`, `discord_channel_id`, `created_at`, `updated_at`
+- Commands now supported in DB mode:
+  - `/add-show`
+  - `/show`
+  - `/cancel-show`
+  - `/archive-show`
+  - `/past-shows`
+  - `/archive-expired`
+- Maintenance flow:
+  - archive expired shows in the store
+  - unpin their Discord messages
+  - optionally send a quiet `#staff` summary
+- Runtime state:
+  - the bot can still run phase-1-style with only `shows.json`
+  - `dbPath` turns on persistent storage and seeded migration from the JSON file

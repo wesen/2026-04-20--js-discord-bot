@@ -66,6 +66,25 @@ The repository already contains useful precedents:
 
 That means the bot can be implemented without changes to the host runtime for Phase 1. Phase 2 mostly needs domain code and a persistence choice.
 
+## Implementation status
+
+The repository now includes an actual `examples/discord-bots/show-space/` bot implementation in the `venues` category. The bot currently supports:
+
+- `/upcoming` for a public-facing upcoming-show list
+- `/announce` for quick announcement posting and pinning
+- `/unpin-old` for manual pin cleanup
+- `/add-show` for DB-backed show creation with stored Discord message IDs
+- `/show`, `/cancel-show`, `/archive-show`, and `/past-shows` for staff show management
+- `/archive-expired` as the maintenance hook for archiving past shows and posting a quiet staff summary
+
+The implementation uses the current `require("database")` module with SQLite-backed storage when `dbPath` is configured. The store seeds from `shows.json` when empty, which gives Phase 2 a clean migration story without needing a separate import job for day one.
+
+The final architecture choice is therefore:
+
+- phase 1: in-memory catalog seeded from JSON
+- phase 2: SQLite-backed store behind the same command surface
+- maintenance: a reusable `archiveExpiredShows()` helper that an external scheduler or host job can invoke
+
 ## Gap analysis
 
 ### Already available
