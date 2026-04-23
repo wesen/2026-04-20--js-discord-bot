@@ -139,3 +139,14 @@ Completed the next public-ownership slice for `pkg/botcli`. The public package n
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go — Default public verb runtime factory
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public regressions for helper leakage, both run shapes, and custom runtime factory support
 
+## 2026-04-23
+
+Added the documentation/review pass for the extracted framework surface. Wrote a detailed code-review cleanup report focused on duplication, deprecation candidates, unclear code, bloated files, backwards-compatibility burden, and legacy wrappers; wrote a separate design review and decision guide to help judge the current extraction state; updated the public docs to call out the main `pkg/botcli` customization hooks; validated ticket vocabulary with `docmgr doctor`; and prepared the review deliverables for reMarkable upload.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md — Detailed cleanup/code-review report with file-backed evidence and cleanup sketches
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md — Design-state review to help judge whether the extraction is coherent and what should happen next
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Stabilization/docs pass for the public `pkg/botcli` option surface
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Combined example now documents the advanced public botcli customization hooks
+

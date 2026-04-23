@@ -39,6 +39,10 @@ topics:
       description: Discord bots, APIs, and gateway/application command integrations
     - slug: tooling
       description: Developer tooling, operator helpers, and internal utility workflows
+    - slug: framework
+      description: Reusable framework APIs and embedding-oriented package design
+    - slug: embedding
+      description: Embedding one package or runtime into another host application
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

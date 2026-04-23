@@ -1088,3 +1088,101 @@ This slice turns `pkg/botcli` from a mostly public façade into a package that g
 - Public scan policy now discovers only real bot entrypoints and always scans with `IncludePublicFunctions: false`.
 - Public command construction now synthesizes host-managed run commands itself instead of relying on the internal command builder.
 - `WithRuntimeFactory(...)` customizes ordinary jsverbs runtime creation; if the factory also implements `HostOptionsProvider`, its host options are applied to discovery and host-managed bot runs too.
+
+## Step 15: Stabilization/docs pass plus review deliverables
+
+After the A/B/C public-ownership slice, the user explicitly asked to pause and assess the result rather than immediately pushing deeper into implementation. That was the right move. The code now has enough public surface area that the key question is no longer “can we extract this?” but “is the design good enough, and where is the cleanup burden now concentrated?”
+
+So this step was intentionally documentation-heavy: first tighten the public docs, then write two review documents from different angles — one for cleanup/code quality and one for design judgment.
+
+### Prompt Context
+
+**User prompt (verbatim):** "1. 
+
+for 2.  make a detailed code review report in the ticket. focus on deprecation / unclear code / bloated files and packages / backwards compatibility (unnecessary) and legacy wrappers (clean cut)
+
+then for 3. make a review document (since you already did the code review at this oint) that allows me to make a judgment and see where we are at in terms of design.
+
+Upload 2 and 3 to remarkable once written"
+
+**Assistant interpretation:** Do a stabilization/docs pass first, then write a detailed code-review cleanup report and a separate design-state review document, and publish those review docs to reMarkable.
+
+**Inferred user intent:** The user wants an evaluation checkpoint before more code work: one document to show what should be cleaned up, and one document to show whether the overall framework extraction is on the right design track.
+
+### What I did
+
+- Performed a stabilization/docs pass by updating:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md`
+- The doc updates now explicitly call out the public `pkg/botcli` option surface:
+  - `WithAppName(...)`
+  - `WithRuntimeModuleRegistrars(...)`
+  - `WithRuntimeFactory(...)`
+- Gathered file inventory and evidence with commands such as:
+  - `find pkg/botcli internal/botcli examples/framework-combined -maxdepth 3 -type f | sort`
+  - `wc -l pkg/botcli/*.go internal/botcli/*.go | sort -nr | head -n 40`
+  - `nl -ba <file> | sed -n '<range>'`
+- Wrote the detailed code-review report at:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md`
+- Wrote the design judgment document at:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md`
+- Ran:
+  - `docmgr doctor --ticket DISCORD-BOT-FRAMEWORK --stale-after 30`
+- Doctor initially warned about missing topic vocabulary (`framework`, `embedding`), so I fixed that with:
+  - `docmgr vocab add --category topics --slug framework --description 'Reusable framework APIs and embedding-oriented package design'`
+  - `docmgr vocab add --category topics --slug embedding --description 'Embedding one package or runtime into another host application'`
+- Reran doctor successfully after the vocabulary fix.
+- Prepared the two review docs for reMarkable upload.
+
+### What worked
+
+- The two review docs ended up complementary instead of redundant:
+  - the code-review report focuses on duplication, deprecation candidates, unclear code, bloated files, and legacy wrappers,
+  - the design review focuses on whether the public split is coherent and what judgment to make about the current design state.
+- `docmgr doctor` passed cleanly after the vocabulary fix.
+- The stabilization/docs pass was enough to make the new public option surface easier to evaluate without growing the code surface further.
+
+### What didn't work
+
+- `docmgr doctor` initially failed with unknown topic vocabulary on the ticket index for `framework` and `embedding`. That was a metadata problem, not a content problem, and adding the two missing slugs resolved it.
+
+### What I learned
+
+- The architecture is now strong enough that the highest-value review question is not “should we keep extracting?” but “should we now optimize for cleanup instead of more features?”
+- Writing the code-review report and the design review back-to-back made the repo’s current state much clearer: the design has become coherent, but the duplication/transition burden is now the biggest risk.
+
+### What was tricky to build
+
+- The hardest part was keeping the two review docs distinct. It would have been easy for the design review to become just another list of code smells. I avoided that by making the code-review document issue-centric and file-backed, and making the design review explicitly judgment-centric.
+- Another subtle point was constraining the stabilization/docs pass. The new public runtime-factory hook could easily have triggered another feature pass, but the user asked for evaluation, not more implementation, so I kept the docs focused on clarifying the existing public API.
+
+### What warrants a second pair of eyes
+
+- Whether the cleanup recommendation in the code-review report is too aggressive, especially around making a cleaner cut against `internal/botcli` duplication.
+- Whether the design review strikes the right balance between “the design is ready enough to trust” and “the codebase still needs a cleanup/stabilization phase before calling the extraction finished.”
+
+### What should be done in the future
+
+- Use the two new review docs to decide whether the next work should be:
+  - stabilization/cleanup only,
+  - one more narrow public API refinement, or
+  - a longer pause before further extraction.
+- If implementation continues, bias toward deletion/reduction instead of adding more feature surface.
+
+### Code review instructions
+
+- Read the code-review report first:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md`
+- Then read the design judgment guide:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md`
+- If you want the shortest code path after reading those docs, inspect:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/discover.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/bootstrap.go`
+
+### Technical details
+
+- The docs pass now explicitly explains the three main public `pkg/botcli` customization hooks.
+- The code-review report is cleanup-biased and evidence-first.
+- The design review is decision-biased and intended to help a human reviewer decide where the extraction stands and what kind of work should happen next.

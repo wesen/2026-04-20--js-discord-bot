@@ -10,6 +10,10 @@ Example downstream-style application showing both public layers together:
 - `framework.New(...)` for the simplest built-in bot path
 - `botcli.BuildBootstrap(...)` for raw-argv repository selection
 - `botcli.NewCommand(...)` for mounting repo-driven bots into an existing Cobra root
+- the current public `botcli` customization surface:
+  - `botcli.WithAppName(...)`
+  - `botcli.WithRuntimeModuleRegistrars(...)`
+  - `botcli.WithRuntimeFactory(...)`
 - the recommended split:
   - core framework = one explicit bot is easy
   - optional `botcli` = repository-driven multi-bot workflows are easy
@@ -67,3 +71,7 @@ The earlier examples each covered one public layer in isolation:
 - `framework-custom-module` — one explicit bot plus custom runtime module injection
 
 This example shows the next level up: a downstream application can combine both public packages in one process and choose between the simple built-in bot path and the optional repo-driven `botcli` path.
+
+If you need deeper runtime control on the repo-driven side, this example is also the right place to experiment with:
+- `botcli.WithRuntimeModuleRegistrars(...)` when extra Go-native `require()` modules are enough
+- `botcli.WithRuntimeFactory(...)` when ordinary jsverb runtime creation itself must be customized and the same customization should also contribute host options for discovery/host-managed runs

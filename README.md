@@ -221,6 +221,11 @@ The extracted public API is now intentionally split into two layers:
 - `pkg/framework` — the simple path when one explicit built-in bot should be easy
 - `pkg/botcli` — the optional path when repository-driven multi-bot workflows should be easy
 
+The main public `pkg/botcli` customization hooks are now:
+- `botcli.WithAppName(...)` — change the env prefix used by dynamic bot commands
+- `botcli.WithRuntimeModuleRegistrars(...)` — add custom Go-native `require()` modules
+- `botcli.WithRuntimeFactory(...)` — override ordinary jsverb runtime creation and optionally contribute host options for discovery/host-managed runs
+
 The combined downstream example lives at:
 - `examples/framework-combined/`
 
