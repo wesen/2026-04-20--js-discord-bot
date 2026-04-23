@@ -1464,3 +1464,84 @@ I moved the one shared scanner fixture into the public package, switched the rem
 - The scanner fixture now lives under `pkg/botcli/testdata`, so the public package owns both the implementation and the fixture used to validate it.
 - `internal/botcli` has been removed completely.
 - `docmgr doctor` passes again after replacing the stale index reference to deleted internal botcli code.
+
+## Step 19: Split the remaining botcli command "god file"
+
+After the larger clean cut, the biggest remaining code-organization smell in `pkg/botcli` was still obvious: the command builder file had become the place where everything happened at once. That was no longer a design problem, but it was still a readability and maintenance problem.
+
+So this slice was deliberately structural rather than behavioral. I split the old command builder into focused files, kept the public constructor in one place, and removed the placeholder file that used to exist only as a comment shell.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do the cleanup pass on botcli. do it all, including the stronger when to use this.
+
+Add missing tasks, then do task by task as usual"
+
+**Assistant interpretation:** Add the remaining botcli cleanup work to the framework ticket, then execute it in focused slices with commits and diary updates after each slice.
+
+**Inferred user intent:** The user wants the post-clean-cut botcli package to be not just functionally correct but also cleanly structured and clearly documented.
+
+**Commit (code):** eee42c6 — "Split botcli command builder into focused files"
+
+### What I did
+
+- Added follow-up cleanup tasks to:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md`
+- Replaced the old oversized command file with focused command files:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_root.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_list.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_help.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_run.go`
+- Removed:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go`
+- Moved the shared bool flag helper into:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go`
+- Ran:
+  - `gofmt -w pkg/botcli/command_root.go pkg/botcli/command_list.go pkg/botcli/command_help.go pkg/botcli/command_run.go pkg/botcli/runtime_helpers.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+
+### What worked
+
+- The split was behavior-preserving; tests passed without needing command-shape or runtime changes.
+- `NewBotsCommand(...)` is easier to navigate now because the constructor and orchestration live in one file and the command implementations live elsewhere.
+- Removing the placeholder `command.go` file makes the package structure feel much less half-refactored.
+
+### What didn't work
+
+- N/A in this slice. The structural split compiled and tested cleanly on the first pass.
+
+### What I learned
+
+- Once the public package is the only implementation left, file-structure cleanup becomes much more worthwhile because there is no second package mirroring the same concepts anymore.
+- The placeholder-file smell mattered mostly for human navigation, but fixing it makes the package feel more intentional immediately.
+
+### What was tricky to build
+
+- The main subtlety was deciding how far to split. I wanted to reduce the “god file” pressure without exploding the package into too many tiny files. The compromise was to split by command concern — root, list, help, run — and keep the command-registration orchestration with the public constructor in `command_root.go`.
+
+### What warrants a second pair of eyes
+
+- Whether `command_root.go` should stay as the orchestration center or whether a later pass should further separate static command registration from discovered-command registration.
+- Whether the current file naming is the clearest long-term layout, or whether a future `doc.go` / package-comment file should become the first file readers hit.
+
+### What should be done in the future
+
+- Finish the second remaining cleanup task by adding stronger guidance for when `WithRuntimeFactory(...)` is really needed versus `WithRuntimeModuleRegistrars(...)`.
+- Then validate the cleaned package layout plus public docs/examples together.
+
+### Code review instructions
+
+- Start with:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_root.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_list.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_help.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_run.go`
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+
+### Technical details
+
+- `NewBotsCommand(...)` still owns the public constructor, but the individual command implementations no longer share a single oversized file.
+- The placeholder `pkg/botcli/command.go` file is gone.
+- Shared bool/runtime-config extraction now lives together in `runtime_helpers.go`.

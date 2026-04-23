@@ -91,3 +91,7 @@
   - [x] move any still-needed test fixtures/helpers into `pkg/botcli`
   - [x] remove redundant internal tests and command/discovery helpers
   - [x] validate the repo on the public path only
+- [ ] Clean up `pkg/botcli` structure and public guidance after the clean cut
+  - [x] split the oversized command implementation into focused files and remove the placeholder command file
+  - [ ] add stronger package/docs guidance for when `WithRuntimeFactory(...)` is actually needed versus `WithRuntimeModuleRegistrars(...)`
+  - [ ] validate the cleaned package layout and public docs/examples

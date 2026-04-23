@@ -190,3 +190,15 @@ Completed the clean cut by deleting the duplicated `internal/botcli` package ent
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Project layout and validation commands now reflect the public-path-only tree
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Combined example now points at the public scanner fixture path
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/index.md — Removed the stale related-file entry that referenced deleted `internal/botcli/runtime.go`
+
+## 2026-04-23
+
+Started the dedicated `pkg/botcli` cleanup pass by splitting the oversized command builder into focused files. The public constructor now lives in `command_root.go`, the list/help/run command implementations live in their own files, the shared bool flag helper moved into runtime helpers, and the placeholder `pkg/botcli/command.go` file is gone.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_root.go — Public `NewBotsCommand(...)` and command-registration orchestration
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_list.go — Focused list command implementation
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_help.go — Focused help command implementation
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_run.go — Focused host-managed run command implementation
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go — Shared bool/runtime-config helpers after the split
