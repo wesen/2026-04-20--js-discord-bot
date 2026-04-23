@@ -72,6 +72,8 @@ The earlier examples each covered one public layer in isolation:
 
 This example shows the next level up: a downstream application can combine both public packages in one process and choose between the simple built-in bot path and the optional repo-driven `botcli` path.
 
-If you need deeper runtime control on the repo-driven side, this example is also the right place to experiment with:
-- `botcli.WithRuntimeModuleRegistrars(...)` when extra Go-native `require()` modules are enough
-- `botcli.WithRuntimeFactory(...)` when ordinary jsverb runtime creation itself must be customized and the same customization should also contribute host options for discovery/host-managed runs
+If you need deeper runtime control on the repo-driven side, choose the smallest hook that fits:
+- `botcli.WithAppName(...)` when only the dynamic env prefix should change
+- `botcli.WithRuntimeModuleRegistrars(...)` when extra Go-native `require()` modules are enough and the default runtime construction is still correct
+- `botcli.WithRuntimeFactory(...)` only when runtime creation itself must change, for example custom module roots, require behavior, builder/runtime setup, or runtime lifecycle details
+- if that same customization should also affect discovery and host-managed runs, make the runtime factory implement `botcli.HostOptionsProvider`

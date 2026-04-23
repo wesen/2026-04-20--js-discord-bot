@@ -223,8 +223,14 @@ The extracted public API is now intentionally split into two layers:
 
 The main public `pkg/botcli` customization hooks are now:
 - `botcli.WithAppName(...)` — change the env prefix used by dynamic bot commands
-- `botcli.WithRuntimeModuleRegistrars(...)` — add custom Go-native `require()` modules
-- `botcli.WithRuntimeFactory(...)` — override ordinary jsverb runtime creation and optionally contribute host options for discovery/host-managed runs
+- `botcli.WithRuntimeModuleRegistrars(...)` — add custom Go-native `require()` modules while keeping the default runtime construction
+- `botcli.WithRuntimeFactory(...)` — override ordinary jsverb runtime creation when runtime construction itself must change
+
+A good rule of thumb is:
+- use `WithAppName(...)` when only env-prefix behavior changes
+- use `WithRuntimeModuleRegistrars(...)` when scripts simply need extra native `require()` modules
+- use `WithRuntimeFactory(...)` only when `WithRuntimeModuleRegistrars(...)` is not enough and you must change runtime creation itself (module roots, require behavior, builder/runtime setup, or runtime lifecycle)
+- if that same customization must also affect discovery and host-managed bot runs, make the runtime factory implement `botcli.HostOptionsProvider`
 
 The combined downstream example lives at:
 - `examples/framework-combined/`

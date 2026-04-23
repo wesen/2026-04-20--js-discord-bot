@@ -10,16 +10,27 @@ import (
 	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
+// RuntimeFactory customizes runtime creation for ordinary jsverb execution.
+//
+// Implement this only when the default runtime construction is not sufficient.
+// If you only need extra native require() modules, prefer
+// WithRuntimeModuleRegistrars(...).
 type RuntimeFactory interface {
 	NewRuntimeForVerb(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error)
 }
 
+// RuntimeFactoryFunc adapts a function into RuntimeFactory.
 type RuntimeFactoryFunc func(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error)
 
 func (f RuntimeFactoryFunc) NewRuntimeForVerb(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error) {
 	return f(ctx, registry, verb)
 }
 
+// HostOptionsProvider lets a RuntimeFactory also contribute jsdiscord host
+// options used for discovery and host-managed bot runs.
+//
+// Implement this when runtime customization must stay consistent across all
+// runtime touchpoints, not only ordinary jsverb execution.
 type HostOptionsProvider interface {
 	HostOptions() []jsdiscord.HostOption
 }
@@ -62,6 +73,11 @@ func WithAppName(name string) CommandOption {
 }
 
 // WithRuntimeModuleRegistrars appends custom runtime-scoped native module registrars.
+//
+// This is the first hook to reach for when scripts just need extra Go-native
+// require() modules and the default runtime construction is otherwise correct.
+// Prefer this over WithRuntimeFactory(...) unless runtime creation itself must
+// change.
 func WithRuntimeModuleRegistrars(registrars ...engine.RuntimeModuleRegistrar) CommandOption {
 	return func(cfg *commandOptions) error {
 		for i, registrar := range registrars {
@@ -74,9 +90,15 @@ func WithRuntimeModuleRegistrars(registrars ...engine.RuntimeModuleRegistrar) Co
 	}
 }
 
-// WithRuntimeFactory overrides ordinary jsverbs runtime creation and may also
-// contribute host options for discovery and host-managed bot runs when the
-// factory implements HostOptionsProvider.
+// WithRuntimeFactory overrides ordinary jsverbs runtime creation.
+//
+// Use this only when WithRuntimeModuleRegistrars(...) is not enough and the
+// runtime creation process itself must change, for example custom module roots,
+// require behavior, builder configuration, or runtime lifecycle details.
+//
+// If the same customization should also affect discovery and host-managed bot
+// runs, implement HostOptionsProvider on the factory so it can contribute the
+// matching jsdiscord host options as well.
 func WithRuntimeFactory(factory RuntimeFactory) CommandOption {
 	return func(cfg *commandOptions) error {
 		if factory == nil {

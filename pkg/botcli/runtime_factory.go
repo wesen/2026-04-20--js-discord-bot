@@ -13,6 +13,8 @@ import (
 	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
+// defaultRuntimeFactory builds the standard ordinary-jsverb runtime used when
+// callers do not provide WithRuntimeFactory(...).
 func defaultRuntimeFactory(cfg commandOptions) RuntimeFactory {
 	return RuntimeFactoryFunc(func(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error) {
 		if registry == nil {
