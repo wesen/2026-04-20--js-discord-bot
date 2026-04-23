@@ -163,3 +163,17 @@ Started the post-review clean-cut work by removing the first set of public alias
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public command tests now use the canonical constructor directly
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Standalone app now mounts `pkg/botcli.NewBotsCommand(...)`
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go — Combined example now mounts `pkg/botcli.NewBotsCommand(...)`
+
+## 2026-04-23
+
+Completed the next clean-cut slice by removing the legacy `bots run <bot>` compatibility path from the public command tree. The canonical repo-driven run path is now only `bots <bot> run`, the compatibility helper code is gone from `pkg/botcli`, and the operator-facing README/help docs/error text now point to the canonical command shape.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go — Removed the compatibility alias registration loop for legacy `bots run <bot>` paths
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/run_description.go — Removed the compatibility-specific run-description helper
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public regression now asserts only the canonical run shape is exposed
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Named-bot examples now use `bots <bot> run`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/topics/discord-js-bot-api-reference.md — API reference now documents the canonical run shape only
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/tutorials/building-and-running-discord-js-bots.md — Tutorial commands now use `bots <bot> run`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/bot/bot.go — Direct-run missing-script error now points to `bots <bot> run`

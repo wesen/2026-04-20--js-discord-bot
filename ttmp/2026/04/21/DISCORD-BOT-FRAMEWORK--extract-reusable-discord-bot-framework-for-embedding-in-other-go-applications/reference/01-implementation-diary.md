@@ -1277,3 +1277,96 @@ We don't need backwards compatibility, so we can remove all aliases and backwawr
 - `pkg/botcli` now owns its public model types directly instead of exporting aliases to `internal/botcli`.
 - `NewBotsCommand(...)` is now the only public constructor; the panic-based wrapper is gone.
 - First-party code now relies on the default app name implicitly instead of redundantly passing `WithAppName("discord")`.
+
+## Step 17: Remove the legacy `bots run <bot>` compatibility path
+
+With the public aliases gone, the next clean cut was CLI behavior itself. The user explicitly said backwards compatibility is not needed, so I removed the old nested compatibility path instead of keeping two equivalent ways to start a named bot.
+
+I changed the public command builder, removed the compatibility-only helper, updated the regression to assert the canonical form only, and then swept the operator-facing docs and error text so the repo now consistently points readers at `bots <bot> run`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Continue the cleanup by removing behavioral compatibility, not just public API wrappers.
+
+**Inferred user intent:** The user wants one clear command shape rather than carrying compatibility syntax indefinitely.
+
+**Commit (code):** 303d987 — "Drop legacy bots run compatibility path"
+
+### What I did
+
+- Removed the legacy alias-registration loop from:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+- Removed the compatibility-only helper from:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/run_description.go`
+- Updated the public regression in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+  so it asserts the canonical `bots <bot> run` path and verifies that the old `bots run <bot>` invocation no longer surfaces run help
+- Updated operator-facing docs and help text in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/topics/discord-js-bot-api-reference.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/tutorials/building-and-running-discord-js-bots.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/bot/bot.go`
+- Tried to run:
+  - `gofmt -w pkg/botcli/commands_impl.go pkg/botcli/run_description.go pkg/botcli/command_test.go README.md pkg/doc/topics/discord-js-bot-api-reference.md pkg/doc/tutorials/building-and-running-discord-js-bots.md internal/bot/bot.go`
+- That failed immediately because I accidentally passed Markdown files to `gofmt`.
+- Reran correctly with:
+  - `gofmt -w pkg/botcli/commands_impl.go pkg/botcli/run_description.go pkg/botcli/command_test.go internal/bot/bot.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+
+### What worked
+
+- The public command builder no longer registers the old compatibility path.
+- The canonical path still exposes the expected bot run flags/help.
+- The old invocation no longer produces the run-help surface, which is enough to stop advertising it as a supported path.
+
+### What didn't work
+
+- I mistakenly ran `gofmt` on Markdown files. The exact command was:
+  - `gofmt -w pkg/botcli/commands_impl.go pkg/botcli/run_description.go pkg/botcli/command_test.go README.md pkg/doc/topics/discord-js-bot-api-reference.md pkg/doc/tutorials/building-and-running-discord-js-bots.md internal/bot/bot.go`
+- The relevant errors were:
+  - `README.md:1:1: illegal character U+0023 '#'`
+  - `pkg/doc/topics/discord-js-bot-api-reference.md:1:1: expected 'package', found '--'`
+  - `pkg/doc/tutorials/building-and-running-discord-js-bots.md:1:1: expected 'package', found '--'`
+- Re-running `gofmt` on only Go files resolved the issue immediately.
+
+### What I learned
+
+- The old `bots run <bot>` path was not failing hard in the help-oriented regression; instead Cobra/help handling ended up showing the broader `bots` help. That means the right regression is not “expect an error” but “the old invocation must no longer expose run-help content.”
+- Once the docs are updated in the same slice, the clean cut feels much more coherent because the repository stops teaching two command shapes at once.
+
+### What was tricky to build
+
+- The subtle part was the regression behavior. I expected `bots run ui-showcase --help` to error, but it returned root help instead. The symptom was a failed `require.Error(...)` assertion in the new test. I adjusted the test to verify the important behavioral invariant instead: the old path no longer exposes run flags or the old compatibility usage string.
+
+### What warrants a second pair of eyes
+
+- Whether any additional public docs outside the top-level README and embedded help pages still present `bots run <bot>` as current guidance and should be cleaned up in a later docs sweep.
+- Whether we want to add one explicit CLI regression at the standalone root level for the old path, or keep the package-level regression as sufficient coverage.
+
+### What should be done in the future
+
+- Delete the duplicated `internal/botcli` implementation now that the public path owns the behavior we still want to keep.
+- Move any test fixtures that still live under `internal/botcli` into `pkg/botcli` before deleting the package.
+
+### Code review instructions
+
+- Start with:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/run_description.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+- Then inspect the operator-facing docs:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/topics/discord-js-bot-api-reference.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/tutorials/building-and-running-discord-js-bots.md`
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./examples/framework-combined ./...`
+  - `go run ./examples/framework-combined bots ui-showcase run --help`
+  - `go run ./examples/framework-combined bots run ui-showcase --help`
+
+### Technical details
+
+- `pkg/botcli` now exposes only the canonical `bots <bot> run` path.
+- The compatibility-specific run-description helper is gone.
+- The docs and missing-script error text now consistently point users at `bots <bot> run`.
