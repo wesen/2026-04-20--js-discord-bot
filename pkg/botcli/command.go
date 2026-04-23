@@ -6,11 +6,19 @@ import (
 )
 
 // NewBotsCommand builds the public repo-driven bot command tree from a bootstrap.
-func NewBotsCommand(bootstrap Bootstrap) (*cobra.Command, error) {
-	return internalbotcli.NewBotsCommand(bootstrap)
+func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command, error) {
+	cfg, err := applyCommandOptions(opts...)
+	if err != nil {
+		return nil, err
+	}
+	return internalbotcli.NewBotsCommand(bootstrap, toInternalCommandOptions(cfg)...)
 }
 
 // NewCommand creates a public embeddable Cobra command for repo-driven bots.
-func NewCommand(bootstrap ...Bootstrap) *cobra.Command {
-	return internalbotcli.NewCommand(bootstrap...)
+func NewCommand(bootstrap Bootstrap, opts ...CommandOption) *cobra.Command {
+	cfg, err := applyCommandOptions(opts...)
+	if err != nil {
+		panic(err)
+	}
+	return internalbotcli.NewCommand(bootstrap, toInternalCommandOptions(cfg)...)
 }

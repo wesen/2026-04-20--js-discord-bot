@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func botCLIParserConfig() glazed_cli.CobraParserConfig {
+func botCLIParserConfig(appName string) glazed_cli.CobraParserConfig {
 	return glazed_cli.CobraParserConfig{
-		AppName:           "discord",
+		AppName:           appName,
 		ShortHelpSections: []string{schema.DefaultSlug, schema.GlobalDefaultSlug},
 	}
 }
@@ -21,7 +21,13 @@ func botCLIParserConfig() glazed_cli.CobraParserConfig {
 // NewBotsCommand builds the "bots" subcommand tree from a Bootstrap.
 // It discovers bot implementations, scans for jsverbs metadata, and
 // registers glazed commands for list, help, and any __verb__("run") verbs.
-func NewBotsCommand(bootstrap Bootstrap) (*cobra.Command, error) {
+func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command, error) {
+	cfg, err := applyCommandOptions(opts...)
+	if err != nil {
+		return nil, err
+	}
+	parserConfig := botCLIParserConfig(cfg.appName)
+
 	root := &cobra.Command{
 		Use:   "bots",
 		Short: "List, inspect, and run named JavaScript bot implementations",
@@ -38,7 +44,7 @@ func NewBotsCommand(bootstrap Bootstrap) (*cobra.Command, error) {
 		bootstrap:          bootstrap,
 	}
 	listCobra, err := glazed_cli.BuildCobraCommandFromCommand(listCmd,
-		glazed_cli.WithParserConfig(botCLIParserConfig()),
+		glazed_cli.WithParserConfig(parserConfig),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("build list command: %w", err)
@@ -63,7 +69,7 @@ func NewBotsCommand(bootstrap Bootstrap) (*cobra.Command, error) {
 		bootstrap:          bootstrap,
 	}
 	helpCobra, err := glazed_cli.BuildCobraCommandFromCommand(helpCmd,
-		glazed_cli.WithParserConfig(botCLIParserConfig()),
+		glazed_cli.WithParserConfig(parserConfig),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("build help command: %w", err)
@@ -144,7 +150,7 @@ func NewBotsCommand(bootstrap Bootstrap) (*cobra.Command, error) {
 			root,
 			discoveredCommands,
 			nil,
-			glazed_cli.WithParserConfig(botCLIParserConfig()),
+			glazed_cli.WithParserConfig(parserConfig),
 		); err != nil {
 			return nil, fmt.Errorf("register discovered bot verbs: %w", err)
 		}
@@ -153,13 +159,8 @@ func NewBotsCommand(bootstrap Bootstrap) (*cobra.Command, error) {
 	return root, nil
 }
 
-// NewCommand creates a BotsCommand. When bootstrap is omitted, an empty bootstrap is used.
-func NewCommand(bootstrap ...Bootstrap) *cobra.Command {
-	b := Bootstrap{}
-	if len(bootstrap) > 0 {
-		b = bootstrap[0]
-	}
-	cmd, err := NewBotsCommand(b)
+func NewCommand(bootstrap Bootstrap, opts ...CommandOption) *cobra.Command {
+	cmd, err := NewBotsCommand(bootstrap, opts...)
 	if err != nil {
 		panic(err)
 	}

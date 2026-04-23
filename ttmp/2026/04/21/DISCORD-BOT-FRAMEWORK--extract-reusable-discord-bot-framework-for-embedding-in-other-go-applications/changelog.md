@@ -89,3 +89,15 @@ Continued Track B by exposing the repo-driven bot command tree itself from `pkg/
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Downstream-style Cobra integration tests
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Root command now consumes `pkg/botcli.NewCommand(...)`
 
+## 2026-04-22
+
+Added public `WithAppName(...)` configurability to `pkg/botcli` and threaded the option through the repo-driven command builder so downstream apps can control the env prefix used by Glazed for dynamic bot commands. Added internal and public regression coverage, including a parser-level test that proves a non-default prefix such as `WEZEN_BOT_TOKEN` / `WEZEN_APPLICATION_ID` is honored when the app name is set to `wezen`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/options.go — Internal command option plumbing with `WithAppName(...)`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command.go — Dynamic parser config now uses the configured app name
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command_test.go — Custom env-prefix regression coverage
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go — Public `WithAppName(...)` option
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go — Public command wrappers now accept command options
+

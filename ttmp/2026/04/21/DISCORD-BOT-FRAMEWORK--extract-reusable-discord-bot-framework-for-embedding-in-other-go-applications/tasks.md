@@ -57,7 +57,7 @@
   - bots without explicit run metadata still get a synthetic `run` command
   - register both `bots <bot> run` and `bots run <bot>` compatibility paths
 - [ ] Make the public package configurable for downstream apps
-  - `WithAppName(...)` so dynamic commands use Glazed env middleware correctly
+  - [x] `WithAppName(...)` so dynamic commands use Glazed env middleware correctly
   - `WithRuntimeFactory(...)` / framework hooks for custom runtimes and modules
   - optional custom repository flag/env names for embedders
 - [ ] Add regression tests for the public package

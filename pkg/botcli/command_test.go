@@ -34,6 +34,18 @@ func TestNewBotsCommandExposesRunHelp(t *testing.T) {
 	require.Contains(t, output, "--capture-enabled")
 }
 
+func TestNewCommandAcceptsWithAppNameOption(t *testing.T) {
+	root := &cobra.Command{Use: "downstream-app"}
+	root.AddCommand(NewCommand(
+		Bootstrap{Repositories: []Repository{repoFromDir(t, scannerFixtureDir(t), "scanner")}},
+		WithAppName("wezen"),
+	))
+
+	output, err := executeCaptured(t, root, []string{"bots", "demo-bot", "status", "--output", "json"})
+	require.NoError(t, err)
+	require.Contains(t, output, `"active": true`)
+}
+
 func executeCaptured(t *testing.T, root interface {
 	SetArgs([]string)
 	Execute() error

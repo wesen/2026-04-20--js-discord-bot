@@ -107,9 +107,10 @@ func TestLegacyRunSyntaxLoadsDiscordEnvVarsViaGlazedMiddleware(t *testing.T) {
 	t.Setenv("DISCORD_BOT_TOKEN", "token-from-env")
 	t.Setenv("DISCORD_APPLICATION_ID", "app-from-env")
 	desc := buildSyntheticBotRunDescription(DiscoveredBot{Descriptor: &jsdiscord.BotDescriptor{Name: "ui-showcase"}}, "ui-showcase")
+	parserConfig := botCLIParserConfig(defaultCommandOptions().appName)
 	parser, err := glazed_cli.NewCobraParserFromSections(desc.Schema.Clone(), &glazed_cli.CobraParserConfig{
-		AppName:           botCLIParserConfig().AppName,
-		ShortHelpSections: botCLIParserConfig().ShortHelpSections,
+		AppName:           parserConfig.AppName,
+		ShortHelpSections: parserConfig.ShortHelpSections,
 	})
 	require.NoError(t, err)
 	cmd := glazed_cli.NewCobraCommandFromCommandDescription(desc)
@@ -122,6 +123,28 @@ func TestLegacyRunSyntaxLoadsDiscordEnvVarsViaGlazedMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "token-from-env", cfg.BotToken)
 	require.Equal(t, "app-from-env", cfg.ApplicationID)
+}
+
+func TestLegacyRunSyntaxLoadsCustomAppEnvVarsViaGlazedMiddleware(t *testing.T) {
+	t.Setenv("WEZEN_BOT_TOKEN", "token-from-custom-env")
+	t.Setenv("WEZEN_APPLICATION_ID", "app-from-custom-env")
+	desc := buildSyntheticBotRunDescription(DiscoveredBot{Descriptor: &jsdiscord.BotDescriptor{Name: "ui-showcase"}}, "ui-showcase")
+	parserConfig := botCLIParserConfig("wezen")
+	parser, err := glazed_cli.NewCobraParserFromSections(desc.Schema.Clone(), &glazed_cli.CobraParserConfig{
+		AppName:           parserConfig.AppName,
+		ShortHelpSections: parserConfig.ShortHelpSections,
+	})
+	require.NoError(t, err)
+	cmd := glazed_cli.NewCobraCommandFromCommandDescription(desc)
+	require.NoError(t, parser.AddToCobraCommand(cmd))
+	require.NoError(t, cmd.ParseFlags(nil))
+
+	parsed, err := parser.Parse(cmd, nil)
+	require.NoError(t, err)
+	cfg, err := appconfig.FromValues(parsed)
+	require.NoError(t, err)
+	require.Equal(t, "token-from-custom-env", cfg.BotToken)
+	require.Equal(t, "app-from-custom-env", cfg.ApplicationID)
 }
 
 func executeCaptured(t *testing.T, root *cobra.Command, args []string) (string, error) {

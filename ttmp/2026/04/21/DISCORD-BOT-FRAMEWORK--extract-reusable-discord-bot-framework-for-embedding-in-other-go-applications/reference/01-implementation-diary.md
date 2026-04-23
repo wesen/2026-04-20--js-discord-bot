@@ -654,3 +654,80 @@ Bootstrap extraction alone was not enough for downstream embedders to benefit. T
 - `pkg/botcli.NewBotsCommand(...)` currently delegates to the existing internal builder, giving downstream users the same behavior as the standalone app without duplicating the implementation yet.
 - `pkg/botcli.NewCommand(...)` mirrors the current application convenience API while keeping `Bootstrap` as the main public input.
 - The standalone `discord-bot` root now consumes the public package for both repository bootstrap and `bots` command registration, which keeps the extracted API exercised by the app itself.
+
+## Step 10: Add `WithAppName(...)` to the public botcli package
+
+The next small Track B step was about configurability rather than extraction breadth. The public `pkg/botcli` package could already resolve repositories and mount the `bots` subtree, but dynamic bot commands still assumed one hardcoded env prefix: `DISCORD_*`. For downstream embedders, that is too rigid. The right next slice was a narrow option that changes the Glazed app name used by the dynamic parser, because that is what controls the env prefix for bot credentials and other env-backed fields.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, and after that it probably makes sense to test tings for real to validate before we move on"
+
+**Assistant interpretation:** Implement `WithAppName(...)` next, then do real manual validation before continuing to further framework work.
+
+**Inferred user intent:** The user wants the public `botcli` package to become truly downstream-usable, and wants a pause for reality-based validation before more abstraction layers are added.
+
+### What I did
+
+- Added internal command-option plumbing in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/options.go`
+- Updated `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command.go` so the dynamic parser config is built from a configurable app name instead of a hardcoded `"discord"` string.
+- Added a new internal regression test in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command_test.go` proving that setting the app name to `wezen` makes the parser honor:
+  - `WEZEN_BOT_TOKEN`
+  - `WEZEN_APPLICATION_ID`
+- Added the public option surface in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`
+- Updated `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go` so public command builders accept command options, including `WithAppName(...)`.
+- Added a public-package test in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go` proving the public API accepts the option and still embeds correctly into a downstream Cobra root.
+- Updated `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go` to dogfood the option explicitly with `WithAppName("discord")`.
+- Ran:
+  - `gofmt -w internal/botcli/options.go internal/botcli/command.go internal/botcli/command_test.go pkg/botcli/options.go pkg/botcli/command.go pkg/botcli/command_test.go cmd/discord-bot/root.go`
+  - `go test ./internal/botcli ./pkg/botcli ./cmd/discord-bot ./...`
+
+### Why
+
+The `botcli` package is supposed to be embeddable by other apps, and other apps should not be forced to adopt the `DISCORD_*` env prefix convention. In Glazed, the env prefix comes from the parser app name. So `WithAppName(...)` is the smallest meaningful public option that turns a hardcoded standalone-app assumption into a downstream-friendly behavior.
+
+### What worked
+
+- The parser-level regression test confirms the behavior change is real, not just cosmetic: when the app name is `wezen`, the env middleware reads `WEZEN_BOT_TOKEN` and `WEZEN_APPLICATION_ID`.
+- The public package can now surface the option cleanly without exposing the parser internals.
+- The standalone root command now exercises the public option path directly.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- This was a good example of why the Track B work benefits from extracting behavior one seam at a time. The command tree was already public, but one small hardcoded parser detail still made it less reusable than it looked.
+- The actual env-prefix behavior lives lower than I first wanted to touch; the right fix was not a public-only wrapper, but internal option plumbing plus a public wrapper over that plumbing.
+
+### What was tricky to build
+
+- The main subtlety was the API shape. I wanted a public option without exploding the surface area, so I kept it to `WithAppName(...)` and threaded that one value down to the existing parser config builder.
+- Another subtle point was choosing the right regression test. Executing `--help` does not exercise env middleware, so I used the same parser-level route as the existing env test and added a non-default-prefix variant.
+
+### What warrants a second pair of eyes
+
+- Whether `WithAppName(...)` should remain the only public parser-related option for a while, or whether future slices should expose a broader parser/runtime config object.
+- Whether we should eventually update `internal/config.Validate()` so its missing-env-variable error messages can reflect non-default prefixes when the app name is customized.
+
+### What should be done in the future
+
+- Perform real manual validation before adding more Track B surface area.
+- After validation, continue with the next public-configurability seam only if the current extracted API feels solid in practice.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/options.go` and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command.go`.
+- Review the new env-prefix regression coverage in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/command_test.go`.
+- Then review the public surface in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go` and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go`.
+- Validate with:
+  - `go test ./internal/botcli ./pkg/botcli ./cmd/discord-bot ./...`
+
+### Technical details
+
+- Glazed derives the env prefix from `strings.ToUpper(AppName)`, so `WithAppName("wezen")` makes the parser look for `WEZEN_*` variables.
+- The public package keeps the default app name at `discord`, so standalone behavior remains unchanged unless a downstream app opts into a custom value.
+- The public command wrappers now accept command options and forward them into the internal builder, which keeps the implementation centralized while making the behavior configurable.
