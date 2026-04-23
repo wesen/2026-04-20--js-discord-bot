@@ -731,3 +731,53 @@ The `botcli` package is supposed to be embeddable by other apps, and other apps 
 - Glazed derives the env prefix from `strings.ToUpper(AppName)`, so `WithAppName("wezen")` makes the parser look for `WEZEN_*` variables.
 - The public package keeps the default app name at `discord`, so standalone behavior remains unchanged unless a downstream app opts into a custom value.
 - The public command wrappers now accept command options and forward them into the internal builder, which keeps the implementation centralized while making the behavior configurable.
+
+## Step 11: Do real manual validation before moving on
+
+After the `WithAppName(...)` slice was implemented and covered by unit tests, I paused to validate the behavior in real command executions rather than immediately continuing Track B. The goal was not to achieve a successful Discord connection with fake credentials, but to prove that env-backed credentials were actually being accepted in both the standalone app and a downstream-style embedding scenario.
+
+### What I did
+
+Ran these manual validations from the repository root:
+
+1. Standalone app command inventory still works after the recent `pkg/botcli` extraction:
+
+```bash
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots list --output json
+```
+
+2. Standalone app dynamic run command still accepts the default `DISCORD_*` env prefix and gets far enough to load the JS bot before failing authentication with the fake token:
+
+```bash
+DISCORD_BOT_TOKEN=token-from-env \
+DISCORD_APPLICATION_ID=app-from-env \
+GOWORK=off timeout 15s \
+  go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots ui-showcase run
+```
+
+3. Downstream-style app using the new public `pkg/botcli.WithAppName("wezen")` accepts the custom `WEZEN_*` env prefix and also gets far enough to load the JS bot before failing authentication with the fake token:
+
+```bash
+WEZEN_BOT_TOKEN=token-from-custom-env \
+WEZEN_APPLICATION_ID=app-from-custom-env \
+GOWORK=off timeout 15s \
+  go run ./tmp-manual-botcli-app-XXXX.go bots ui-showcase run
+```
+
+(The downstream app was a tiny temporary Cobra root that mounted `pkg/botcli.NewCommand(bootstrap, pkg/botcli.WithAppName("wezen"))`.)
+
+### What worked
+
+- `bots list --output json` still worked through the current branch after the merge and the public package extraction.
+- The standalone app command with `DISCORD_*` env vars did **not** fail with `missing required environment variables`; instead it loaded the JavaScript bot implementation and then failed at Discord authentication, which is the expected behavior with a fake token.
+- The downstream-style app with `WithAppName("wezen")` behaved the same way using `WEZEN_*` env vars: it loaded the bot and only failed later at Discord authentication.
+
+### Why this matters
+
+This is the most useful kind of validation at this stage. It proves the env-prefix behavior is not just passing parser-level unit tests; it is effective in actual command execution paths for both:
+- the standalone `discord-bot` app, and
+- a downstream embedding app using the public `pkg/botcli` package.
+
+### What should be done next
+
+Only after this checkpoint does it make sense to continue Track B. The next slice should probably target a deeper public-behavior seam such as runtime-factory/configurability or moving more scanning/host-managed-run ownership into `pkg/botcli`.
