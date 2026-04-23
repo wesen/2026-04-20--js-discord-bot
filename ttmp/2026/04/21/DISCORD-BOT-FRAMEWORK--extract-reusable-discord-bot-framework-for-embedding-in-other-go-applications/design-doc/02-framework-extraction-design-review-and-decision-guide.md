@@ -17,100 +17,51 @@ Owners: []
 RelatedFiles:
     - Path: /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework.go
       Note: Public single-bot surface
-    - Path: /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go
-      Note: Public repo-driven command builder and host-managed run semantics
+    - Path: /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_root.go
+      Note: Public repo-driven command builder and registration orchestration
     - Path: /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go
-      Note: Public botcli configuration surface
+      Note: Public botcli configuration and runtime-customization surface
     - Path: /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go
       Note: Combined downstream app showing both extracted layers together
-Summary: Design review for the current framework extraction state, focused on helping a reviewer judge whether the public split is coherent, what remains unfinished, what is stable enough to treat as the intended design, and where cleanup or reduction should happen next.
-LastUpdated: 2026-04-23T12:35:00-04:00
+    - Path: /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md
+      Note: Textbook-style code review guide and study workbook for the final botcli shape
+Summary: Updated design review for the cleaned final extraction state. Helps a reviewer judge the architecture after the public botcli clean cut, not during the earlier transitional phase.
+LastUpdated: 2026-04-23T16:10:00-04:00
 ---
 
 # Framework Extraction Design Review and Decision Guide
 
 ## Executive summary
 
-The extraction has crossed the line from “promising refactor” to “usable public design.” The repo now presents two distinct public layers that match the intended architecture:
+The framework extraction has now reached the state the earlier review work was arguing toward.
 
-- `pkg/framework` — the simple explicit single-bot path
-- `pkg/botcli` — the optional repo-driven multi-bot/jsverbs command layer
+The public split is real, coherent, and substantially cleaned up:
 
-This split is no longer just theoretical. It is exercised by:
+- `pkg/framework` is the clear single-bot embedding path.
+- `pkg/botcli` is the clear optional repo-driven discovery/command path.
+- `internal/botcli` is gone.
+- the public botcli package owns its own public types,
+- exposes one canonical constructor (`NewBotsCommand(...)`),
+- keeps only the canonical named-bot run shape (`bots <bot> run`),
+- and now has clearer package structure and clearer runtime-customization guidance.
 
-- public package tests,
-- the standalone app (`cmd/discord-bot`),
-- dedicated embedding examples, and
-- a combined downstream example app that uses both layers in one process.
+If the question is **“is the design direction sound?”**, the answer is **yes**.
 
-If the question is **“is the design direction sound enough to keep investing in?”**, my answer is **yes**.
+If the question is **“is the extraction still primarily a cleanup project?”**, the answer is now **much less so than before**. The large clean-cut items have been completed. What remains is ordinary design stewardship: protecting clarity, validating future changes, and resisting regressions back into wrapper-heavy or duplicate implementations.
 
-If the question is **“is the codebase ready to freeze as-is?”**, my answer is **not yet**. The main remaining issue is no longer architectural uncertainty — it is cleanup and reduction of duplicate/internal legacy structures.
+---
 
 ## What is now clearly true
 
-### 1. The public split is coherent
+## 1. The public split is the intended architecture, not a draft
 
 Evidence:
-- `pkg/framework/framework.go` provides the explicit single-bot path.
-- `pkg/botcli/commands_impl.go` provides the repo-driven command tree.
-- `examples/framework-combined/main.go` uses both in one app.
+- `pkg/framework/framework.go`
+- `pkg/botcli/command_root.go`
+- `cmd/discord-bot/root.go`
+- `examples/framework-combined/main.go`
 
-This means the architecture now has a clear story for both kinds of embedders:
-
-#### Simple embedder
-A downstream app that wants exactly one bot script can use:
-- `framework.New(...)`
-- explicit `WithScript(...)`
-- env-backed or explicit credentials
-- runtime config and optional sync-on-start
-
-#### Advanced / operator-heavy embedder
-A downstream app that wants repository-driven discovery and jsverbs can use:
-- `botcli.BuildBootstrap(...)`
-- `botcli.NewCommand(...)`
-- dynamic commands registered before Cobra parses subcommands
-- repo-driven discovery and host-managed run semantics
-
-That division is clean and understandable.
-
----
-
-### 2. The public botcli package is no longer just a façade
-
-This is important. Earlier in the extraction, `pkg/botcli` was mostly wrappers around `internal/botcli`. That is no longer the case.
-
-Evidence:
-- `pkg/botcli/discover.go` owns scan policy and discovery.
-- `pkg/botcli/run_description.go` owns run synthesis helpers.
-- `pkg/botcli/commands_impl.go` owns the public command builder and host-managed run behavior.
-- `pkg/botcli/runtime_factory.go` and `pkg/botcli/invoker.go` own public runtime customization for ordinary jsverbs.
-
-This means the public package now contains meaningful behavior, not just naming indirection.
-
----
-
-### 3. The extraction now supports real customization, not only the happy path
-
-The public surface now supports:
-
-#### On `pkg/framework`
-- `WithRuntimeModuleRegistrars(...)`
-
-#### On `pkg/botcli`
-- `WithAppName(...)`
-- `WithRuntimeModuleRegistrars(...)`
-- `WithRuntimeFactory(...)`
-
-The important design implication is that the public API is not trapped in the default runtime anymore. That was one of the biggest original architectural concerns.
-
----
-
-## What a reviewer should judge positively
-
-### A. The architecture boundary is finally visible in code
-
-The current repo has a much better conceptual map than it did at the start of the ticket:
+The current codebase now expresses the architecture directly:
 
 ```text
 pkg/framework
@@ -126,67 +77,99 @@ internal/bot
   = Discord session host wiring
 
 cmd/discord-bot
-  = standalone app using the public layers
+  = standalone app that dogfoods the public layers
 ```
 
-That is a good architecture. It is legible and teachable.
+That is a stable and teachable architecture.
 
-### B. The combined downstream example is the strongest design proof so far
+## 2. `pkg/botcli` is now the canonical repo-driven layer
 
-`examples/framework-combined/main.go` is especially valuable because it proves:
-- the public split is not mutually exclusive,
-- one process can host both a built-in bot and repo-driven bots,
-- the public API is expressive enough for a downstream root command.
+This matters because the earlier review period spent a lot of time asking whether the public package was still mostly a façade. That question is now answered.
 
-That is exactly the kind of design evidence a reviewer should trust more than purely abstract docs.
+Evidence:
+- `pkg/botcli/bootstrap.go` owns public bootstrap behavior.
+- `pkg/botcli/discover.go` owns public discovery and scan policy.
+- `pkg/botcli/command_root.go` plus the focused command files own public command construction.
+- `pkg/botcli/options.go`, `runtime_factory.go`, and `invoker.go` own the public runtime-extension story.
+- `internal/botcli` no longer exists as a shadow implementation.
 
-### C. The manual validations reduce design risk materially
+This is the strongest possible sign that the extraction is no longer halfway public and halfway private.
 
-The recent manual validations matter because they were not just happy-path tests:
-- env-backed credentials worked through both the standalone and downstream botcli paths,
-- custom runtime module registrars worked in repo-driven paths,
-- custom runtime factory behavior worked in a downstream temporary app,
-- both run command shapes worked through the combined example.
+## 3. The public API now communicates its intended usage more clearly
 
-This is strong evidence that the new public layers are behaviorally real.
+The cleaned package now teaches its intended usage in three reinforcing ways:
+
+- through its package doc (`pkg/botcli/doc.go`),
+- through the option/interface comments in `pkg/botcli/options.go`,
+- and through first-party docs/examples (`README.md`, `examples/framework-combined/README.md`).
+
+That is especially important for the runtime-extension story, where the package now makes the “smallest hook first” rule explicit:
+
+- `WithAppName(...)`
+- `WithRuntimeModuleRegistrars(...)`
+- `WithRuntimeFactory(...)`
+- optional `HostOptionsProvider`
 
 ---
 
-## What a reviewer should still be cautious about
+## What a reviewer should judge positively now
 
-### 1. The codebase still carries too much duplication
+### A. The awkward integration rules are centralized instead of scattered
 
-This is the biggest caution flag.
+Repository precedence, raw-argv pre-scan, discovery heuristics, explicit-verb-only scanning, host-managed run synthesis, and runtime extension hooks all live in one public package.
 
-The design can be “right” while the implementation still carries too much transitional duplication. That is where the repo is now.
+That is good architecture because it gives embedders one place to adopt the repo-driven behavior rather than forcing each downstream app to rediscover the same awkward rules.
 
-Most important examples:
-- `pkg/botcli/run_description.go` and `internal/botcli/run_description.go`
-- `pkg/botcli/discover.go` and `internal/botcli/bootstrap.go` discovery sections
-- `pkg/botcli/commands_impl.go` and `internal/botcli/command.go`
+### B. The first-party app is still the best dogfooding proof
 
-This does **not** invalidate the design. It just means the next major value is cleanup rather than more feature surface.
+`cmd/discord-bot/root.go` now mounts `pkg/botcli.NewBotsCommand(...)` directly.
 
-### 2. Public aliases to internal types are a weak point
+This is one of the strongest health signals in the repository. It means the public API is not only exported; it is trusted enough that the project itself depends on it for its real command tree.
 
-`pkg/botcli/bootstrap.go` still exports aliases to internal types:
-- `Bootstrap = internalbotcli.Bootstrap`
-- `Repository = internalbotcli.Repository`
-- `DiscoveredBot = internalbotcli.DiscoveredBot`
+### C. The combined example clarifies the division of labor
 
-That is a transitional move, not a fully mature public boundary.
+`examples/framework-combined/main.go` remains the clearest proof of the intended split:
 
-As long as that remains, the public package still structurally depends on internal type ownership.
+- `run-builtin` proves the explicit single-bot path,
+- `bots ...` proves the optional repo-driven path,
+- and using both in the same process proves they are complementary rather than competing abstractions.
 
-### 3. The runtime customization story is powerful but slightly conceptually split
+### D. The cleanup cuts improved not just code structure, but reviewability
 
-`WithRuntimeFactory(...)` plus optional `HostOptionsProvider` is useful, but it is not instantly obvious to a first-time reader.
+Several earlier review concerns were directly addressed:
 
-A reviewer should ask:
-- is this the stable intended public API,
-- or a transition step that should later collapse into a single richer runtime integration contract?
+- no public aliases to internal botcli types,
+- no panic wrapper constructor,
+- no legacy `bots run <bot>` compatibility path,
+- no duplicated internal package,
+- no oversized command “god file,”
+- and better guidance around advanced runtime hooks.
 
-My current judgment: it is acceptable as-is, but should be documented more explicitly before being treated as final.
+That means the public package is now much easier to review as a coherent system.
+
+---
+
+## What a reviewer should still pay attention to
+
+The fact that the major cleanup is complete does **not** mean the package should now be treated as untouchable. It means the review posture changes.
+
+The right questions are no longer mainly about extraction debt. They are now about **preserving design quality**.
+
+### 1. Does future work preserve the smallest-hook-first philosophy?
+
+The package has a good extensibility ladder now. A reviewer should be cautious about future changes that push common use cases toward `WithRuntimeFactory(...)` unnecessarily.
+
+### 2. Does discovery remain conservative?
+
+The package is healthiest when it is biased toward avoiding helper leakage and fake commands. Future broadening of scan policy should be reviewed carefully.
+
+### 3. Does the public command tree stay legible?
+
+The command split is clearer now, but future changes could still re-accumulate orchestration, execution, and registration logic into one place. A reviewer should guard against that drift.
+
+### 4. Does the project continue to dogfood the public path?
+
+The standalone app and combined example should keep exercising the public package. If first-party code starts bypassing the public layer again, that is an architectural smell.
 
 ---
 
@@ -195,168 +178,135 @@ My current judgment: it is acceptable as-is, but should be documented more expli
 ## 1. Single-bot public framework path
 
 ### Status
-**Good and mostly stable.**
+**Strong and stable.**
 
 ### Why
-- clear constructor surface,
+- clear constructor/options surface,
 - strong examples,
-- custom module support exists,
-- no repository scanning required,
-- matches the design goal well.
-
-### Remaining uncertainty
-- whether a lower-level public `NewHost(...)` is still needed,
-- whether `framework` should grow additional lower-level escape hatches or stay intentionally opinionated.
+- custom runtime-module support,
+- intentionally free of repository-scanning concerns.
 
 ### Judgment
-This part of the design is strong enough that I would treat it as the stable “easy path.”
+Treat this as the stable simple path.
 
 ---
 
 ## 2. Public botcli bootstrap/configuration path
 
 ### Status
-**Good, with some cleanup needed.**
+**Strong and much cleaner than before.**
 
 ### Why
-- `BuildBootstrap(...)` exists,
-- CLI/env/default precedence is public,
-- custom flag/env names are possible,
-- `WithAppName(...)`, registrars, and runtime factory exist.
-
-### Remaining uncertainty
-- public aliases to internal types,
-- whether the public configuration surface should stay option-based or later become a config struct for more advanced consumers.
+- public bootstrap owns its own types,
+- precedence rules are centralized,
+- custom flag/env/default behavior is supported,
+- advanced runtime customization is present but now better explained.
 
 ### Judgment
-Architecturally sound. Needs cleanup more than redesign.
+This is now a credible public configuration surface rather than a transitional wrapper layer.
 
 ---
 
 ## 3. Public botcli command/discovery/run behavior
 
 ### Status
-**Good direction, but not yet “finished.”**
+**Strong and now structurally cleaner.**
 
 ### Why
-- command tree behavior is public,
-- scan policy is public,
+- command registration is public and focused,
+- discovery is public and conservative,
 - host-managed run semantics are public,
-- helper leakage and run-shape regressions are covered.
-
-### Remaining uncertainty
-- how aggressively to retire the remaining `internal/botcli` implementation,
-- whether the public package should be split into smaller files for clarity,
-- whether `NewCommand(...)` should remain panic-oriented.
+- tests cover downstream mounting, canonical run shape, helper-leak prevention, and runtime customization.
 
 ### Judgment
-Good enough to use; not yet clean enough to call complete.
+This is now clean enough to be treated as the intended design, not merely an extraction milestone.
 
 ---
 
-## 4. Internal/runtime layers beneath the public API
+## 4. Remaining internal/runtime layers beneath the public API
 
 ### Status
-**Still transitional.**
+**Appropriately internal.**
 
 ### Why
-The public architecture is coherent, but the implementation still depends on internal layers that have not been fully reduced or repackaged.
-
-That is normal for this stage, but it means the extraction is not “done done.”
+The layers below the public API now look like proper implementation layers rather than unfinished public candidates.
 
 ### Judgment
-No urgent redesign required. Focus on reduction and cleanup instead of new architectural invention.
+No major architecture inversion is still pending here.
 
 ---
 
-## Decision guide: how to judge where we are
-
-If you want to decide what to do next, I think the right questions are:
+## Decision guide: how to judge where we are now
 
 ### Question 1: Is the public split credible?
 **Answer: yes.**
-The examples and validations show that it is.
+It is exercised by the standalone app, examples, tests, and public docs.
 
-### Question 2: Should we keep investing in this extraction direction?
-**Answer: yes.**
-The design is much stronger now than when the ticket began.
+### Question 2: Has the large cleanup debt been paid down enough to trust the package shape?
+**Answer: yes, substantially.**
+The biggest earlier blockers were real, and they have now been removed.
 
-### Question 3: Do we need more features before cleanup?
-**Answer: probably not.**
-The bigger need now is reduction of duplication and documentation/stabilization.
+### Question 3: Should the next work focus on more extraction, or on normal design stewardship?
+**Answer: normal design stewardship.**
+The package is now in the phase where good review discipline matters more than large-scale structural surgery.
 
-### Question 4: Is this ready to be treated as stable public API?
-**Answer: partially.**
-The shape is credible; the cleanup story is not finished.
+### Question 4: Is this ready to be treated as a stable intended public API?
+**Answer: yes, with ordinary healthy caution.**
+That is a much stronger answer than the earlier “partially” state.
 
 ---
 
 ## Recommended next steps
 
-## Option A — stabilization mode (my recommendation)
+### Option A — maintain and validate (recommended)
 
-Focus next on:
-1. public API documentation pass (especially `WithRuntimeFactory(...)`),
-2. code cleanup / de-duplication,
-3. reduction of `internal/botcli`.
+Focus on:
+1. keeping the public package dogfooded by the app and examples,
+2. reviewing future discovery/runtime-extension changes against the current design principles,
+3. continuing to improve docs/examples only when they sharpen understanding rather than increase surface area unnecessarily.
 
-Why this is best:
-- architecture risk is now lower than maintenance risk,
-- cleanup will make future judgments easier,
-- fewer moving parts makes later public API decisions safer.
+### Option B — add one more advanced educational example
 
-## Option B — more extraction cleanup immediately
+This would only be worthwhile if we want to teach `RuntimeFactoryFunc` in a more hands-on way. It is not currently required for the architecture to feel complete.
 
-Focus next on:
-1. replacing public aliases in `pkg/botcli/bootstrap.go` with owned public structs,
-2. making `internal/botcli` a delegating shim or removing big chunks of it.
+### Option C — continue adding new public botcli capabilities
 
-Why this is attractive:
-- biggest reduction in technical debt,
-- clearest signal that the extraction is truly complete.
-
-## Option C — keep adding advanced capabilities
-
-Possible, but I would not recommend this yet.
-
-Why not:
-- the public design is now broad enough,
-- each new feature increases the cost of later cleanup,
-- the risk is drifting from “finish the extraction” into “keep expanding the transitional state.”
+Possible, but should be justified narrowly. The package no longer needs breadth for its own sake.
 
 ---
 
 ## My current judgment
 
-If I had to summarize the state in one sentence:
+If I had to summarize the state in one sentence now, it would be this:
 
-> The framework extraction is now design-sound and publicly usable, but it has entered the phase where cleanup and stabilization are more valuable than additional feature growth.
+> The framework extraction is now no longer interesting mainly as an extraction; it is interesting as a cleaned, coherent public design that should be preserved and taught well.
 
-So if the question is **“have we achieved enough design clarity to judge this direction?”** — yes.
-
-If the question is **“should we now optimize for reduction and clarity instead of more surface area?”** — also yes.
+That is a good place to be.
 
 ---
 
 ## Reviewer checklist
 
-A reviewer trying to make a judgment should inspect these in order:
+If you want the shortest high-value review path, inspect these in order:
 
 1. `pkg/framework/framework.go`
-2. `pkg/botcli/commands_impl.go`
-3. `pkg/botcli/options.go`
-4. `examples/framework-combined/main.go`
-5. `pkg/botcli/command_test.go`
-6. the code review report in:
+2. `pkg/botcli/doc.go`
+3. `pkg/botcli/command_root.go`
+4. `pkg/botcli/discover.go`
+5. `pkg/botcli/options.go`
+6. `pkg/botcli/command_test.go`
+7. `cmd/discord-bot/root.go`
+8. `examples/framework-combined/main.go`
+9. the detailed textbook-style review guide in:
    - `reference/02-public-botcli-code-review-cleanup-report.md`
 
 And validate with:
 
 ```bash
 go test ./...
+go doc ./pkg/botcli | head -n 40
 go run ./examples/framework-combined bots list --output json
 go run ./examples/framework-combined bots ui-showcase run --help
-go run ./examples/framework-combined bots run ui-showcase --help
 ```
 
-That is enough to understand both the design and the current maintenance tradeoffs.
+That is now enough to understand both the architecture and the current design quality.
