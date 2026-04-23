@@ -1,0 +1,26 @@
+[
+  {
+    "artist": "North Branch Trio",
+    "date": "2026-05-03",
+    "doors_time": "7pm",
+    "age_restriction": "18+",
+    "price": "$10 suggested",
+    "notes": "Doors at the side entrance."
+  },
+  {
+    "artist": "Neon Harbor",
+    "date": "2026-05-09",
+    "doors_time": "8pm",
+    "age_restriction": "All ages",
+    "price": "Free",
+    "notes": "Sliding-scale donations welcome."
+  },
+  {
+    "artist": "Paper Lantern Club",
+    "date": "2026-05-17",
+    "doors_time": "7:30pm",
+    "age_restriction": "All ages",
+    "price": "$15",
+    "notes": "Bring cash for zines and merch."
+  }
+]
