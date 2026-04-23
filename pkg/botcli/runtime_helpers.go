@@ -35,6 +35,21 @@ func runtimeFieldInternalName(name string) string {
 	return strings.Trim(strings.TrimSpace(string(out)), "_")
 }
 
+func boolField(parsedValues *values.Values, sectionSlug, fieldName string) bool {
+	if parsedValues == nil {
+		return false
+	}
+	fv, ok := parsedValues.GetField(sectionSlug, fieldName)
+	if !ok || fv == nil || fv.Value == nil {
+		return false
+	}
+	value, ok := fv.Value.(bool)
+	if !ok {
+		return false
+	}
+	return value
+}
+
 func buildRuntimeConfig(parsedValues *values.Values) map[string]any {
 	ret := map[string]any{}
 	if parsedValues == nil {
