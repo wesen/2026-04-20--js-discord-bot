@@ -194,6 +194,25 @@ GOWORK=off go run ./cmd/discord-bot run \
 
 For everyday use, `bots run <bot>` is usually the clearer path.
 
+### Public single-bot embedding path
+There is now also a public Go package for the simple one-bot case:
+
+```go
+bot, err := framework.New(
+    framework.WithCredentialsFromEnv(),
+    framework.WithScript("./examples/discord-bots/unified-demo/index.js"),
+    framework.WithRuntimeConfig(map[string]any{
+        "db_path": "./examples/discord-bots/unified-demo/data/demo.sqlite",
+        "api_key": "local-dev-key",
+    }),
+    framework.WithSyncOnStart(true),
+)
+```
+
+See:
+- `pkg/framework/` — public single-bot API
+- `examples/framework-single-bot/` — minimal embeddable app example
+
 ---
 
 ## Embedded docs

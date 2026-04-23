@@ -27,7 +27,7 @@
   - standalone `run --bot-script ...` remains supported
   - downstream embedders can run one explicit bot without importing `botcli`
 - [ ] Add single-bot embedding examples to docs
-  - minimal embedded app example
+  - [x] minimal embedded app example
   - one explicit bot + custom module/runtime example
 - [ ] Add regression tests for the single-bot path
   - [x] simple framework startup with one explicit script

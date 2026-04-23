@@ -303,3 +303,82 @@ The design says embedders should have a first-class single-bot path that does no
   - `DISCORD_CLIENT_SECRET`
 - `WithRuntimeConfig(...)` clones the provided map so callers do not share mutable config state with the package internals.
 - The public package stays intentionally unaware of repositories, bootstraps, jsverbs scanning, and `botcli` command registration.
+
+## Step 6: Add the first public single-bot embedding example
+
+Once `pkg/framework` existed, the next risk was that it would remain invisible or feel hypothetical. I wanted the Track A story to be copy-pasteable, not just described by an API. So this slice adds a minimal example application plus a few doc links that make the new public single-bot path easy to discover.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Take the next focused Track A task and keep progressing with small commits.
+
+**Inferred user intent:** The user wants the framework split turned into a concrete sequence of implementation slices, with docs and examples arriving early enough that the new API is usable by humans, not just tests.
+
+### What I did
+
+- Added a new example app at:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-single-bot/main.go`
+- Added usage notes at:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-single-bot/README.md`
+- Wired the example to the existing `unified-demo` bot script so the example demonstrates both explicit single-script startup and `ctx.config` runtime injection.
+- Updated `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md` to point readers at the new public embedding path.
+- Updated `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md` to mention `pkg/framework` and the new example.
+- Ran:
+  - `gofmt -w examples/framework-single-bot/main.go`
+  - `go test ./examples/framework-single-bot ./pkg/framework ./...`
+- Updated the framework ticket tasks and changelog to mark the minimal embedded app example as done.
+
+### Why
+
+The public package only becomes genuinely useful when there is a clear answer to "what does embedding look like in real code?" A minimal example app answers that question quickly and keeps the single-bot path feeling first-class rather than theoretical.
+
+### What worked
+
+- The example compiles cleanly as part of `go test ./...`.
+- The example shows the right shape for downstream users: env-backed credentials, one explicit script, runtime config, and context-driven shutdown.
+- Reusing `examples/discord-bots/unified-demo/index.js` means the example demonstrates `ctx.config` behavior without needing another duplicate bot script.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The most useful example for this slice is not a brand-new bot; it is a small Go wrapper around an existing example bot script. That keeps the docs focused on the embedding surface instead of duplicating bot behavior.
+- The Track A story is now much easier to explain: standalone CLI, public package, and example app all point to the same single-bot runtime model.
+
+### What was tricky to build
+
+- The main judgment call was where to put the example. I placed it under `examples/framework-single-bot/` instead of inside `examples/discord-bots/` because it is an embedding application, not another discovered bot implementation.
+- Another subtle point was choosing a signal handling pattern that is simple and portable. I used `signal.NotifyContext(context.Background(), os.Interrupt)` so the example remains small and easy to adapt.
+
+### What warrants a second pair of eyes
+
+- Whether we also want to surface this example from the embedded CLI docs (`pkg/doc/tutorials/...`) soon, or keep this slice limited to README-level discoverability.
+- Whether the next Track A example should be the more advanced “one explicit bot + custom module/runtime” case from the task list, or whether we should first expose lower-level public hooks such as `NewHost(...)`.
+
+### What should be done in the future
+
+- Add the second Track A example: one explicit bot plus custom module/runtime hooks.
+- Potentially add a lower-level public host API if that example needs more extension seams than `pkg/framework` currently exposes.
+- Then move on to Track B and the optional public `botcli` package.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-single-bot/main.go`.
+- Then review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-single-bot/README.md`.
+- Check the discoverability updates in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+- Validate with:
+  - `go test ./examples/framework-single-bot ./pkg/framework ./...`
+  - `GOWORK=off go run ./examples/framework-single-bot` (with Discord env vars set)
+
+### Technical details
+
+- The example intentionally uses `framework.WithCredentialsFromEnv()` so it matches the standalone CLI's credential-loading behavior.
+- The script path is explicit: `examples/discord-bots/unified-demo/index.js`.
+- Runtime config is passed through `framework.WithRuntimeConfig(...)` so `/unified-ping` can prove `ctx.config.db_path` and `ctx.config.api_key` are present.
+- Shutdown is driven by a normal Go context derived from `signal.NotifyContext(...)`, which is the expected embedding pattern for downstream applications too.

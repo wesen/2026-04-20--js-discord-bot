@@ -15,6 +15,9 @@ The source files for those help pages live in the repo at:
 - `pkg/doc/topics/discord-js-bot-api-reference.md` — comprehensive API reference for the JavaScript bot DSL, handler contexts, payload shapes, and outbound Discord operations
 - `pkg/doc/tutorials/building-and-running-discord-js-bots.md` — step-by-step tutorial covering repository layout, command and event registration, buttons, modals, autocomplete, runtime config, and troubleshooting
 
+If you want the new public single-bot embedding path instead of the repo-driven CLI, see:
+- `examples/framework-single-bot/` — minimal Go application using `pkg/framework`
+
 ## Bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
@@ -26,6 +29,23 @@ The source files for those help pages live in the repo at:
 - `ui-showcase/` — comprehensive UI DSL showcase: builder patterns, modal forms, stateful search/review screens, paginated lists, card galleries, confirmations, all select menu types, and alias registration
 - `announcements.js` — root-level bot script to exercise direct file discovery
 - `unified-demo/` — demonstrates the new unified pattern: `defineBot(...)` for Discord behavior plus `__verb__("run")` / `__verb__("status")` metadata for CLI integration
+
+## Embedding one explicit bot from Go
+
+The repository now also exposes a public single-bot package for downstream embedders who do **not** want repository scanning.
+
+Minimal example app:
+
+```bash
+GOWORK=off go run ./examples/framework-single-bot
+```
+
+That example:
+- imports `github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/framework`
+- selects one explicit script with `framework.WithScript(...)`
+- loads credentials with `framework.WithCredentialsFromEnv()`
+- injects `ctx.config` values with `framework.WithRuntimeConfig(...)`
+- optionally syncs commands on startup with `framework.WithSyncOnStart(true)`
 
 ## Example commands
 

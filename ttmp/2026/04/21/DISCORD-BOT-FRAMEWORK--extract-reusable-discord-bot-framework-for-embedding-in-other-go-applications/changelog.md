@@ -44,3 +44,14 @@ Created the first public single-bot embedding package at `pkg/framework`. The pa
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework_test.go — Public package tests for script requirement, env credentials, and runtime config wiring
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md — Track A updated with initial public package progress
 
+## 2026-04-22
+
+Added the first public single-bot embedding example and linked it from the repository docs. The new example application imports `pkg/framework`, selects one explicit JavaScript bot script, uses env-backed credentials, injects runtime config, and runs without any repository scanning. This makes the Track A story concrete for downstream embedders instead of leaving it as an API-only package.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-single-bot/main.go — Minimal Go application using `pkg/framework`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-single-bot/README.md — Usage notes for the embeddable single-bot example
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Examples index now points readers to the public embedding path
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Top-level repo README now mentions the public single-bot package and example
+
