@@ -8,7 +8,6 @@ import (
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
 
-	internalbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
 	publicbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/botcli"
 	appdoc "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/doc"
 )
@@ -67,7 +66,7 @@ func newRootCommand(rawArgs ...string) (*cobra.Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	botsCmd := internalbotcli.NewCommand(bootstrap)
+	botsCmd := publicbotcli.NewCommand(bootstrap)
 	rootCmd.AddCommand(botsCmd)
 
 	return rootCmd, nil

@@ -568,3 +568,89 @@ Track B is about making the repo-driven `botcli` behavior embeddable. The smalle
   - env var name
   - repository flag name
   - default repository paths
+
+## Step 9: Expose a public embeddable Cobra command entrypoint
+
+After the public bootstrap package landed, the next natural Track B slice was to expose the repo-driven command tree itself. This is the point where a downstream application can actually mount the `bots` subtree into its own Cobra root without importing anything from `internal/botcli`.
+
+I kept this slice intentionally narrow too: just make the existing command builder reachable through `pkg/botcli`, prove it embeds cleanly into an arbitrary root, and then switch the app itself to consume that public path.
+
+### Prompt Context
+
+**User prompt (verbatim):** implicit continuation after the previous slice
+
+**Assistant interpretation:** Keep going task-by-task on Track B while the branch is clean and the previous slice is validated.
+
+**Inferred user intent:** The user wants the optional public `botcli` package to become real in successive reviewable increments, not as one giant rewrite.
+
+### What I did
+
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go` exposing:
+  - `NewBotsCommand(bootstrap)`
+  - `NewCommand(bootstrap...)`
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go` with downstream-style tests that:
+  - mount the public `bots` command under an arbitrary Cobra root
+  - execute a discovered `status` verb successfully
+  - verify dynamic `knowledge-base run --help` wiring works through the public package
+- Updated `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go` so the application now uses:
+  - `pkg/botcli.BuildBootstrap(...)`
+  - `pkg/botcli.NewCommand(...)`
+  instead of consuming `internal/botcli` directly from the root command.
+- Ran:
+  - `gofmt -w pkg/botcli/command.go pkg/botcli/command_test.go cmd/discord-bot/root.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./internal/botcli ./...`
+
+### Why
+
+Bootstrap extraction alone was not enough for downstream embedders to benefit. They still needed a public way to mount the discovered bot command tree into an existing Cobra application. This slice closes that gap with the smallest possible API move: public wrappers over the existing command builder plus downstream-style tests.
+
+### What worked
+
+- The public command wrappers were enough to embed the `bots` subtree into a separate Cobra root cleanly.
+- The downstream tests prove not just static command mounting but actual dynamic behavior:
+  - discovered verbs
+  - host-managed run help
+  - full parser wiring through the public surface
+- Switching `cmd/discord-bot/root.go` to the public package means the app itself now dogfoods the extracted Track B API.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The boundary between `internal/botcli` and `pkg/botcli` can be promoted incrementally. There is no need to rewrite the command-building internals all at once; the public package can wrap and progressively absorb them.
+- Having the main app consume the public wrappers immediately is useful because it turns the standalone binary into a live integration test for the extracted package.
+
+### What was tricky to build
+
+- The main subtlety was choosing the right level of public exposure. I did not expose new option types or a public root-command builder yet; I only made the already-working `bots` subtree embeddable. That keeps the surface area small while still satisfying the core downstream integration requirement.
+- Another subtle point was test shape. The new tests had to look like real downstream usage rather than just calling the underlying internal package directly, so I mounted the public command under a fresh Cobra root and executed through that root.
+
+### What warrants a second pair of eyes
+
+- Whether the next Track B slice should add a public `NewRootCommand(rawArgs, opts...)`, or whether it is cleaner to keep the package focused on the `bots` subtree and let downstream apps own their own roots.
+- Whether the public type aliases introduced in Step 8 should become fully owned `pkg/botcli` structs before more public command options are added.
+
+### What should be done in the future
+
+- Continue Track B with the behavior-specific internals that still only live in `internal/botcli`:
+  - entrypoint-only scanning policy
+  - explicit-verb-only scanning
+  - host-managed run semantics
+  - app-name/runtime-factory configurability where needed
+- Add one docs/example slice showing a downstream app that combines `pkg/framework` and `pkg/botcli` together.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go`.
+- Review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go` for the downstream embedding shape.
+- Then inspect `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go` to confirm the app now uses the public package end-to-end.
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./internal/botcli ./...`
+
+### Technical details
+
+- `pkg/botcli.NewBotsCommand(...)` currently delegates to the existing internal builder, giving downstream users the same behavior as the standalone app without duplicating the implementation yet.
+- `pkg/botcli.NewCommand(...)` mirrors the current application convenience API while keeping `Bootstrap` as the main public input.
+- The standalone `discord-bot` root now consumes the public package for both repository bootstrap and `bots` command registration, which keeps the extracted API exercised by the app itself.

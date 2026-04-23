@@ -44,10 +44,10 @@
   - [x] `Bootstrap`
   - [x] `BuildBootstrap(rawArgs []string, opts ...)`
   - [x] CLI/env/default repository precedence helpers
-- [ ] Expose a public embeddable Cobra integration entrypoint
-  - `NewCommand(bootstrap, opts...)`
+- [x] Expose a public embeddable Cobra integration entrypoint
+  - [x] `NewCommand(bootstrap, opts...)`
   - or `NewRootCommand(rawArgs, opts...)`
-  - make downstream integration into an existing Cobra root trivial
+  - [x] make downstream integration into an existing Cobra root trivial
 - [ ] Move the entrypoint-only explicit-verb scanning policy into the public package
   - scan only real bot entrypoints
   - set `IncludePublicFunctions: false`

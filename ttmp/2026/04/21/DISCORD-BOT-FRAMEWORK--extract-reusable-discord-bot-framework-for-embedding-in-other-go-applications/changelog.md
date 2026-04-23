@@ -79,3 +79,13 @@ Merged `main` into `task/discord-bot-framework`, validated the combined branch w
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap_test.go — Regression tests for CLI/env/default precedence and custom flag/env options
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Root command now uses `pkg/botcli.BuildBootstrap(...)`
 
+## 2026-04-22
+
+Continued Track B by exposing the repo-driven bot command tree itself from `pkg/botcli`. Added public `NewBotsCommand(...)` / `NewCommand(...)` wrappers, added downstream-style integration tests that mount the command under an arbitrary Cobra root, and switched `cmd/discord-bot/root.go` to consume the public package for both bootstrap resolution and command registration.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command.go — Public embeddable Cobra entrypoints for repo-driven bots
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Downstream-style Cobra integration tests
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go — Root command now consumes `pkg/botcli.NewCommand(...)`
+
