@@ -68,6 +68,16 @@ func TestRootLevelBotRepositoryFlagRegistersKnowledgeBaseRunVerb(t *testing.T) {
 	require.Contains(t, output, "--review-limit")
 }
 
+func TestStandaloneRunHelpShowsSyncOnStart(t *testing.T) {
+	args := []string{"run", "--help"}
+	root, err := newRootCommand(args...)
+	require.NoError(t, err)
+
+	output, err := executeCaptured(t, root, args)
+	require.NoError(t, err)
+	require.Contains(t, output, "--sync-on-start")
+}
+
 func executeCaptured(t *testing.T, root interface {
 	SetArgs([]string)
 	Execute() error

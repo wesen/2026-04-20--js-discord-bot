@@ -68,10 +68,16 @@ func newRunCommand() (*runCommand, error) {
 Examples:
   discord-bot run
   discord-bot run --log-level debug
+  discord-bot run --sync-on-start
 `,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if section, ok := desc.GetDefaultSection(); ok {
+		section.AddFields(fields.New("sync-on-start", fields.TypeBool,
+			fields.WithHelp("Sync application commands before opening the gateway session"),
+		))
 	}
 	return &runCommand{CommandDescription: desc}, nil
 }
@@ -123,6 +129,12 @@ func (c *runCommand) RunIntoGlazeProcessor(ctx context.Context, vals *values.Val
 		return err
 	}
 	defer func() { _ = bot.Close() }()
+
+	if syncOnStart(vals) {
+		if _, err := bot.SyncCommands(); err != nil {
+			return err
+		}
+	}
 
 	if err := bot.Open(); err != nil {
 		return err
@@ -200,6 +212,21 @@ func (c *syncCommandsCommand) RunIntoGlazeProcessor(ctx context.Context, vals *v
 	}
 
 	return nil
+}
+
+func syncOnStart(vals *values.Values) bool {
+	if vals == nil {
+		return false
+	}
+	fv, ok := vals.GetField(schema.DefaultSlug, "sync-on-start")
+	if !ok || fv == nil || fv.Value == nil {
+		return false
+	}
+	value, ok := fv.Value.(bool)
+	if !ok {
+		return false
+	}
+	return value
 }
 
 func syncScope(cfg appconfig.Settings) string {

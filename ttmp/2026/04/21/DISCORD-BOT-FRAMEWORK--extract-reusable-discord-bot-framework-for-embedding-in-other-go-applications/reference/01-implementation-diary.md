@@ -126,3 +126,81 @@ Updated the comparison table and the file mapping.
 ### Next step
 
 Re-upload the updated design document to reMarkable.
+
+## Step 4: Start Track A by improving the standalone single-bot run path
+
+This was the first deliberate implementation slice after splitting the framework work into two tracks: keep single-bot embedding first-class, and make repo-driven `botcli` workflows optional. I chose to start with the single-bot side so the simple path gets better immediately instead of being treated as legacy behavior while all the attention goes to dynamic repository loading.
+
+The concrete change in this step was small but important: I added `--sync-on-start` to the standalone `discord-bot run` command so the explicit single-bot path keeps the same operational convenience that the new host-managed repo-discovered run commands already have.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Alright, let's work on them task by task, commit as you go, keep a diary."
+
+**Assistant interpretation:** Start executing the framework-extraction plan incrementally, keep each change focused, and record the work as it happens.
+
+**Inferred user intent:** The user wants disciplined implementation progress with small reviewable slices, intermediate commits, and durable ticket documentation.
+
+### What I did
+
+- Picked the first concrete Track A task: improve the current standalone single-bot operator flow.
+- Updated `cmd/discord-bot/commands.go` so `newRunCommand()` now exposes `--sync-on-start` in the standalone `run` command help.
+- Wired `runCommand.RunIntoGlazeProcessor(...)` to call `bot.SyncCommands()` before `bot.Open()` when `--sync-on-start` is set.
+- Added a root-level regression test in `cmd/discord-bot/root_test.go` to verify `discord-bot run --help` now shows `--sync-on-start`.
+- Ran:
+  - `gofmt -w cmd/discord-bot/commands.go cmd/discord-bot/root_test.go`
+  - `go test ./cmd/discord-bot ./internal/botcli -run 'StandaloneRunHelpShowsSyncOnStart|RootLevelBotRepositoryFlagRegistersKnowledgeBaseRunVerb|LegacyRunSyntaxWorksForUiShowcase' -v`
+  - `go test ./...`
+- Updated the framework ticket `tasks.md` and `changelog.md` to record this first implementation slice.
+
+### Why
+
+The framework split only makes sense if the simple path remains simple and well-supported. Adding `--sync-on-start` to the standalone run path is a concrete way to keep the single-bot experience first-class rather than letting the new repo-driven command tree become the only polished workflow.
+
+### What worked
+
+- The standalone `run` command now advertises `--sync-on-start` just like the host-managed dynamic run commands.
+- The implementation was straightforward because `internal/bot/bot.go` already had `SyncCommands()` as a first-class method.
+- `go test ./...` passed after the change.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The standalone and dynamic run paths had drifted a little: the dynamic repo-driven run path already had `--sync-on-start`, but the explicit single-bot path did not.
+- This kind of drift is exactly why the framework-extraction work should keep Track A visible: otherwise the simple path slowly becomes the less-capable path.
+
+### What was tricky to build
+
+- The code change itself was not hard, but the tricky part was choosing the right first slice. It would have been easy to jump directly into public-`botcli` extraction because that is the bigger architectural change, but that would have left the single-bot story under-specified. I handled that by taking a small user-facing improvement on the single-bot side first and recording it explicitly in the ticket tasks.
+
+### What warrants a second pair of eyes
+
+- Whether `--sync-on-start` should remain a command-local flag on `run` only, or whether the future extracted single-bot framework API should also expose a similarly named option directly.
+- Whether the standalone `run` path should eventually share more code with the host-managed `botRunCommand` path so these feature differences cannot drift again.
+
+### What should be done in the future
+
+- Continue Track A with the actual public single-bot framework extraction (`framework.New(...)` / `NewHost(...)`).
+- After that, move to Track B and promote `internal/botcli` into an optional public package.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/commands.go` and inspect `newRunCommand()` plus `runCommand.RunIntoGlazeProcessor(...)`.
+- Then review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root_test.go` for the new help regression coverage.
+- Validate with:
+  - `go test ./...`
+  - `go run ./cmd/discord-bot run --help`
+
+### Technical details
+
+- The implementation uses the existing `bot.SyncCommands()` method from `internal/bot/bot.go`.
+- The new flag is parsed from the default Glazed section using `vals.GetField(schema.DefaultSlug, "sync-on-start")`.
+- The runtime order is now:
+  1. parse config
+  2. create bot
+  3. optionally sync commands
+  4. open gateway session
+  5. block until shutdown
