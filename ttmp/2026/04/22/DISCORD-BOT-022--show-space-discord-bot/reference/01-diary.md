@@ -271,3 +271,69 @@ This step also added the maintenance helper for expiring shows, plus a more comp
 - Runtime state:
   - the bot can still run phase-1-style with only `shows.json`
   - `dbPath` turns on persistent storage and seeded migration from the JSON file
+
+## Step 4: Add a debug-only role lookup command behind `--debug`
+
+I added a small diagnostic command so staff can inspect guild role IDs directly from Discord when wiring the bot. The command is intentionally hidden behind the new `debug` runtime field, which means the bot has to be started with `--debug` before `/debug-roles` will return anything useful.
+
+This is a nice operator affordance because it lets the bot itself reveal the role IDs needed for `adminRoleId` and `bookerRoleId` without widening the normal public command surface.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Add a small role-ID lookup command, but keep it behind a debug flag so it is only usable during setup or troubleshooting.
+
+**Inferred user intent:** Make it easier to discover and verify Discord role IDs without exposing the helper in the normal bot workflow.
+
+**Commit (code):** `76f9dab` — "feat(show-space): add debug-only guild role lookup command"
+
+### What I did
+- Added a `debug` bool runtime field to `examples/discord-bots/show-space/index.js`
+- Added `/debug-roles` to list the current guild’s role IDs and names
+- Guarded the command so it only returns useful data when the bot is started with `--debug`
+- Added runtime tests for both the disabled and enabled cases
+- Updated the operator runbook to mention `--debug` and the role lookup helper
+
+### Why
+- The bot operator asked how to check role IDs, and the cleanest answer is often to let the bot show them directly
+- Hiding the helper behind `--debug` keeps it out of the normal operational flow while still making it easy to use during setup
+
+### What worked
+- The new command stayed isolated from the main show-management flows
+- The runtime tests proved that the role lookup helper does not call Discord role APIs unless debug mode is enabled
+- The enabled case produced the expected guild/role listing output
+
+### What didn't work
+- No new runtime errors surfaced in this slice
+
+### What I learned
+- A simple debug runtime field is enough to keep operational helpers out of day-to-day usage without changing the host framework
+- The existing `ctx.discord.roles.list(...)` API is adequate for self-service role-ID discovery
+
+### What was tricky to build
+- The main subtlety is that the command still exists in the bot definition, so the actual hiding mechanism is the runtime flag and not a separate compile-time registration path
+- That means the command must fail gracefully when debug is off instead of assuming the operator will only ever see it in the right mode
+
+### What warrants a second pair of eyes
+- If the team later wants the command to disappear from slash-command sync entirely, that will require a host/framework change rather than just a bot-level flag
+
+### What should be done in the future
+- Decide whether any other internal helpers should share the same `--debug` gate
+- Consider a dedicated diagnostics section in the bot inventory docs if debug helpers grow beyond one or two commands
+
+### Code review instructions
+- Start with `examples/discord-bots/show-space/index.js`
+- Review the `debugEnabled(...)` helper and the `/debug-roles` command
+- Review `internal/jsdiscord/show_space_runtime_test.go` for the disabled/enabled debug cases
+- Confirm the operator runbook updates in `ttmp/2026/04/22/DISCORD-BOT-022--show-space-discord-bot/reference/02-operator-runbook.md`
+- Re-run:
+  - `go test ./internal/jsdiscord -run TestShowSpace -count=1`
+  - `go test ./internal/jsdiscord/... -count=1`
+
+### Technical details
+- New runtime field:
+  - `debug` — optional bool flag mapped to `--debug`
+- Debug helper behavior:
+  - when `debug` is false, `/debug-roles` returns an ephemeral disabled message and skips role lookup
+  - when `debug` is true, it lists the current guild’s role names and IDs

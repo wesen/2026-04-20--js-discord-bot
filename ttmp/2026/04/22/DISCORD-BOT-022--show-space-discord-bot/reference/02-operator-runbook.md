@@ -23,6 +23,8 @@ GOWORK=off go run ./cmd/discord-bot bots run show-space \
   --sync-on-start
 ```
 
+Add `--debug` if you want the debug-only role lookup command to be available while you are wiring the server.
+
 ### Phase 2 run (SQLite-backed persistence)
 
 Use this when you want show records to persist and be manageable by ID:
@@ -53,6 +55,7 @@ The bot expects these runtime fields:
 - `timeZone` — optional IANA timezone for date display
 - `dbPath` — optional SQLite path for phase-2 persistence
 - `seedFromJson` — optional bool that controls whether the DB seeds from `shows.json` when empty
+- `debug` — optional bool that enables debug-only helper commands like `/debug-roles`
 
 ## 3) Seed or migrate initial shows
 
@@ -75,6 +78,10 @@ Use `/announce` for a quick post-and-pin flow, or `/add-show` when you want the 
 ### Look up a show
 
 Use `/show <id>` to inspect the current record.
+
+### Check role IDs
+
+Enable `--debug` and run `/debug-roles` to list the current guild role IDs and names.
 
 ### Cancel a show
 
