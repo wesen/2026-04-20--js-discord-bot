@@ -214,3 +214,13 @@ Finished the remaining `pkg/botcli` cleanup by adding real package-level/runtime
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go — Default runtime-factory comment clarified
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Public decision ladder for the botcli customization hooks
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Example docs now explain which hook to choose first
+
+## 2026-04-23
+
+Refreshed the framework review guidance after the final botcli clean cut. Rewrote the old code-review cleanup report into a long-form textbook-style study guide for reviewing the cleaned `pkg/botcli` package, complete with conceptual chapters, review order, concrete file/line evidence, validation commands, and exercises. Also rewrote the higher-level design review guide so it reflects the final public-package state rather than the earlier transitional extraction phase, then validated the refreshed docs with `docmgr doctor`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md — Now a textbook-style code review guide and study workbook for the final `pkg/botcli` design
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md — Updated design judgment for the cleaned final public-package state
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md — Review-guidance refresh tasks completed

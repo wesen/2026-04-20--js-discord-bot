@@ -1626,3 +1626,95 @@ I handled that in three layers at once: package-level docs for `go doc`, stronge
 - The public guidance now uses a deliberate “smallest hook first” model.
 - `WithRuntimeFactory(...)` is explicitly documented as the advanced escape hatch for changing runtime creation itself.
 - `HostOptionsProvider` is now documented as the bridge that keeps advanced runtime customization consistent across ordinary jsverb execution, discovery, and host-managed bot runs.
+
+## Step 21: Rewrite the review guide as a textbook-style botcli study workbook
+
+Once the code cleanup settled, the earlier review docs had become historically useful but educationally weak. They still carried the tone of “find these extraction problems and fix them,” which was no longer the right learning posture for the cleaned final package. The user explicitly asked for something much better: a review guide detailed enough that reading it would teach the design, not just summarize findings.
+
+So this step turned the old report into a true study document. I rewrote the code review guide as a long-form textbook-style walkthrough of the final `pkg/botcli` architecture and refreshed the design review guide so it now judges the cleaned final public-package state rather than the earlier transitional one.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Make the code review guide extremely detailed in a textbook style (see skill) so that i have a great job going through it and learn all the things necessary."
+
+**Assistant interpretation:** Rewrite the framework code review guidance into a genuinely educational, highly detailed study guide using the textbook-authoring style, and make sure the surrounding review docs reflect the final cleaned botcli architecture.
+
+**Inferred user intent:** The user wants the review material itself to become part of the learning experience, not just a stale audit artifact.
+
+**Commit (code):** 916bd01 — "Rewrite botcli review guide in textbook style"
+
+### What I did
+
+- Loaded the textbook-authoring skill and used it as the writing standard.
+- Read the current final `pkg/botcli` implementation with line anchors from:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/doc.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_root.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_list.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_help.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_run.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/bootstrap.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/discover.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/invoker.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/run_description.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go`
+- Rewrote:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md`
+  into a textbook-style code review guide and study workbook.
+- Rewrote:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md`
+  so it reflects the final cleaned state.
+- Ran:
+  - `rg -n 'commands_impl|internal/botcli|NewCommand\(|bots run ui-showcase|bots run <bot>' <review-docs>`
+  - `docmgr doctor --ticket DISCORD-BOT-FRAMEWORK --stale-after 30`
+
+### What worked
+
+- The new guide now teaches the package in chapters instead of just listing findings. That makes it much more useful as a review and onboarding document.
+- Reading the final code with line anchors before drafting made it possible to ground the guide in the current post-cleanup file layout instead of vaguely describing the old structure.
+- `docmgr doctor` passed after the rewrite, so the refreshed review docs are internally consistent.
+
+### What didn't work
+
+- The quick stale-reference ripgrep still matched a few historical phrases in the new guide, but they were intentional historical context, not stale references. For example, the new guide mentions that `commands_impl.go` and `internal/botcli` were removed as part of the cleanup history. That did not require fixing.
+
+### What I learned
+
+- Review guidance becomes much stronger when it stops behaving like a bug list and starts behaving like a map. The textbook structure naturally forced that shift: foundation first, then files, then invariants, then exercises.
+- The best way to explain a cleaned package is not to hide its history entirely, but to turn that history into lessons about what the current structure is deliberately avoiding.
+
+### What was tricky to build
+
+- The hardest part was keeping the guide detailed without letting it drift back into a dump of disconnected facts. The textbook-authoring skill helped here: each chapter had to teach one idea well, then prove it with files, tables, pseudocode, commands, or exercises.
+- Another subtle point was deciding whether to patch the old report or replace it conceptually. I chose to rewrite it in place so the existing ticket links still lead to the main review document, but changed the content and frontmatter so it now behaves like a living study guide rather than a stale snapshot.
+
+### What warrants a second pair of eyes
+
+- Whether the new study guide is the right level of depth for the intended audience: advanced enough to teach design, but still practical enough to use as a real review workbook.
+- Whether the design review guide now says enough about the post-cleanup final state, or whether it should later grow one shorter “what changed since the earlier review” appendix.
+
+### What should be done in the future
+
+- If we want to go even further on the teaching side, add one more advanced example specifically for `RuntimeFactoryFunc` and reference it from the new guide.
+- Otherwise, treat the new review guide as the canonical learning path for reviewing future `pkg/botcli` changes.
+
+### Code review instructions
+
+- Start with the rewritten study guide:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md`
+- Then read the refreshed design-state guide:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md`
+- Validate with:
+  - `docmgr doctor --ticket DISCORD-BOT-FRAMEWORK --stale-after 30`
+  - `go test ./...`
+  - `go doc ./pkg/botcli | head -n 40`
+
+### Technical details
+
+- The rewritten review guide is now structured as a study workbook with conceptual chapters, package maps, review checklists, concrete validation commands, and exercises.
+- The design review guide now reflects the final state where `internal/botcli` is gone and `pkg/botcli` is the canonical public repo-driven layer.
+- The new review guidance is grounded in the current final file layout: `command_root.go`, focused command files, public runtime docs, and the cleaned test/example paths.

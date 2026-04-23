@@ -95,3 +95,7 @@
   - [x] split the oversized command implementation into focused files and remove the placeholder command file
   - [x] add stronger package/docs guidance for when `WithRuntimeFactory(...)` is actually needed versus `WithRuntimeModuleRegistrars(...)`
   - [x] validate the cleaned package layout and public docs/examples
+- [x] Refresh the framework review guidance for the cleaned final botcli state
+  - [x] rewrite the code review guide as a textbook-style study guide grounded in the final `pkg/botcli` layout
+  - [x] align the design review guide and related-file references with the post-cleanup file structure
+  - [x] validate the refreshed review docs with `docmgr doctor`
