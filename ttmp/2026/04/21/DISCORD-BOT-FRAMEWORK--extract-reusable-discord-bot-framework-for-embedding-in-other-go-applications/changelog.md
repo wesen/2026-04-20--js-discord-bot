@@ -177,3 +177,16 @@ Completed the next clean-cut slice by removing the legacy `bots run <bot>` compa
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/topics/discord-js-bot-api-reference.md — API reference now documents the canonical run shape only
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/doc/tutorials/building-and-running-discord-js-bots.md — Tutorial commands now use `bots <bot> run`
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/bot/bot.go — Direct-run missing-script error now points to `bots <bot> run`
+
+## 2026-04-23
+
+Completed the clean cut by deleting the duplicated `internal/botcli` package entirely. The remaining shared scanner fixture now lives under `pkg/botcli/testdata`, package/root tests point at the public fixture path, the README/example validation snippets no longer mention the deleted internal package, and the repository validates on the public-path-only tree with `go test ./...`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/testdata/scanner-repo/demo-bot.js — Shared scanner fixture now owned by the public package
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public package tests now resolve the scanner fixture from `pkg/botcli/testdata`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root_test.go — Standalone root test now uses the public scanner fixture path
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Project layout and validation commands now reflect the public-path-only tree
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Combined example now points at the public scanner fixture path
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/index.md — Removed the stale related-file entry that referenced deleted `internal/botcli/runtime.go`

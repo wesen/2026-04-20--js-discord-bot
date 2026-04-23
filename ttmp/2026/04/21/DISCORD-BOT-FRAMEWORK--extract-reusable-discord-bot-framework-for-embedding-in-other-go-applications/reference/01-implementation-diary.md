@@ -1370,3 +1370,97 @@ I changed the public command builder, removed the compatibility-only helper, upd
 - `pkg/botcli` now exposes only the canonical `bots <bot> run` path.
 - The compatibility-specific run-description helper is gone.
 - The docs and missing-script error text now consistently point users at `bots <bot> run`.
+
+## Step 18: Delete the duplicated `internal/botcli` package
+
+This was the last major cleanup slice from the review. After the first two cuts, the standalone app and the public examples were already running entirely through `pkg/botcli`, so keeping `internal/botcli` around no longer bought anything except duplication risk.
+
+I moved the one shared scanner fixture into the public package, switched the remaining tests/docs to that location, removed the entire internal package, and then validated the repository on the public-path-only tree. That is the clean-cut outcome the earlier review recommended.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Finish the cleanup by removing the duplicated internal botcli implementation instead of leaving a shadow package behind.
+
+**Inferred user intent:** The user wants the review recommendations fully applied, not partially applied behind compatibility shims.
+
+**Commit (code):** dbe3501 — "Delete duplicated internal botcli package"
+
+### What I did
+
+- Added the shared scanner fixture to:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/testdata/scanner-repo/demo-bot.js`
+- Updated fixture lookups in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root_test.go`
+- Updated public docs/examples that still referenced the internal package path:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md`
+- Deleted the entire duplicated implementation under:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/`
+- Ran:
+  - `gofmt -w pkg/botcli/command_test.go cmd/discord-bot/root_test.go`
+  - `go test ./...`
+- Performed manual validation:
+  - `go run ./cmd/discord-bot --bot-repository ./pkg/botcli/testdata/scanner-repo bots demo-bot status --output json`
+  - `go run ./examples/framework-combined bots ui-showcase run --help`
+  - `go run ./examples/framework-combined bots run ui-showcase --help`
+- Ran:
+  - `docmgr doctor --ticket DISCORD-BOT-FRAMEWORK --stale-after 30`
+- Doctor initially warned that the ticket index still referenced deleted `internal/botcli/runtime.go`, so I replaced that related-file entry in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/index.md`
+  with a current public file reference, then reran doctor successfully.
+
+### What worked
+
+- The repository no longer depends on `internal/botcli` anywhere in live code.
+- The fixture move was enough to keep the downstream-style and standalone tests working without the old internal package.
+- `go test ./...` passed cleanly after the deletion.
+- The manual checks confirmed the intended behavior split:
+  - canonical `bots <bot> run` still exposes run help,
+  - legacy `bots run <bot>` now only falls back to generic `bots` help and is no longer a supported path.
+
+### What didn't work
+
+- `docmgr doctor` found one stale related-file entry after the deletion:
+  - `missing_related_file — related file not found: internal/botcli/runtime.go`
+- Fixing the ticket index and rerunning doctor resolved it.
+
+### What I learned
+
+- Once the public package genuinely owns the behavior, deleting the internal duplicate is less risky than continuously keeping the two implementations synchronized.
+- The remaining cleanup after package deletion is mostly documentation/bookkeeping, not code architecture.
+
+### What was tricky to build
+
+- The tricky part was not the deletion itself but making sure fixture ownership moved first. If I had deleted `internal/botcli` before relocating `scanner-repo`, both the public package tests and the standalone root tests would have lost a convenient stable fixture. Moving the fixture into `pkg/botcli/testdata` first kept the final cut simple.
+- Another small edge was ticket metadata: deleting a package can leave docmgr references stale even when the code is fully correct. Running doctor immediately after the deletion caught that before the bookkeeping drifted.
+
+### What warrants a second pair of eyes
+
+- Whether there are any broader historical design docs we still want to update to mention that `internal/botcli` is now gone rather than merely “to be reduced later.”
+- Whether we want an additional public example specifically for `pkg/botcli/testdata`-style fixture usage, or whether the current tests/docs are enough.
+
+### What should be done in the future
+
+- N/A for the specific cleanup requested here. The major alias/wrapper/compatibility cuts are done.
+
+### Code review instructions
+
+- Start with the deletion-oriented diff around:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/testdata/scanner-repo/demo-bot.js`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root_test.go`
+- Then confirm the package is actually gone:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/botcli/`
+- Validate with:
+  - `go test ./...`
+  - `go run ./cmd/discord-bot --bot-repository ./pkg/botcli/testdata/scanner-repo bots demo-bot status --output json`
+  - `go run ./examples/framework-combined bots ui-showcase run --help`
+
+### Technical details
+
+- The scanner fixture now lives under `pkg/botcli/testdata`, so the public package owns both the implementation and the fixture used to validate it.
+- `internal/botcli` has been removed completely.
+- `docmgr doctor` passes again after replacing the stale index reference to deleted internal botcli code.

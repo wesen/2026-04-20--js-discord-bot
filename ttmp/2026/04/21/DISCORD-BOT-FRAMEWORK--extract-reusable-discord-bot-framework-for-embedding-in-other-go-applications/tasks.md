@@ -87,7 +87,7 @@
   - [x] delete the `bots run <bot>` compatibility path and keep only `bots <bot> run`
   - [x] remove compatibility-specific helper code/tests/docs
   - [x] update operator-facing help/docs/error text to the canonical command shape
-- [ ] Delete the duplicated `internal/botcli` implementation once the public path stands on its own
-  - [ ] move any still-needed test fixtures/helpers into `pkg/botcli`
-  - [ ] remove redundant internal tests and command/discovery helpers
-  - [ ] validate the repo on the public path only
+- [x] Delete the duplicated `internal/botcli` implementation once the public path stands on its own
+  - [x] move any still-needed test fixtures/helpers into `pkg/botcli`
+  - [x] remove redundant internal tests and command/discovery helpers
+  - [x] validate the repo on the public path only

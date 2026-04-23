@@ -284,7 +284,6 @@ cmd/
 
 internal/
   bot/                     live Discordgo session wrapper
-  botcli/                  named bot repository discovery and runner
   config/                  host config decoding and validation
   jsdiscord/               embedded JS runtime, defineBot API, dispatch, payload normalization
 
@@ -292,6 +291,7 @@ examples/
   discord-bots/            named JS bot implementations
 
 pkg/
+  botcli/                  public named-bot repository discovery and runner
   doc/                     embedded help pages
 
 ttmp/
