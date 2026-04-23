@@ -204,3 +204,102 @@ The framework split only makes sense if the simple path remains simple and well-
   3. optionally sync commands
   4. open gateway session
   5. block until shutdown
+
+## Step 5: Create the first public single-bot framework package
+
+After improving the standalone single-bot CLI path, the next Track A slice was to expose that simplicity as a public package instead of leaving it trapped behind application-only commands. I kept this slice intentionally small: one package, one constructor, explicit script selection, explicit or env-backed credentials, runtime config injection, and no repository scanning at all.
+
+This is the first real code step toward the “single explicit bot remains the easy path” design. It does not solve the full extraction yet, but it proves that downstream code can import a stable public package and create one bot instance without touching `internal/botcli`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue with the next focused framework-extraction task, keep it reviewable, and record it in the ticket diary.
+
+**Inferred user intent:** The user wants the design split turned into real code incrementally, with single-bot simplicity preserved as a first-class use case.
+
+### What I did
+
+- Added a new public package:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework.go`
+- Implemented an initial public API:
+  - `framework.New(opts...)`
+  - `framework.WithScript(...)`
+  - `framework.WithCredentials(...)`
+  - `framework.WithCredentialsFromEnv()`
+  - `framework.WithRuntimeConfig(...)`
+  - `framework.WithSyncOnStart(...)`
+- Added a public `framework.Bot` wrapper with:
+  - `Open()`
+  - `Run(ctx)`
+  - `SyncCommands()`
+  - `Close()`
+- Kept the package deliberately simple by wrapping `internal/bot.NewWithScript(...)` rather than trying to solve runtime factories or transport abstraction in the same slice.
+- Added tests in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework_test.go` for:
+  - missing script error
+  - env-backed credentials
+  - explicit credentials + runtime config
+- Ran:
+  - `gofmt -w pkg/framework/framework.go pkg/framework/framework_test.go`
+  - `go test ./pkg/framework ./cmd/discord-bot ./internal/botcli -run 'TestNew|StandaloneRunHelpShowsSyncOnStart|LegacyRunSyntaxWorksForUiShowcase' -v`
+  - `go test ./...`
+- Updated the framework ticket tasks and changelog to record the new public package.
+
+### Why
+
+The design says embedders should have a first-class single-bot path that does not require repository discovery, jsverbs scanning, or `botcli`. The quickest way to make that real was to expose a thin public wrapper around the existing single-bot runtime behavior.
+
+### What worked
+
+- The new package can construct one explicit bot using an existing example script with no repository bootstrap logic.
+- `WithCredentialsFromEnv()` works against the existing `DISCORD_BOT_TOKEN` / `DISCORD_APPLICATION_ID` environment variables.
+- Runtime config injection is exposed in the public package without forcing users through the repo-driven command path.
+- The package-level tests passed, and the full repo test suite stayed green.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The current `internal/bot.NewWithScript(...)` path is already a good foundation for the public single-bot API. The biggest missing piece was not deep runtime surgery — it was a public package boundary and a cleaner option surface.
+- This confirms the split is viable: Track A can move independently from Track B for a while.
+
+### What was tricky to build
+
+- The main tricky part was resisting scope creep. It would have been tempting to add runtime-factory hooks, custom transports, or a public `NewHost(...)` in the same change because the design document discusses them heavily. I avoided that by defining the smallest package that still proves the single-bot story externally: `New`, options, and a thin wrapper around the existing runtime.
+- Another subtle point was making sure the tests exercised the public path without opening a real Discord session. The fix was to use `framework.New(...)` against an existing example script and stop at construction time; `discordgo.New(...)` and bot loading are enough to validate the package shape without needing network activity.
+
+### What warrants a second pair of eyes
+
+- The package name and path choice: `pkg/framework` is plausible, but we may still want to rename it to something more explicit if the repo later grows multiple public packages.
+- Whether `Open()` should always honor `SyncOnStart`, or whether sync-on-start should remain exclusively part of `Run(ctx)` and higher-level startup helpers.
+- Whether the next slice should add a public `NewHost(...)` now, or wait until the runtime-factory work is ready.
+
+### What should be done in the future
+
+- Continue Track A by deciding whether to expose a public `NewHost(...)` in addition to `framework.New(...)`.
+- Add minimal public examples showing how a downstream app imports `pkg/framework` and runs one explicit bot.
+- After Track A is comfortably established, start Track B and promote `internal/botcli` into an optional public package.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework.go` to review the public API surface and how it maps onto `internal/bot.NewWithScript(...)`.
+- Review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework_test.go` for the no-network package tests.
+- Validate with:
+  - `go test ./pkg/framework`
+  - `go test ./...`
+
+### Technical details
+
+- `framework.New(...)` validates script presence before constructing the internal bot.
+- `WithCredentialsFromEnv()` reads the same env vars as the standalone CLI:
+  - `DISCORD_BOT_TOKEN`
+  - `DISCORD_APPLICATION_ID`
+  - `DISCORD_GUILD_ID`
+  - `DISCORD_PUBLIC_KEY`
+  - `DISCORD_CLIENT_ID`
+  - `DISCORD_CLIENT_SECRET`
+- `WithRuntimeConfig(...)` clones the provided map so callers do not share mutable config state with the package internals.
+- The public package stays intentionally unaware of repositories, bootstraps, jsverbs scanning, and `botcli` command registration.

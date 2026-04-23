@@ -34,3 +34,13 @@ Started implementation Track A for the framework split by improving the standalo
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/cmd/discord-bot/root_test.go — Root help regression test for `--sync-on-start`
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md — Track A/Track B split with first single-bot subtask checked off
 
+## 2026-04-22
+
+Created the first public single-bot embedding package at `pkg/framework`. The package exposes `framework.New(...)` with explicit script and credentials options, an env-backed credentials option, runtime config injection, and optional sync-on-start behavior. Added focused tests using the existing example bot scripts to prove the public single-bot path can be constructed without any repository scanning or `botcli` involvement.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework.go — Initial public single-bot framework wrapper around `internal/bot`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework_test.go — Public package tests for script requirement, env credentials, and runtime config wiring
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md — Track A updated with initial public package progress
+

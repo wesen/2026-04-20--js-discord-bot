@@ -17,9 +17,11 @@
 
 #### Track A — keep single-bot embedding first-class and simple
 - [ ] Extract a clean public single-bot framework API
+  - [x] Create an initial public `pkg/framework` package with `framework.New(...)`
+  - [x] Add explicit `WithScript(...)` and `WithCredentials(...)` options
+  - [x] Add `WithCredentialsFromEnv()` for the simple env-backed path
+  - [x] Keep the package free of repository scanning concerns
   - `framework.New(...)` / `NewHost(...)` remain the primary path
-  - explicit `WithScript(...)` single-bot startup stays simple
-  - no repository scanning required for the simple case
 - [ ] Preserve or improve the current single-bot operator flow
   - [x] Add `--sync-on-start` to the standalone `run --bot-script ...` path
   - standalone `run --bot-script ...` remains supported
@@ -28,8 +30,8 @@
   - minimal embedded app example
   - one explicit bot + custom module/runtime example
 - [ ] Add regression tests for the single-bot path
-  - simple framework startup with one explicit script
-  - credentials/env loading for the explicit single-bot path
+  - [x] simple framework startup with one explicit script
+  - [x] credentials/env loading for the explicit single-bot path
   - [x] `run --help` exposes `--sync-on-start`
   - optional `--sync-on-start` behavior where applicable
 
