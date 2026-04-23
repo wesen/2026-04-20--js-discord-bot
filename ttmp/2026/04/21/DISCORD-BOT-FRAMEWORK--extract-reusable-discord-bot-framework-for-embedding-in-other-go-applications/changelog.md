@@ -127,3 +127,15 @@ Added a durable downstream example app that combines both extracted public layer
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Recommended public split documented explicitly
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Examples index now points readers at the combined downstream app
 
+## 2026-04-23
+
+Completed the next public-ownership slice for `pkg/botcli`. The public package now owns repository scanning policy (real bot entrypoints only, explicit verbs only, `AbsPath` preservation), host-managed `run` synthesis (explicit run verbs, synthetic run fallback, and both run command shapes), and a broader `WithRuntimeFactory(...)` hook. Added missing public regressions for helper-function leakage, both run aliases, and custom runtime-factory behavior, then manually validated both run shapes through `examples/framework-combined` and a temporary downstream app using `WithRuntimeFactory(...)` against a custom-module bot repository.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/discover.go — Public repository discovery, scan policy, and bot resolution helpers
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go — Public command builder, list/help commands, and host-managed run ownership
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go — Public `WithRuntimeFactory(...)` and host-option/runtime-factory configuration
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go — Default public verb runtime factory
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public regressions for helper leakage, both run shapes, and custom runtime factory support
+

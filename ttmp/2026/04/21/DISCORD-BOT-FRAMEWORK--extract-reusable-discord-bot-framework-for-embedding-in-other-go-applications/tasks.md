@@ -48,24 +48,26 @@
   - [x] `NewCommand(bootstrap, opts...)`
   - or `NewRootCommand(rawArgs, opts...)`
   - [x] make downstream integration into an existing Cobra root trivial
-- [ ] Move the entrypoint-only explicit-verb scanning policy into the public package
-  - scan only real bot entrypoints
-  - set `IncludePublicFunctions: false`
-  - preserve correct `AbsPath` mapping for host-managed run commands
-- [ ] Keep host-managed `run` semantics in the public package
-  - explicit `__verb__("run")` becomes a `BareCommand`
-  - bots without explicit run metadata still get a synthetic `run` command
-  - register both `bots <bot> run` and `bots run <bot>` compatibility paths
+- [x] Move the entrypoint-only explicit-verb scanning policy into the public package
+  - [x] Slice A1 — add public repository scanning helpers that discover only real bot entrypoints
+  - [x] Slice A2 — keep `IncludePublicFunctions: false` in the public scan path so helper functions never leak into the command tree
+  - [x] Slice A3 — preserve `AbsPath` mapping in the public scan path so host-managed run commands bind to the correct script files
+- [x] Keep host-managed `run` semantics in the public package
+  - [x] Slice B1 — public command builder owns explicit `__verb__("run")` as a `BareCommand`
+  - [x] Slice B2 — public command builder synthesizes `run` for bots without explicit run metadata
+  - [x] Slice B3 — public command builder registers both `bots <bot> run` and `bots run <bot>` compatibility paths
 - [ ] Make the public package configurable for downstream apps
   - [x] `WithAppName(...)` so dynamic commands use Glazed env middleware correctly
   - [x] `WithRuntimeModuleRegistrars(...)` as the first public runtime-extension hook
-  - `WithRuntimeFactory(...)` / framework hooks for custom runtimes and modules
+  - [x] Slice C1 — add `WithRuntimeFactory(...)` as a broader public hook for ordinary jsverbs runtime creation
+  - [x] Slice C2 — let a custom runtime factory contribute host options used by discovery and host-managed bot runs
   - optional custom repository flag/env names for embedders
 - [ ] Add regression tests for the public package
   - downstream-style root integration with raw argv pre-scan
   - env-backed `DISCORD_BOT_TOKEN` / `DISCORD_APPLICATION_ID` loading
-  - no leaked helper verbs from bot libraries
-  - compatibility aliases for both run command shapes
+  - [x] no leaked helper verbs from bot libraries
+  - [x] compatibility aliases for both run command shapes
+  - [x] custom runtime factory behavior for ordinary jsverbs plus discovery/run host-option parity
 - [x] Update framework docs/examples to show downstream embedding of the public `botcli` package
 
 #### Integration / positioning

@@ -69,6 +69,55 @@ __verb__("status", { output: "glaze", short: "Show custom module status" });
 	require.Contains(t, output, `"module": "app"`)
 }
 
+func TestNewCommandSupportsCustomRuntimeFactory(t *testing.T) {
+	repo := writeBotCLIRepoBot(t, `
+const { defineBot } = require("discord");
+const app = require("app");
+module.exports = defineBot(({ configure }) => {
+  configure({ name: "custom-module-bot", description: app.description() });
+});
+function status() { return { active: true, module: app.name(), description: app.description() }; }
+__verb__("status", { output: "glaze", short: "Show custom module status" });
+`)
+
+	root := &cobra.Command{Use: "downstream-app"}
+	root.AddCommand(NewCommand(
+		Bootstrap{Repositories: []Repository{repo}},
+		WithRuntimeFactory(customRuntimeFactory{}),
+	))
+
+	output, err := executeCaptured(t, root, []string{"bots", "custom-module-bot", "status", "--output", "json"})
+	require.NoError(t, err)
+	require.Contains(t, output, `"active": true`)
+	require.Contains(t, output, `"module": "app"`)
+	require.Contains(t, output, `"description": "Bot using a custom runtime module"`)
+}
+
+func TestNewCommandKeepsBothRunCommandShapes(t *testing.T) {
+	root := &cobra.Command{Use: "downstream-app"}
+	root.AddCommand(NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
+
+	output, err := executeCaptured(t, root, []string{"bots", "ui-showcase", "run", "--help"})
+	require.NoError(t, err)
+	require.Contains(t, output, "--bot-token")
+	require.Contains(t, output, "--application-id")
+
+	output, err = executeCaptured(t, root, []string{"bots", "run", "ui-showcase", "--help"})
+	require.NoError(t, err)
+	require.Contains(t, output, "bots run ui-showcase")
+	require.Contains(t, output, "--sync-on-start")
+}
+
+func TestNewCommandDoesNotLeakHelperFunctions(t *testing.T) {
+	root := &cobra.Command{Use: "downstream-app"}
+	root.AddCommand(NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
+
+	output, err := executeCaptured(t, root, []string{"bots", "ui-showcase"})
+	require.NoError(t, err)
+	require.Contains(t, output, "run         Run the ui-showcase Discord bot")
+	require.NotContains(t, output, "first-value")
+}
+
 func executeCaptured(t *testing.T, root interface {
 	SetArgs([]string)
 	Execute() error

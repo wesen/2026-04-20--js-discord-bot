@@ -1,6 +1,7 @@
 package botcli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"github.com/dop251/goja"
 	noderequire "github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,4 +44,15 @@ func (testAppRegistrar) RegisterRuntimeModules(_ *engine.RuntimeModuleContext, r
 		_ = exports.Set("greeting", func() string { return fmt.Sprintf("hello from %s", "app") })
 	})
 	return nil
+}
+
+type customRuntimeFactory struct{}
+
+func (customRuntimeFactory) HostOptions() []jsdiscord.HostOption {
+	return []jsdiscord.HostOption{jsdiscord.WithRuntimeModuleRegistrars(testAppRegistrar{})}
+}
+
+func (customRuntimeFactory) NewRuntimeForVerb(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error) {
+	cfg := commandOptions{runtimeModuleRegistrars: []engine.RuntimeModuleRegistrar{testAppRegistrar{}}}
+	return defaultRuntimeFactory(cfg).NewRuntimeForVerb(ctx, registry, verb)
 }

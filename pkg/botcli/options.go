@@ -1,16 +1,33 @@
 package botcli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/engine"
-	internalbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
+
+type RuntimeFactory interface {
+	NewRuntimeForVerb(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error)
+}
+
+type RuntimeFactoryFunc func(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error)
+
+func (f RuntimeFactoryFunc) NewRuntimeForVerb(ctx context.Context, registry *jsverbs.Registry, verb *jsverbs.VerbSpec) (*engine.Runtime, error) {
+	return f(ctx, registry, verb)
+}
+
+type HostOptionsProvider interface {
+	HostOptions() []jsdiscord.HostOption
+}
 
 type commandOptions struct {
 	appName                 string
 	runtimeModuleRegistrars []engine.RuntimeModuleRegistrar
+	runtimeFactory          RuntimeFactory
 }
 
 type CommandOption func(*commandOptions) error
@@ -57,10 +74,26 @@ func WithRuntimeModuleRegistrars(registrars ...engine.RuntimeModuleRegistrar) Co
 	}
 }
 
-func toInternalCommandOptions(cfg commandOptions) []internalbotcli.CommandOption {
-	ret := []internalbotcli.CommandOption{internalbotcli.WithAppName(cfg.appName)}
+// WithRuntimeFactory overrides ordinary jsverbs runtime creation and may also
+// contribute host options for discovery and host-managed bot runs when the
+// factory implements HostOptionsProvider.
+func WithRuntimeFactory(factory RuntimeFactory) CommandOption {
+	return func(cfg *commandOptions) error {
+		if factory == nil {
+			return fmt.Errorf("runtime factory is nil")
+		}
+		cfg.runtimeFactory = factory
+		return nil
+	}
+}
+
+func (cfg commandOptions) hostOptions() []jsdiscord.HostOption {
+	ret := []jsdiscord.HostOption{}
 	if len(cfg.runtimeModuleRegistrars) > 0 {
-		ret = append(ret, internalbotcli.WithRuntimeModuleRegistrars(cfg.runtimeModuleRegistrars...))
+		ret = append(ret, jsdiscord.WithRuntimeModuleRegistrars(cfg.runtimeModuleRegistrars...))
+	}
+	if provider, ok := cfg.runtimeFactory.(HostOptionsProvider); ok {
+		ret = append(ret, provider.HostOptions()...)
 	}
 	return ret
 }

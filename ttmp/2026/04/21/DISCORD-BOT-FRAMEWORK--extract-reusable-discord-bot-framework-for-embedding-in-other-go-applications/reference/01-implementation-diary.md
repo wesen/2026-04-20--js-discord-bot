@@ -968,3 +968,123 @@ Until this slice, the public split existed in code and in my reasoning, but not 
 - `run-builtin` uses `pkg/framework` directly and does not depend on repository discovery.
 - The `bots` subtree is mounted through `pkg/botcli.NewCommand(...)` and uses `pkg/botcli.BuildBootstrap(...)` with a default repository rooted at `examples/discord-bots`.
 - The built-in bot script receives a small runtime config map (`mode`, `source`) so it is easy to confirm the explicit built-in path is really the `pkg/framework` path.
+
+## Step 14: Complete slices A/B/C for public botcli ownership and runtime factory support
+
+At this point the public `pkg/botcli` package was still half-wrapper, half-owner. The next major goal was to make it actually own the remaining high-value behavior that users of the public package care about: scanning policy, host-managed run semantics, and a broader runtime factory hook.
+
+The user explicitly asked to add tasks and do the whole A/B/C set, so I treated this as one coherent slice instead of three separate mini-slices.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add tasks and do A B C"
+
+**Assistant interpretation:** Update the task list with the specific A/B/C breakdown and then implement all three slices rather than deferring part of the plan.
+
+**Inferred user intent:** The user wants the remaining public-ownership work to become concrete, both in planning docs and in code, and wants the public `pkg/botcli` package to become substantially more self-owned in one go.
+
+### What I did
+
+#### Planning
+- Updated the framework task list to add explicit A/B/C sub-slices for:
+  - public scan-policy ownership
+  - public host-managed run ownership
+  - public runtime-factory support
+
+#### Slice A — public scan-policy ownership
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/discover.go` with public ownership of:
+  - real bot entrypoint discovery only
+  - `IncludePublicFunctions: false` scanning
+  - `AbsPath` preservation for scanned files
+  - public `ResolveBot(...)`
+- This moved the practical scan policy used by the public command builder out of the internal package.
+
+#### Slice B — public host-managed run ownership
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/run_description.go`
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go`
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`
+- Reworked `pkg/botcli.NewBotsCommand(...)` / `NewCommand(...)` so the public package now owns:
+  - explicit `__verb__("run")` as a `BareCommand`
+  - synthetic `run` fallback when a bot has no explicit run metadata
+  - both `bots <bot> run` and `bots run <bot>` shapes
+  - public list/help command wiring
+- Kept the standalone app on the public package path, so `cmd/discord-bot` continues to dogfood the extracted behavior.
+
+#### Slice C — broader runtime-factory hook
+- Expanded `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go`
+- Added `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/invoker.go`
+- Exposed:
+  - `WithRuntimeFactory(...)`
+  - `RuntimeFactory`
+  - `RuntimeFactoryFunc`
+  - `HostOptionsProvider`
+- The factory now affects ordinary jsverbs runtime creation, and if it implements `HostOptionsProvider`, it can also contribute host options used for discovery and host-managed bot runs.
+
+#### Tests
+- Strengthened public package tests in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/test_helpers_test.go`
+- Added public regressions for:
+  - no leaked helper verbs from bot libraries
+  - both run command shapes
+  - custom runtime-module registrars
+  - custom runtime-factory behavior with discovery/run host-option parity
+- Ran:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./internal/botcli ./...`
+
+#### Real validation
+- Validated both run shapes through the combined downstream example:
+  - `go run ./examples/framework-combined bots ui-showcase run --help`
+  - `go run ./examples/framework-combined bots run ui-showcase --help`
+- Validated a temporary downstream app using `WithRuntimeFactory(...)` against a temp repo whose bot script requires `require("app")`.
+- That manual run returned structured JSON successfully:
+  - `{ "active": true, "module": "app", "description": "manual factory works" }`
+
+### What worked
+
+- The public package now owns much more of the behavior that had previously lived only in the internal package.
+- The missing public regressions are now in place for helper-leak prevention and both run command shapes.
+- The runtime factory hook works in a real downstream-style app, not just in tests.
+
+### What didn't work
+
+- The initial pass on the public tests had a purely test-local import collision in `pkg/botcli/command_test.go` (`require` package name collision). Fixing the import aliases resolved it immediately.
+
+### Why this mattered
+
+This slice turns `pkg/botcli` from a mostly public façade into a package that genuinely owns its important public behavior. That reduces the gap between “public API” and “internal implementation with public wrappers,” especially for the scan/run behaviors downstream embedders actually depend on.
+
+### What I learned
+
+- The scan policy and host-managed run semantics fit naturally together in the public package because they are both part of how the public command tree comes into existence.
+- A runtime factory becomes more useful when it can influence both ordinary jsverb invocation and host-backed discovery/run behavior; otherwise it feels incomplete.
+
+### What was tricky to build
+
+- The biggest subtlety was making the runtime-factory hook broad enough to be useful without over-designing it. I solved that by separating two concerns:
+  - `RuntimeFactory` for ordinary verb runtime creation
+  - optional `HostOptionsProvider` so the same factory can influence discovery and host-managed runs
+- Another subtle point was keeping the public types stable while moving more real behavior into the public package. Using the existing public aliases for `Bootstrap`, `Repository`, and `DiscoveredBot` let me do that incrementally.
+
+### What warrants a second pair of eyes
+
+- Whether the current `RuntimeFactory` / `HostOptionsProvider` split is the right long-term public API, or whether a future refactor should fold those into a single richer factory type.
+- Whether the remaining internal package should eventually be further reduced now that the public command builder owns most of the behavior downstream users care about.
+
+### What should be done in the future
+
+- Decide whether the next step is to keep extracting more implementation out of `internal/botcli`, or to pause and let the now-broader public API settle.
+- Potentially add one more durable example using `WithRuntimeFactory(...)` if that becomes a core recommended pattern rather than an advanced escape hatch.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/discover.go` and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/commands_impl.go`.
+- Then review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go`, `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_factory.go`, and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/invoker.go`.
+- Finally review the strengthened public regressions in `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go`.
+
+### Technical details
+
+- Public scan policy now discovers only real bot entrypoints and always scans with `IncludePublicFunctions: false`.
+- Public command construction now synthesizes host-managed run commands itself instead of relying on the internal command builder.
+- `WithRuntimeFactory(...)` customizes ordinary jsverbs runtime creation; if the factory also implements `HostOptionsProvider`, its host options are applied to discovery and host-managed bot runs too.
