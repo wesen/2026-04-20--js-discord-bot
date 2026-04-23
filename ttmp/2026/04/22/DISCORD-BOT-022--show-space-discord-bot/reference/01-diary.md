@@ -76,3 +76,101 @@ That gave us a clean baseline for the later task slices: commands, permissions, 
   - `category: "venues"`
 - Discovery result:
   - `show-space	show-space/index.js	Venue operations bot for upcoming shows and pinned announcements`
+
+## Step 2: Build phase-1 show announcement flow and test it
+
+I expanded the bot into a working venue workflow: a seeded `shows.json`, helper modules for dates, permissions, rendering, and show catalog state, and the three phase-1 commands (`/upcoming`, `/announce`, and `/unpin-old`). I also added runtime tests that prove the bot loads, lists shows, rejects unauthorized announces, posts/pins announcements, and unpins expired shows.
+
+The only runtime-specific snag was the embedded Goja environment not exposing `Intl`. I fixed that by switching the date formatter to a manual weekday/month renderer, which keeps the code portable inside the bot runtime.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue the show-space bot work in small commits, keeping the diary current while implementing the next task slice.
+
+**Inferred user intent:** Keep building the venue bot methodically, with clear checkpoints and enough logging to resume or audit later.
+
+**Commit (code):** `5900aff` — "feat(show-space): implement phase 1 announcement flow and runtime coverage"
+
+### What I did
+- Added `examples/discord-bots/show-space/shows.json` with seeded upcoming shows
+- Added `examples/discord-bots/show-space/lib/dates.js`
+- Added `examples/discord-bots/show-space/lib/permissions.js`
+- Added `examples/discord-bots/show-space/lib/render.js`
+- Added `examples/discord-bots/show-space/lib/shows.js`
+- Expanded `examples/discord-bots/show-space/index.js` with:
+  - runtime config fields for channel IDs, role IDs, and timezone
+  - `/upcoming`
+  - `/announce`
+  - `/unpin-old`
+- Added `internal/jsdiscord/show_space_runtime_test.go`
+- Updated `examples/discord-bots/README.md` to list `show-space`
+- Verified `GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/discord-bots | rg -n "show-space|venues"`
+- Verified `go test ./internal/jsdiscord/... -count=1`
+
+### Why
+- Phase 1 needed a real working surface before moving into DB-backed persistence
+- A seeded JSON file plus an in-memory catalog is enough to validate the venue announcement flow without introducing database complexity too early
+- Runtime tests provide confidence that the bot behaves correctly under the current Goja-backed JS host
+
+### What worked
+- The bot list command continued to show the new venue bot after the phase-1 expansion
+- The runtime tests covered the important behavior slices:
+  - seeded upcoming shows
+  - permission denial for non-admin/non-booker users
+  - announcement posting + pinning
+  - expired pin cleanup
+- The bot code remained readable enough to keep the command handlers thin
+
+### What didn't work
+- The first version of the date formatter used `Intl.DateTimeFormat`, which is not available in this Goja runtime
+- The failure looked like this:
+  - `ReferenceError: Intl is not defined at formatDisplayDate (/home/manuel/code/wesen/2026-04-20--js-discord-bot/examples/discord-bots/show-space/lib/dates.js:50:25(15))`
+- I fixed it by replacing the `Intl` usage with manual weekday/month name formatting
+
+### What I learned
+- This embedded JS runtime does not assume browser-like or Node-like internationalization APIs
+- A manual formatter is safer for bot-runtime portability when only the output shape matters
+- It is still practical to model show data in JS before introducing persistence
+
+### What was tricky to build
+- The `/announce` flow needed to post a Discord message, find the exact posted message, and pin it without a direct `send()` return value containing the message ID
+- I solved that by looking up the recent messages in the target channel and matching the rendered embed title
+- The `/unpin-old` flow had to parse the date back out of the rendered pinned title so the cleanup behavior could work without a database
+
+### What warrants a second pair of eyes
+- The current announce flow depends on a title-matching lookup after posting; if the channel is very active, that matching strategy may need a tighter discriminator later
+- The phase-1 in-memory catalog is intentionally simple and will be replaced by durable storage in phase 2
+
+### What should be done in the future
+- Add the database-backed store and phase-2 commands
+- Decide whether `/announce` should remain as a quick command or become a thin alias over `/add-show`
+- Add a staff-facing detail command and persisted past-show listing
+- Add a daily archive helper that can be triggered by an external scheduler
+
+### Code review instructions
+- Start with `examples/discord-bots/show-space/index.js`
+- Review `examples/discord-bots/show-space/lib/dates.js` for the no-Intl formatter
+- Review `examples/discord-bots/show-space/lib/shows.js` for the in-memory catalog shape
+- Review `internal/jsdiscord/show_space_runtime_test.go` for the runtime coverage of permission gating, pinning, and cleanup
+- Re-run:
+  - `go test ./internal/jsdiscord -run TestShowSpace -count=1`
+  - `go test ./internal/jsdiscord/... -count=1`
+  - `GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/discord-bots | rg -n "show-space|venues"`
+
+### Technical details
+- Seed data file:
+  - `examples/discord-bots/show-space/shows.json`
+- Helper modules:
+  - `dates.js` — date parsing and display formatting
+  - `permissions.js` — role checks and permission-denied payload
+  - `render.js` — announcement and upcoming-show payload formatting
+  - `shows.js` — in-memory catalog for phase 1
+- Runtime command behavior:
+  - `/upcoming` returns an ephemeral formatted list
+  - `/announce` posts and pins in the configured `upcomingShowsChannelId`
+  - `/unpin-old` parses the rendered date title to find expired pins
+- Validation notes:
+  - the bot shell still loads via `bots list`
+  - the internal JS runtime suite remains green after the new example and tests

@@ -17,45 +17,45 @@ Goal: ship a working venue bot that can post, list, and pin announcements with s
   - register a bot name like `show-space` or `artist-space`
   - keep all runtime behavior in JavaScript, not Discord.js/discord.py
 
-- [ ] **1.2** Add a small helper module layout
+- [x] **1.2** Add a small helper module layout
   - `lib/dates.js` for parsing and normalizing inputs like `Apr 25` and `2025-04-25`
   - `lib/render.js` for announcement embeds and upcoming-show text output
   - `lib/permissions.js` for `@admin` / `@booker` role checks
   - `lib/shows.js` for loading `shows.json` and filtering upcoming entries
 
-- [ ] **1.3** Implement `shows.json` as the Phase 1 data source
+- [x] **1.3** Implement `shows.json` as the Phase 1 data source
   - seed a few upcoming shows for local testing
   - keep the file small and hand-editable
   - normalize date display to `Fri Apr 25, 2025`
 
-- [ ] **1.4** Implement `/upcoming`
+- [x] **1.4** Implement `/upcoming`
   - visible to anyone
   - render a clean list of upcoming shows from `shows.json`
   - decide whether the command reply is public or ephemeral, then document that choice in the guide
 
-- [ ] **1.5** Implement `/announce`
+- [x] **1.5** Implement `/announce`
   - allow only `@admin` and `@booker`
   - accept simple text args: `artist`, `date`, `doors_time`, `age_restriction`, `price`, `notes`
   - post a formatted embed to the configured `#upcoming-shows` channel
   - pin the posted message
   - reply with a success acknowledgement
 
-- [ ] **1.6** Implement `/unpin-old`
+- [x] **1.6** Implement `/unpin-old`
   - allow only `@admin`
   - list pins in `#upcoming-shows`
   - unpin entries whose dates have passed
   - report the count of removed pins
 
-- [ ] **1.7** Add venue configuration fields through `configure({ run: ... })`
+- [x] **1.7** Add venue configuration fields through `configure({ run: ... })`
   - channel IDs: `upcomingShowsChannelId`, `announcementsChannelId`, `staffChannelId`
   - role IDs: `adminRoleId`, `bookerRoleId`
   - optional timezone / date-display fields if needed
 
-- [ ] **1.8** Add command-level permission failures
+- [x] **1.8** Add command-level permission failures
   - reply ephemerally with: `❌ You don't have permission to use this command.`
   - keep the check reusable across all write commands
 
-- [ ] **1.9** Add smoke tests for the Phase 1 workflow
+- [x] **1.9** Add smoke tests for the Phase 1 workflow
   - list shows
   - announce a show
   - pin the announcement
@@ -134,7 +134,7 @@ Goal: move show state into a persistent store and make show management safer.
   - how to seed or migrate initial shows
   - how to run the manual unpin/archival command safely
 
-- [ ] **3.3** Update `examples/discord-bots/README.md`
+- [x] **3.3** Update `examples/discord-bots/README.md`
   - add the new `show-space` bot to the example inventory
   - document the Phase 1 and Phase 2 command set
   - note any required guild/channel permissions
