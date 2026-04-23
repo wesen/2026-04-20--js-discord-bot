@@ -212,6 +212,7 @@ bot, err := framework.New(
 See:
 - `pkg/framework/` — public single-bot API
 - `examples/framework-single-bot/` — minimal embeddable app example
+- `examples/framework-custom-module/` — explicit bot + custom Go-native `require("app")` module example
 
 ---
 

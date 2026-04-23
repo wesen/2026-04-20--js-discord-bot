@@ -17,6 +17,7 @@ The source files for those help pages live in the repo at:
 
 If you want the new public single-bot embedding path instead of the repo-driven CLI, see:
 - `examples/framework-single-bot/` — minimal Go application using `pkg/framework`
+- `examples/framework-custom-module/` — explicit bot plus a custom Go-native `require("app")` module
 
 ## Bots
 
@@ -46,6 +47,14 @@ That example:
 - loads credentials with `framework.WithCredentialsFromEnv()`
 - injects `ctx.config` values with `framework.WithRuntimeConfig(...)`
 - optionally syncs commands on startup with `framework.WithSyncOnStart(true)`
+
+For the next extension seam beyond runtime config, see:
+
+```bash
+GOWORK=off go run ./examples/framework-custom-module
+```
+
+That example shows `framework.WithRuntimeModuleRegistrars(...)` with one explicit bot script that calls `require("app")`.
 
 ## Example commands
 

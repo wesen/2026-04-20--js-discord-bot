@@ -55,3 +55,17 @@ Added the first public single-bot embedding example and linked it from the repos
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Examples index now points readers to the public embedding path
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Top-level repo README now mentions the public single-bot package and example
 
+## 2026-04-22
+
+Extended the public single-bot framework path so downstream embedders can inject custom Go-native `require()` modules without using repo-driven `botcli`. Added `framework.WithRuntimeModuleRegistrars(...)`, threaded host options through `internal/bot` and `jsdiscord.NewHost(...)`, added regression tests for scripts that require a custom module, and created a second embedding example showing one explicit bot script plus a custom `app` module.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/jsdiscord/host.go — `NewHost(...)` now accepts host options and custom runtime module registrars
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/jsdiscord/host_options.go — New host option plumbing for runtime registrars
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/bot/bot.go — Single-bot runtime now forwards host options to `jsdiscord`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework.go — Public `WithRuntimeModuleRegistrars(...)` option
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework_test.go — Regression tests for missing/present custom runtime modules
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/main.go — Explicit bot embedding example with custom `require("app")` module
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/bot/index.js — JS bot script that consumes the injected `app` module
+

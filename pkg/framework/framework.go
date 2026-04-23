@@ -6,8 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-go-golems/go-go-goja/engine"
 	appbot "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/bot"
 	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
+	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
 )
 
 // Credentials holds the explicit Discord settings needed to run one bot.
@@ -25,10 +27,11 @@ type Option func(*Config) error
 
 // Config describes the simple single-bot embedding path.
 type Config struct {
-	Credentials   Credentials
-	ScriptPath    string
-	RuntimeConfig map[string]any
-	SyncOnStart   bool
+	Credentials             Credentials
+	ScriptPath              string
+	RuntimeConfig           map[string]any
+	SyncOnStart             bool
+	RuntimeModuleRegistrars []engine.RuntimeModuleRegistrar
 }
 
 // Bot is the public single-bot wrapper around the internal runtime.
@@ -68,7 +71,12 @@ func New(opts ...Option) (*Bot, error) {
 		return nil, err
 	}
 
-	inner, err := appbot.NewWithScript(settings, cfg.ScriptPath, cloneMap(cfg.RuntimeConfig))
+	hostOpts := []jsdiscord.HostOption{}
+	if len(cfg.RuntimeModuleRegistrars) > 0 {
+		hostOpts = append(hostOpts, jsdiscord.WithRuntimeModuleRegistrars(cfg.RuntimeModuleRegistrars...))
+	}
+
+	inner, err := appbot.NewWithScript(settings, cfg.ScriptPath, cloneMap(cfg.RuntimeConfig), hostOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +126,19 @@ func WithRuntimeConfig(runtimeConfig map[string]any) Option {
 func WithSyncOnStart(enabled bool) Option {
 	return func(cfg *Config) error {
 		cfg.SyncOnStart = enabled
+		return nil
+	}
+}
+
+// WithRuntimeModuleRegistrars appends custom per-runtime native module registrars.
+func WithRuntimeModuleRegistrars(registrars ...engine.RuntimeModuleRegistrar) Option {
+	return func(cfg *Config) error {
+		for i, registrar := range registrars {
+			if registrar == nil {
+				return fmt.Errorf("runtime module registrar at index %d is nil", i)
+			}
+		}
+		cfg.RuntimeModuleRegistrars = append(cfg.RuntimeModuleRegistrars, registrars...)
 		return nil
 	}
 }

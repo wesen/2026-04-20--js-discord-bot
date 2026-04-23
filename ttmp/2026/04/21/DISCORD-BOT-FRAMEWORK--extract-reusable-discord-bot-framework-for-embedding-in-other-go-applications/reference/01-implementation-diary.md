@@ -382,3 +382,91 @@ The public package only becomes genuinely useful when there is a clear answer to
 - The script path is explicit: `examples/discord-bots/unified-demo/index.js`.
 - Runtime config is passed through `framework.WithRuntimeConfig(...)` so `/unified-ping` can prove `ctx.config.db_path` and `ctx.config.api_key` are present.
 - Shutdown is driven by a normal Go context derived from `signal.NotifyContext(...)`, which is the expected embedding pattern for downstream applications too.
+
+## Step 7: Add a custom runtime-module seam and advanced single-bot example
+
+The next Track A task after the minimal embedding example was the more advanced case from the task list: one explicit bot plus a custom module/runtime extension. I still did not want to jump all the way to a public `botcli` package or to a huge host abstraction, so I chose the narrowest useful seam: let the public single-bot package pass custom runtime module registrars down into `jsdiscord.NewHost(...)`.
+
+That keeps the single-bot story intact while proving a downstream app can extend the JS runtime with its own Go-native `require()` modules.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with the next Track A implementation slice, not just planning.
+
+**Inferred user intent:** The user wants the framework extraction to keep moving in code-sized, reviewable increments until the single-bot path is both useful and extensible.
+
+### What I did
+
+- Added `internal/jsdiscord/host_options.go` with host-option plumbing for runtime module registrars.
+- Updated `internal/jsdiscord/host.go` so `NewHost(ctx, scriptPath, opts...)` now accepts optional host options and appends custom runtime registrars after the built-in Discord/UI registrars.
+- Updated `internal/jsdiscord/descriptor.go` so `LoadBot(...)` can also forward host options.
+- Updated `internal/bot/bot.go` so `NewWithScript(...)` can pass host options through to `jsdiscord.LoadBot(...)` while preserving existing call sites.
+- Extended the public package in `pkg/framework/framework.go` with:
+  - `WithRuntimeModuleRegistrars(...)`
+- Added package tests in `pkg/framework/framework_test.go` covering:
+  - failure when a bot script requires a missing custom module
+  - success when the same script is constructed with a custom runtime registrar
+- Added a second embedding example:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/main.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/bot/index.js`
+- Updated top-level discoverability docs:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md`
+- Ran:
+  - `gofmt -w internal/jsdiscord/host.go internal/jsdiscord/host_options.go internal/jsdiscord/descriptor.go internal/bot/bot.go pkg/framework/framework.go pkg/framework/framework_test.go examples/framework-custom-module/main.go`
+  - `go test ./pkg/framework ./examples/framework-single-bot ./examples/framework-custom-module ./internal/jsdiscord ./...`
+
+### Why
+
+The design document explicitly calls out custom runtime/module injection as a core requirement for embedders. Without at least one public hook here, `pkg/framework` would remain a thin wrapper around the fixed built-in runtime. This slice adds the first extension seam while still keeping the public API focused on the single-bot case.
+
+### What worked
+
+- The custom registrar path is enough to support a real downstream-style extension: `require("app")` from JavaScript, implemented in Go by the embedding application.
+- The new tests prove both sides of the behavior:
+  - the script fails without the registrar
+  - the script loads successfully with the registrar
+- The new example is self-contained and demonstrates the feature without mixing in repository discovery.
+
+### What didn't work
+
+- My first assertion for the missing-module failure expected the module name (`"app"`) in the error text. The actual Goja require error was `"Invalid module"`, so I had to relax the assertion to match the runtime's real error string.
+
+### What I learned
+
+- We do not need a full public `NewHost(...)` yet to unlock useful extensibility. A targeted `WithRuntimeModuleRegistrars(...)` option already opens a meaningful escape hatch.
+- The internal architecture was already close to supporting this; the main issue was simply that `jsdiscord.NewHost()` had no option channel and the public package had no way to reach that layer.
+
+### What was tricky to build
+
+- The main tricky part was choosing where to put the seam. If the option lived only on `pkg/framework`, it would feel magical and hard to evolve. If it lived only on `internal/jsdiscord`, downstream embedders still could not reach it. The right answer for this slice was both: internal host options plus one public framework option that maps onto them.
+- Another subtle point was preserving existing call sites. I handled that by making the new host-option parameter variadic in both `jsdiscord.NewHost(...)` and `bot.NewWithScript(...)`, so the old code paths continued to compile unchanged.
+
+### What warrants a second pair of eyes
+
+- Whether the next lower-level public seam should be `framework.NewHost(...)`, or whether we should first add one more focused option such as runtime initializers or additional require options.
+- Whether `WithRuntimeModuleRegistrars(...)` should remain the preferred public extension hook, or whether a future `WithRuntimeFactory(...)` should supersede it once Track A grows lower-level APIs.
+
+### What should be done in the future
+
+- Decide whether Track A now needs a public `NewHost(...)` to support lower-level embedding beyond the current option surface.
+- If not, Track A may be sufficiently established to start Track B and promote `internal/botcli` into an optional public package.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/jsdiscord/host_options.go` and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/internal/jsdiscord/host.go`.
+- Then review `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework.go` and `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/framework/framework_test.go`.
+- Finally review the example app at `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-custom-module/`.
+- Validate with:
+  - `go test ./pkg/framework ./examples/framework-single-bot ./examples/framework-custom-module ./internal/jsdiscord ./...`
+  - `GOWORK=off go run ./examples/framework-custom-module` (with Discord env vars set)
+
+### Technical details
+
+- Built-in runtime registrars still load first: the Discord registrar and UI registrar remain default behavior.
+- `WithRuntimeModuleRegistrars(...)` appends additional `engine.RuntimeModuleRegistrar` values after the built-ins.
+- The public option accepts `engine.RuntimeModuleRegistrar`, so downstream embedders can define native modules without importing any internal package.
+- The custom example registers an `app` native module and uses it from a normal `defineBot(...)` script via `require("app")`.

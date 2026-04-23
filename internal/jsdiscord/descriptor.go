@@ -87,8 +87,8 @@ type LoadedBot struct {
 	Host       *Host
 }
 
-func LoadBot(ctx context.Context, scriptPath string) (*LoadedBot, error) {
-	host, err := NewHost(ctx, scriptPath)
+func LoadBot(ctx context.Context, scriptPath string, opts ...HostOption) (*LoadedBot, error) {
+	host, err := NewHost(ctx, scriptPath, opts...)
 	if err != nil {
 		return nil, err
 	}

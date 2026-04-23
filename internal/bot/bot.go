@@ -25,7 +25,7 @@ func New(cfg appconfig.Settings) (*Bot, error) {
 }
 
 // NewWithScript creates a Discord session and wires bot handlers for one explicit bot script.
-func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[string]any) (*Bot, error) {
+func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[string]any, hostOpts ...jsdiscord.HostOption) (*Bot, error) {
 	session, err := discordgo.New("Bot " + strings.TrimSpace(cfg.BotToken))
 	if err != nil {
 		return nil, fmt.Errorf("create discord session: %w", err)
@@ -38,7 +38,7 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 		return nil, fmt.Errorf("javascript bot script is required; use discord-bot bots run <bot> or pass --bot-script")
 	}
 
-	loaded, err := jsdiscord.LoadBot(context.Background(), script)
+	loaded, err := jsdiscord.LoadBot(context.Background(), script, hostOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("load javascript bot script: %w", err)
 	}
