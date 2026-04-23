@@ -5,20 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	internalbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
 )
 
 const (
-	BotRepositoryFlag = internalbotcli.BotRepositoryFlag
 	DefaultEnvVarName = "DISCORD_BOT_REPOSITORIES"
 	DefaultRepoPath   = "examples/discord-bots"
-)
-
-type (
-	Bootstrap     = internalbotcli.Bootstrap
-	Repository    = internalbotcli.Repository
-	DiscoveredBot = internalbotcli.DiscoveredBot
 )
 
 type buildOptions struct {

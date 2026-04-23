@@ -66,7 +66,10 @@ func newRootCommand(rawArgs ...string) (*cobra.Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	botsCmd := publicbotcli.NewCommand(bootstrap, publicbotcli.WithAppName("discord"))
+	botsCmd, err := publicbotcli.NewBotsCommand(bootstrap)
+	if err != nil {
+		return nil, err
+	}
 	rootCmd.AddCommand(botsCmd)
 
 	return rootCmd, nil

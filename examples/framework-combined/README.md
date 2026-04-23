@@ -9,7 +9,7 @@ Example downstream-style application showing both public layers together:
 
 - `framework.New(...)` for the simplest built-in bot path
 - `botcli.BuildBootstrap(...)` for raw-argv repository selection
-- `botcli.NewCommand(...)` for mounting repo-driven bots into an existing Cobra root
+- `botcli.NewBotsCommand(...)` for mounting repo-driven bots into an existing Cobra root
 - the current public `botcli` customization surface:
   - `botcli.WithAppName(...)`
   - `botcli.WithRuntimeModuleRegistrars(...)`

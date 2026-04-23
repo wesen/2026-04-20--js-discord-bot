@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewCommandEmbedsIntoDownstreamRoot(t *testing.T) {
+func TestNewBotsCommandEmbedsIntoDownstreamRoot(t *testing.T) {
 	root := &cobra.Command{Use: "downstream-app"}
-	root.AddCommand(NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(t, scannerFixtureDir(t), "scanner")}}))
+	root.AddCommand(mustNewBotsCommand(t, Bootstrap{Repositories: []Repository{repoFromDir(t, scannerFixtureDir(t), "scanner")}}))
 
 	output, err := executeCaptured(t, root, []string{"bots", "demo-bot", "status", "--output", "json"})
 	require.NoError(t, err)
@@ -34,9 +34,9 @@ func TestNewBotsCommandExposesRunHelp(t *testing.T) {
 	require.Contains(t, output, "--capture-enabled")
 }
 
-func TestNewCommandAcceptsWithAppNameOption(t *testing.T) {
+func TestNewBotsCommandAcceptsWithAppNameOption(t *testing.T) {
 	root := &cobra.Command{Use: "downstream-app"}
-	root.AddCommand(NewCommand(
+	root.AddCommand(mustNewBotsCommand(t,
 		Bootstrap{Repositories: []Repository{repoFromDir(t, scannerFixtureDir(t), "scanner")}},
 		WithAppName("wezen"),
 	))
@@ -46,7 +46,7 @@ func TestNewCommandAcceptsWithAppNameOption(t *testing.T) {
 	require.Contains(t, output, `"active": true`)
 }
 
-func TestNewCommandSupportsCustomRuntimeModuleRegistrars(t *testing.T) {
+func TestNewBotsCommandSupportsCustomRuntimeModuleRegistrars(t *testing.T) {
 	repo := writeBotCLIRepoBot(t, `
 const { defineBot } = require("discord");
 const app = require("app");
@@ -58,7 +58,7 @@ __verb__("status", { output: "glaze", short: "Show custom module status" });
 `)
 
 	root := &cobra.Command{Use: "downstream-app"}
-	root.AddCommand(NewCommand(
+	root.AddCommand(mustNewBotsCommand(t,
 		Bootstrap{Repositories: []Repository{repo}},
 		WithRuntimeModuleRegistrars(testAppRegistrar{}),
 	))
@@ -69,7 +69,7 @@ __verb__("status", { output: "glaze", short: "Show custom module status" });
 	require.Contains(t, output, `"module": "app"`)
 }
 
-func TestNewCommandSupportsCustomRuntimeFactory(t *testing.T) {
+func TestNewBotsCommandSupportsCustomRuntimeFactory(t *testing.T) {
 	repo := writeBotCLIRepoBot(t, `
 const { defineBot } = require("discord");
 const app = require("app");
@@ -81,7 +81,7 @@ __verb__("status", { output: "glaze", short: "Show custom module status" });
 `)
 
 	root := &cobra.Command{Use: "downstream-app"}
-	root.AddCommand(NewCommand(
+	root.AddCommand(mustNewBotsCommand(t,
 		Bootstrap{Repositories: []Repository{repo}},
 		WithRuntimeFactory(customRuntimeFactory{}),
 	))
@@ -93,9 +93,9 @@ __verb__("status", { output: "glaze", short: "Show custom module status" });
 	require.Contains(t, output, `"description": "Bot using a custom runtime module"`)
 }
 
-func TestNewCommandKeepsBothRunCommandShapes(t *testing.T) {
+func TestNewBotsCommandKeepsBothRunCommandShapes(t *testing.T) {
 	root := &cobra.Command{Use: "downstream-app"}
-	root.AddCommand(NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
+	root.AddCommand(mustNewBotsCommand(t, Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
 
 	output, err := executeCaptured(t, root, []string{"bots", "ui-showcase", "run", "--help"})
 	require.NoError(t, err)
@@ -108,9 +108,9 @@ func TestNewCommandKeepsBothRunCommandShapes(t *testing.T) {
 	require.Contains(t, output, "--sync-on-start")
 }
 
-func TestNewCommandDoesNotLeakHelperFunctions(t *testing.T) {
+func TestNewBotsCommandDoesNotLeakHelperFunctions(t *testing.T) {
 	root := &cobra.Command{Use: "downstream-app"}
-	root.AddCommand(NewCommand(Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
+	root.AddCommand(mustNewBotsCommand(t, Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
 
 	output, err := executeCaptured(t, root, []string{"bots", "ui-showcase"})
 	require.NoError(t, err)
@@ -145,6 +145,13 @@ func executeCaptured(t *testing.T, root interface {
 	_, _ = io.Copy(&buf, r)
 	_ = r.Close()
 	return buf.String(), execErr
+}
+
+func mustNewBotsCommand(t *testing.T, bootstrap Bootstrap, opts ...CommandOption) *cobra.Command {
+	t.Helper()
+	cmd, err := NewBotsCommand(bootstrap, opts...)
+	require.NoError(t, err)
+	return cmd
 }
 
 func repoFromDir(t *testing.T, dir, source string) Repository {

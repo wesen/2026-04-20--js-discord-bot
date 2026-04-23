@@ -266,11 +266,3 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 
 	return root, nil
 }
-
-func NewCommand(bootstrap Bootstrap, opts ...CommandOption) *cobra.Command {
-	cmd, err := NewBotsCommand(bootstrap, opts...)
-	if err != nil {
-		panic(err)
-	}
-	return cmd
-}
