@@ -115,3 +115,15 @@ Completed the next Track B runtime-customization slice by adding public `WithRun
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/options.go — Public `WithRuntimeModuleRegistrars(...)` option
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/command_test.go — Public package regression tests and downstream-style coverage
 
+## 2026-04-23
+
+Added a durable downstream example app that combines both extracted public layers in one process. The new `examples/framework-combined` application mounts a repo-driven `bots` subtree through `pkg/botcli` while also exposing a `run-builtin` command that starts one explicit built-in bot through `pkg/framework`. Updated the top-level documentation to describe the recommended split clearly and validated that the repo-driven `bots list` flow works through the combined app.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go — Combined downstream app using both `pkg/framework` and `pkg/botcli`
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md — Usage docs for the combined example
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/builtin-bot/index.js — Explicit built-in bot script for the combined app
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md — Recommended public split documented explicitly
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md — Examples index now points readers at the combined downstream app
+

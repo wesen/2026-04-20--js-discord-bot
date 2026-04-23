@@ -887,3 +887,84 @@ Before this change, `pkg/botcli` looked public but still could not support one o
 - Discovery uses `jsdiscord.InspectScript(..., hostOpts...)`, so top-level custom-module imports work while building the command tree.
 - Ordinary jsverbs invocation builds a runtime with the built-in Discord registrar plus any custom registrars.
 - Host-managed `run` forwards the same host options into `bot.NewWithScript(...)`, which keeps the final live runtime consistent with discovery and jsverb invocation.
+
+## Step 13: Add a durable downstream example app that combines both public layers
+
+After the recent Track B work, the public API surface was finally broad enough to justify a durable combined example instead of more isolated feature demos. The missing piece was a concrete downstream app that uses both extracted packages in one process: the simple explicit-bot path for one built-in bot, and the optional repo-driven `botcli` path for discovered multi-bot workflows.
+
+This slice implements exactly that and uses it to make the intended public split explicit in the repo docs.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, continue."
+
+**Assistant interpretation:** Take the next sensible implementation slice now that the merge is complete.
+
+**Inferred user intent:** The user wants the framework extraction to keep advancing in practical increments, with examples that make the public package story legible and testable.
+
+### What I did
+
+- Added a new combined downstream example app:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go`
+- Added its README:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md`
+- Added a built-in explicit bot script used only by that app:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/builtin-bot/index.js`
+- The app now does both:
+  - mounts repo-driven bots under `bots` using `pkg/botcli`
+  - exposes `run-builtin` that starts one explicit built-in bot using `pkg/framework`
+- Updated docs in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/discord-bots/README.md`
+- Ran:
+  - `gofmt -w examples/framework-combined/main.go`
+  - `go test ./examples/framework-combined ./pkg/framework ./pkg/botcli ./cmd/discord-bot ./...`
+  - `go run ./examples/framework-combined bots list --output json`
+
+### What worked
+
+- The combined example compiles cleanly as part of the normal repo test run.
+- The repo-driven `bots` subtree worked in a real run through the combined app.
+- The docs are now much clearer about the intended split:
+  - `pkg/framework` = simple explicit built-in bot path
+  - `pkg/botcli` = optional repo-driven multi-bot path
+
+### Why this mattered
+
+Until this slice, the public split existed in code and in my reasoning, but not yet as a stable example someone could point at and imitate. The new combined example is the first concrete downstream-shaped app that shows how both public layers fit together without relying on the standalone `cmd/discord-bot` binary.
+
+### What I learned
+
+- The combined app does not need to be fancy to be useful. A single `run-builtin` command plus a mounted `bots` subtree is enough to make the architecture legible.
+- This example is also a good integration checkpoint: if it keeps compiling and `bots list` keeps working, then the public package split remains coherent.
+
+### What was tricky to build
+
+- The main judgment call was how much app behavior to include. I deliberately kept it small: one explicit built-in bot script and the public `bots` subtree. Adding more feature flags or extra runtime hooks here would have made it a demo of everything instead of a clear architecture example.
+- Another small choice was how to resolve repositories. I used `pkg/botcli.BuildBootstrap(rawArgs, WithDefaultRepositories("examples/discord-bots"))` so the example mirrors the real pre-scan pattern while staying simple.
+
+### What warrants a second pair of eyes
+
+- Whether the combined example should eventually grow one more variant that also uses `WithRuntimeModuleRegistrars(...)` on the `pkg/botcli` side, or whether that would muddy the core conceptual split.
+- Whether the top-level README now has enough information to treat the integration/positioning task as done. I marked it done because the split is explicitly stated and backed by a concrete example, but that is worth sanity-checking.
+
+### What should be done in the future
+
+- Continue Track B with the remaining behavior-ownership extraction work (scan policy / host-managed run semantics / potentially runtime factory).
+- Keep the combined example compiling and use it as a regression checkpoint for future public API changes.
+
+### Code review instructions
+
+- Start with `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/main.go`.
+- Then review the docs in:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/examples/framework-combined/README.md`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/README.md`
+- Validate with:
+  - `go test ./examples/framework-combined ./pkg/framework ./pkg/botcli ./cmd/discord-bot ./...`
+  - `go run ./examples/framework-combined bots list --output json`
+
+### Technical details
+
+- `run-builtin` uses `pkg/framework` directly and does not depend on repository discovery.
+- The `bots` subtree is mounted through `pkg/botcli.NewCommand(...)` and uses `pkg/botcli.BuildBootstrap(...)` with a default repository rooted at `examples/discord-bots`.
+- The built-in bot script receives a small runtime config map (`mode`, `source`) so it is easy to confirm the explicit built-in path is really the `pkg/framework` path.

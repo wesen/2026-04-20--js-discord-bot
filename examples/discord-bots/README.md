@@ -15,9 +15,10 @@ The source files for those help pages live in the repo at:
 - `pkg/doc/topics/discord-js-bot-api-reference.md` — comprehensive API reference for the JavaScript bot DSL, handler contexts, payload shapes, and outbound Discord operations
 - `pkg/doc/tutorials/building-and-running-discord-js-bots.md` — step-by-step tutorial covering repository layout, command and event registration, buttons, modals, autocomplete, runtime config, and troubleshooting
 
-If you want the new public single-bot embedding path instead of the repo-driven CLI, see:
+If you want the public embedding paths instead of the standalone repo-driven CLI, see:
 - `examples/framework-single-bot/` — minimal Go application using `pkg/framework`
 - `examples/framework-custom-module/` — explicit bot plus a custom Go-native `require("app")` module
+- `examples/framework-combined/` — downstream app combining one explicit built-in bot with repo-driven bots via `pkg/botcli`
 
 ## Bots
 

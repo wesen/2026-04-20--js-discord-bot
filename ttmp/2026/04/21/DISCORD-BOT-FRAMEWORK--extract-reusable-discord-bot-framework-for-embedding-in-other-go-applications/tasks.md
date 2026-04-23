@@ -66,12 +66,12 @@
   - env-backed `DISCORD_BOT_TOKEN` / `DISCORD_APPLICATION_ID` loading
   - no leaked helper verbs from bot libraries
   - compatibility aliases for both run command shapes
-- [ ] Update framework docs/examples to show downstream embedding of the public `botcli` package
+- [x] Update framework docs/examples to show downstream embedding of the public `botcli` package
 
 #### Integration / positioning
-- [ ] Document the recommended split clearly
-  - core framework = single explicit bot is easy
-  - optional public `botcli` package = repository-driven multi-bot workflows are easy
-- [ ] Add one downstream example app that shows both layers together
-  - one explicit built-in bot via `framework.New(...)`
-  - plus repo-driven bots via the public `botcli` package
+- [x] Document the recommended split clearly
+  - [x] core framework = single explicit bot is easy
+  - [x] optional public `botcli` package = repository-driven multi-bot workflows are easy
+- [x] Add one downstream example app that shows both layers together
+  - [x] one explicit built-in bot via `framework.New(...)`
+  - [x] plus repo-driven bots via the public `botcli` package

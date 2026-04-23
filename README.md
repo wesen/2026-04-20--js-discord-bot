@@ -213,6 +213,16 @@ See:
 - `pkg/framework/` — public single-bot API
 - `examples/framework-single-bot/` — minimal embeddable app example
 - `examples/framework-custom-module/` — explicit bot + custom Go-native `require("app")` module example
+- `examples/framework-combined/` — downstream app combining one built-in bot via `pkg/framework` plus repo-driven bots via `pkg/botcli`
+
+### Recommended public split
+The extracted public API is now intentionally split into two layers:
+
+- `pkg/framework` — the simple path when one explicit built-in bot should be easy
+- `pkg/botcli` — the optional path when repository-driven multi-bot workflows should be easy
+
+The combined downstream example lives at:
+- `examples/framework-combined/`
 
 ---
 
