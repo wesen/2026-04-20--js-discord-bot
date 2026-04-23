@@ -21,6 +21,16 @@ topics:
       description: Cleanup and removal of dead code or stale artifacts
     - slug: api-design
       description: API design and contract improvements
+    - slug: cli
+      description: Command-line interface tooling and command tree design
+    - slug: diagnostics
+      description: Diagnostics, debugging, and inspection workflows
+    - slug: discord
+      description: Discord bots, APIs, and gateway/application command integrations
+    - slug: jsverbs
+      description: Statically scanned JavaScript verbs exposed as CLI commands
+    - slug: tooling
+      description: Developer tooling, operator helpers, and internal utility workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

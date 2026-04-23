@@ -337,3 +337,71 @@ This is a nice operator affordance because it lets the bot itself reveal the rol
 - Debug helper behavior:
   - when `debug` is false, `/debug-roles` returns an ephemeral disabled message and skips role lookup
   - when `debug` is true, it lists the current guild’s role names and IDs
+
+## Step 5: Add a debug-only self-role lookup helper
+
+I added a second debug helper so the bot can print the roles it sees on the invoking member object. This is the command the bot operator asked for directly: a way to see *their own* roles as the bot observes them, not just the server’s role catalog.
+
+The helper is also gated behind `--debug`, so it stays out of the normal command flow and only becomes available while wiring or troubleshooting the server.
+
+### Prompt Context
+
+**User prompt (verbatim):** "how can i see my own roles? print th eroles the bot sees are assigned to me"
+
+**Assistant interpretation:** Add a bot command that shows the member roles the bot sees on the invoking user, while keeping the command hidden behind the existing debug flag.
+
+**Inferred user intent:** Make it easy to verify the bot’s view of the caller’s roles so role gating and setup can be checked from inside Discord.
+
+**Commit (code):** `76f9dab` — "feat(show-space): add debug-only guild role lookup command"
+
+### What I did
+- Added `/debug-my-roles` to `examples/discord-bots/show-space/index.js`
+- Reused the `--debug` gate so the command only works in diagnostic mode
+- Matched the invoking member’s role IDs against the guild role catalog to print role names + IDs when possible
+- Added runtime coverage for the new self-role lookup behavior
+- Updated the operator runbook with a `/debug-my-roles` note
+
+### Why
+- The operator specifically wanted to see the roles the bot thinks are assigned to them
+- Printing both names and IDs makes it easier to compare the bot’s view with Discord’s configuration
+- Keeping the helper behind `--debug` preserves the normal command surface
+
+### What worked
+- The command can show known role names and IDs, plus unknown roles by raw ID if the role catalog doesn’t include them
+- The disabled case still avoids calling Discord role APIs when debug mode is off
+
+### What didn't work
+- No new runtime failures surfaced in this slice
+
+### What I learned
+- The member object already carries enough information to print the caller’s assigned roles without new host APIs
+- Matching member role IDs against the guild role list gives a better user-facing message than printing bare IDs alone
+
+### What was tricky to build
+- The bot has to handle two slightly different debug questions now:
+  - “what roles exist in this guild?”
+  - “what roles do *I* have?”
+- The new helper needed to make that distinction clear in its output and in the runbook
+
+### What warrants a second pair of eyes
+- If the team later wants a cleaner diagnostics UX, these helpers might be better grouped into one debug menu or staff-only panel instead of separate commands
+
+### What should be done in the future
+- Decide whether `/debug-roles` and `/debug-my-roles` should stay separate or be folded into a single diagnostics command
+- Consider whether the debug helpers should also expose channel IDs or config values
+
+### Code review instructions
+- Start with `examples/discord-bots/show-space/index.js`
+- Review the new `/debug-my-roles` command and the existing `debugEnabled(...)` helper
+- Review the added runtime test in `internal/jsdiscord/show_space_runtime_test.go`
+- Confirm the operator runbook updates in `ttmp/2026/04/22/DISCORD-BOT-022--show-space-discord-bot/reference/02-operator-runbook.md`
+- Re-run:
+  - `go test ./internal/jsdiscord -run TestShowSpace -count=1`
+  - `go test ./internal/jsdiscord/... -count=1`
+
+### Technical details
+- `/debug-my-roles` behavior:
+  - requires `debug: true` / `--debug`
+  - uses `ctx.member.roles` as the source of truth for the invoking user’s role IDs
+  - looks up role names via `ctx.discord.roles.list(guildId)` when available
+  - prints unknown role IDs even when the guild role catalog does not include a matching name
