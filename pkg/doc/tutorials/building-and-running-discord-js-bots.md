@@ -352,14 +352,14 @@ For example:
 The normal workflow in this repository is:
 
 ```bash
-go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run ping --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
+go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots ping run --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
 ```
 
 ### What each part means
 
 - `bots` — the named-bot subcommand group
 - `--bot-repository ./examples/discord-bots` — where the CLI should discover bot scripts
-- `run ping` — run the bot named `ping`
+- `ping run` — run the bot named `ping`
 - `--bot-token` — the Discord bot token
 - `--application-id` — the Discord application/client ID
 - `--guild-id` — optional fast sync target for development
@@ -368,7 +368,7 @@ go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run ping 
 If your bot has runtime config fields, add them after the selector:
 
 ```bash
-go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run knowledge-base \
+go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots knowledge-base run \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
   --guild-id "$DISCORD_GUILD_ID" \
@@ -382,7 +382,7 @@ go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run knowl
 If something behaves strangely, print the resolved bot and runtime config before opening Discord:
 
 ```bash
-go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run ping \
+go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots ping run \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
   --print-parsed-values

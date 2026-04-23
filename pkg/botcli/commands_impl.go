@@ -249,15 +249,6 @@ func NewBotsCommand(bootstrap Bootstrap, opts ...CommandOption) (*cobra.Command,
 		}
 	}
 
-	for _, discoveredBot := range discoveredBots {
-		baseDesc, ok := runCommandByBot[discoveredBot.Name()]
-		if !ok {
-			continue
-		}
-		aliasDesc := buildCompatibilityRunAliasDescription(baseDesc, discoveredBot.Name())
-		discoveredCommands = append(discoveredCommands, &botRunCommand{CommandDescription: aliasDesc, scriptPath: discoveredBot.ScriptPath(), hostOpts: hostOpts})
-	}
-
 	if len(discoveredCommands) > 0 {
 		if err := glazed_cli.AddCommandsToRootCommand(root, discoveredCommands, nil, glazed_cli.WithParserConfig(parserConfig)); err != nil {
 			return nil, fmt.Errorf("register discovered bot verbs: %w", err)

@@ -93,7 +93,7 @@ __verb__("status", { output: "glaze", short: "Show custom module status" });
 	require.Contains(t, output, `"description": "Bot using a custom runtime module"`)
 }
 
-func TestNewBotsCommandKeepsBothRunCommandShapes(t *testing.T) {
+func TestNewBotsCommandExposesOnlyCanonicalRunShape(t *testing.T) {
 	root := &cobra.Command{Use: "downstream-app"}
 	root.AddCommand(mustNewBotsCommand(t, Bootstrap{Repositories: []Repository{repoFromDir(t, examplesFixtureDir(t), "examples")}}))
 
@@ -104,8 +104,9 @@ func TestNewBotsCommandKeepsBothRunCommandShapes(t *testing.T) {
 
 	output, err = executeCaptured(t, root, []string{"bots", "run", "ui-showcase", "--help"})
 	require.NoError(t, err)
-	require.Contains(t, output, "bots run ui-showcase")
-	require.Contains(t, output, "--sync-on-start")
+	require.Contains(t, output, "Available Commands:")
+	require.NotContains(t, output, "--bot-token")
+	require.NotContains(t, output, "bots run ui-showcase")
 }
 
 func TestNewBotsCommandDoesNotLeakHelperFunctions(t *testing.T) {

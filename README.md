@@ -132,7 +132,7 @@ GOWORK=off go run ./cmd/discord-bot bots help ping --bot-repository ./examples/d
 ### 3. Run one selected bot
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots run ping \
+GOWORK=off go run ./cmd/discord-bot bots ping run \
   --bot-repository ./examples/discord-bots \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
@@ -145,7 +145,7 @@ GOWORK=off go run ./cmd/discord-bot bots run ping \
 Example with the knowledge-base bot:
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots run knowledge-base \
+GOWORK=off go run ./cmd/discord-bot bots knowledge-base run \
   --bot-repository ./examples/discord-bots \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
@@ -164,7 +164,7 @@ The main recommended UX is:
 ```bash
 discord-bot bots list
 discord-bot bots help <bot>
-discord-bot bots run <bot>
+discord-bot bots <bot> run
 ```
 
 In practice:
@@ -172,7 +172,7 @@ In practice:
 ```bash
 GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots list
 GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots help knowledge-base
-GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run moderation --sync-on-start
+GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots moderation run --sync-on-start
 ```
 
 ### Direct host commands
@@ -192,7 +192,7 @@ GOWORK=off go run ./cmd/discord-bot run \
   --guild-id "$DISCORD_GUILD_ID"
 ```
 
-For everyday use, `bots run <bot>` is usually the clearer path.
+For everyday use, `bots <bot> run` is the main named-bot path.
 
 ### Public single-bot embedding path
 There is now also a public Go package for the simple one-bot case:
@@ -307,7 +307,7 @@ This repo intentionally uses a **single selected JavaScript bot** in each runnin
 
 That means:
 
-- `discord-bot bots run <bot>` selects one named implementation,
+- `discord-bot bots <bot> run` selects one named implementation,
 - startup/runtime config applies to that one bot,
 - composition should happen inside the selected bot rather than via host-side multi-bot composition.
 

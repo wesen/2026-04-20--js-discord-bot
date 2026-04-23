@@ -25,18 +25,6 @@ func buildSyntheticBotRunDescription(bot DiscoveredBot, parents ...string) *cmds
 	return desc
 }
 
-func buildCompatibilityRunAliasDescription(base *cmds.CommandDescription, botName string) *cmds.CommandDescription {
-	short := strings.TrimSpace(base.Short)
-	if short == "" {
-		short = fmt.Sprintf("Run the %s Discord bot", botName)
-	}
-	return base.Clone(true,
-		cmds.WithName(botName),
-		cmds.WithParents("run"),
-		cmds.WithShort(short),
-	)
-}
-
 func ensureRunCommandDefaults(desc *cmds.CommandDescription) *cmds.CommandDescription {
 	if desc == nil {
 		return nil

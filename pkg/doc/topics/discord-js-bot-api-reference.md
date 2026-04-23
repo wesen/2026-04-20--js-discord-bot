@@ -207,7 +207,7 @@ The host keeps arbitrary metadata keys. The common ones are:
 
 ### Runtime config fields
 
-Each field under `run.fields` becomes a CLI flag when you run the bot through `bots run <bot>`.
+Each field under `run.fields` becomes a CLI flag when you run the bot through `bots <bot> run`.
 
 Rules to remember:
 
@@ -865,8 +865,8 @@ It is a normal channel message. Use interaction replies when you want ephemeral/
 
 | Problem | Likely cause | Fix |
 | --- | --- | --- |
-| `bot selector is required` when trying to run a bot | The named bot was omitted from `bots run` | Use `discord-bot bots run <bot>` |
-| `javascript bot script is required` on direct `run` or `sync-commands` | No explicit `--bot-script` or `DISCORD_BOT_SCRIPT` was provided | Prefer `bots run <bot>` or pass `--bot-script` explicitly |
+| `bot selector is required` when trying to run a bot | The named bot was omitted from the canonical named-bot path | Use `discord-bot bots <bot> run` |
+| `javascript bot script is required` on direct `run` or `sync-commands` | No explicit `--bot-script` or `DISCORD_BOT_SCRIPT` was provided | Prefer `bots <bot> run` or pass `--bot-script` explicitly |
 | A slash command never appears in Discord | Commands were not synced after editing the bot | Run with `--sync-on-start` or use the sync command path |
 | A component or modal interaction says no handler exists | The `customId` does not match the registered `component(...)` or `modal(...)` key | Keep `customId` values stable and unique |
 | `ctx.config` is missing expected fields | The bot did not declare `configure({ run: ... })` fields or the flags were omitted | Add the run schema and pass the generated flags to `bots run` |

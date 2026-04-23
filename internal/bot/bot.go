@@ -35,7 +35,7 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 
 	script = strings.TrimSpace(script)
 	if script == "" {
-		return nil, fmt.Errorf("javascript bot script is required; use discord-bot bots run <bot> or pass --bot-script")
+		return nil, fmt.Errorf("javascript bot script is required; use discord-bot bots <bot> run or pass --bot-script")
 	}
 
 	loaded, err := jsdiscord.LoadBot(context.Background(), script, hostOpts...)
