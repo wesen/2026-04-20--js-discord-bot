@@ -21,6 +21,28 @@ topics:
       description: Cleanup and removal of dead code or stale artifacts
     - slug: api-design
       description: API design and contract improvements
+    - slug: discord-bot
+      description: Discord bot framework — JavaScript-defined bots with defineBot API
+    - slug: glazed
+      description: Glazed structured CLI output framework
+    - slug: jsverbs
+      description: JavaScript verbs — CLI commands defined in JS files via __verb__ metadata
+    - slug: bot-registration
+      description: How Discord bots are discovered, registered, and dispatched
+    - slug: command-discovery
+      description: Discovery of commands from JS source files, both static (Tree-sitter) and runtime
+    - slug: cli
+      description: Command-line interface, Cobra integration, Glazed command registration
+    - slug: diagnostics
+      description: Diagnostics, debugging, and inspection workflows
+    - slug: discord
+      description: Discord bots, APIs, and gateway/application command integrations
+    - slug: tooling
+      description: Developer tooling, operator helpers, and internal utility workflows
+    - slug: framework
+      description: Reusable framework APIs and embedding-oriented package design
+    - slug: embedding
+      description: Embedding one package or runtime into another host application
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

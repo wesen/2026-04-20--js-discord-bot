@@ -18,7 +18,7 @@ type Host struct {
 	runtimeConfig map[string]any
 }
 
-func NewHost(ctx context.Context, scriptPath string) (*Host, error) {
+func NewHost(ctx context.Context, scriptPath string, opts ...HostOption) (*Host, error) {
 	if strings.TrimSpace(scriptPath) == "" {
 		return nil, fmt.Errorf("discord bot script path is empty")
 	}
@@ -26,10 +26,16 @@ func NewHost(ctx context.Context, scriptPath string) (*Host, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve script path: %w", err)
 	}
+	hostOpts, err := applyHostOptions(opts...)
+	if err != nil {
+		return nil, err
+	}
+	runtimeRegistrars := []engine.RuntimeModuleRegistrar{NewRegistrar(Config{}), &UIRegistrar{}}
+	runtimeRegistrars = append(runtimeRegistrars, hostOpts.runtimeModuleRegistrars...)
 	factory, err := engine.NewBuilder(
 		engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
 	).WithModules(engine.DefaultRegistryModules()).
-		WithRuntimeModuleRegistrars(NewRegistrar(Config{}), &UIRegistrar{}).
+		WithRuntimeModuleRegistrars(runtimeRegistrars...).
 		WithRequireOptions(require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules"))).
 		Build()
 	if err != nil {

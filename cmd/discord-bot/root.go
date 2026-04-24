@@ -8,11 +8,11 @@ import (
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
 
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/botcli"
+	publicbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/botcli"
 	appdoc "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/doc"
 )
 
-func newRootCommand() (*cobra.Command, error) {
+func newRootCommand(rawArgs ...string) (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:           "discord-bot",
 		Short:         "A simple Go Discord bot",
@@ -26,6 +26,7 @@ func newRootCommand() (*cobra.Command, error) {
 	if err := logging.AddLoggingSectionToRootCommand(rootCmd, "discord"); err != nil {
 		return nil, fmt.Errorf("add logging section: %w", err)
 	}
+	rootCmd.PersistentFlags().StringArray(publicbotcli.BotRepositoryFlag, nil, "Bot repository root to scan for named JavaScript bots (repeatable)")
 
 	helpSystem := help.NewHelpSystem()
 	if err := appdoc.AddDocToHelpSystem(helpSystem); err != nil {
@@ -60,6 +61,16 @@ func newRootCommand() (*cobra.Command, error) {
 	}
 
 	rootCmd.AddCommand(runCobraCmd, validateCobraCmd, syncCobraCmd)
-	rootCmd.AddCommand(botcli.NewCommand())
+
+	bootstrap, err := publicbotcli.BuildBootstrap(rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	botsCmd, err := publicbotcli.NewBotsCommand(bootstrap)
+	if err != nil {
+		return nil, err
+	}
+	rootCmd.AddCommand(botsCmd)
+
 	return rootCmd, nil
 }

@@ -16,8 +16,8 @@ Owners: []
 RelatedFiles:
     - Path: internal/bot/bot.go
       Note: Live bot host wiring — session creation
-    - Path: internal/botcli/runtime.go
-      Note: RunRequest and runSelectedBots — the execution entrypoint that embedders would replace
+    - Path: pkg/botcli/command_root.go
+      Note: Public repo-driven command tree and host-managed bot run orchestration
     - Path: internal/config/config.go
       Note: Settings struct — Glazed-backed bot credentials
     - Path: internal/jsdiscord/bot_compile.go

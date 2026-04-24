@@ -27,9 +27,9 @@ RelatedFiles:
     - Path: /home/manuel/code/wesen/2026-04-20--js-discord-bot/internal/config/config.go
       Note: Settings struct — Glazed-backed bot credentials
 ExternalSources: []
-Summary: Detailed analysis, three design options, and step-by-step implementation guide for extracting the JS Discord bot runtime into a reusable Go framework that other applications can embed.
-LastUpdated: 2026-04-22T10:00:00-04:00
-WhatFor: Explain how to turn the discord-bot from a standalone program into a reusable framework for embedding in other Go applications.
+Summary: Detailed analysis, three design options, and an updated implementation guide for extracting the JS Discord bot runtime into a reusable Go framework that other applications can embed — including an optional public package that brings the same repository discovery, jsverbs scanning, and bots command-tree wiring to downstream Cobra applications.
+LastUpdated: 2026-04-22T19:30:00-04:00
+WhatFor: Explain how to turn the discord-bot from a standalone program into a reusable framework for embedding in other Go applications, while preserving the same repository + jsverbs powered bot CLI experience for embedders.
 WhenToUse: Use when implementing or reviewing the framework extraction work.
 ---
 
@@ -47,6 +47,8 @@ The framework should be **opinionated but flexible**:
 - **Flexible** because embedders must be able to provide their own primitives — a database connection pool, an HTTP client, a custom Go module that exposes additional JS functions via `require()`, or even a completely different Discord transport (HTTP interactions instead of gateway).
 
 We present three design options, analyze their trade-offs, and recommend a hybrid approach that gives embedders the best of all worlds.
+
+**2026-04-22 update:** the jsverbs unification work changed one important conclusion from the earlier draft. It is no longer enough to say “the framework should expose the runtime, and downstream apps can copy the CLI glue if they want.” The current `discord-bot` now has working repository discovery, explicit jsverbs scanning, host-managed `run` verbs, compatibility `bots run <bot>` aliases, root-level `--bot-repository` bootstrap, and Glazed env-middleware integration for dynamic bot commands. That behavior is valuable enough that embedders should get it as an **optional public package**, not just as a reference implementation hidden inside `internal/botcli`.
 
 ## Problem Statement
 
@@ -1433,7 +1435,7 @@ func newRunCommand() (*runCommand, error) {
 
 ### Phase 6: Remove the `internal/bot/` package
 
-Once the framework extracts all bot logic from `internal/bot/`, that package becomes a one-line wrapper and can be deleted. The `internal/botcli/` package stays — it is application-level CLI code that uses the framework.
+Once the framework extracts all bot logic from `internal/bot/`, that package becomes a one-line wrapper and can be deleted. The current `internal/botcli/` package should not remain permanently internal; instead, the reusable parts should be promoted into an **optional public package** (for example `pkg/botcli` or `framework/botcli`) that downstream applications can import when they want the same repository discovery and jsverbs-backed bot command tree.
 
 ### API Reference
 
@@ -1880,11 +1882,84 @@ This matches the current behavior for built-in modules.
 
 ### Q6: What about the Glazed CLI integration?
 
-The `internal/botcli/` package provides bot discovery, dynamic Glazed schema parsing, and the `bots list/help/run` CLI commands. This is application-level code, not framework code.
+The earlier version of this document argued that `internal/botcli/` should remain standalone-application code only. That recommendation is now outdated.
 
-**Recommendation:** Keep `botcli` in the standalone CLI application. The framework does not depend on Glazed for its core functionality. Embedders who want Glazed integration can use `botcli` as a reference implementation.
+The current `discord-bot` implementation has already proven that the following pieces belong together conceptually:
 
-However, the `descriptor.go` parsing logic (specifically `RunSchemaDescriptor` and `RunFieldDescriptor`) could be useful to embedders. Consider exporting these types from the framework package so embedders can build their own dynamic config systems.
+- repository discovery from CLI/env/defaults,
+- bot discovery from JavaScript entrypoint scripts,
+- jsverbs scanning of those same entrypoint scripts,
+- host-managed `run` commands for long-lived bots,
+- compatibility aliases for both `bots <bot> run` and `bots run <bot>`,
+- Glazed env/default parsing for dynamic bot commands,
+- and Cobra tree registration that happens **before** final argument parsing.
+
+Embedders who import the framework should be able to opt into that same experience with very little code.
+
+**Revised recommendation:** keep the core framework Glazed-agnostic, but promote the current `internal/botcli/` logic into an **optional public package** such as `pkg/botcli` (or `framework/botcli`) that depends on Cobra + Glazed and imports the framework runtime.
+
+That public package should export at least:
+
+1. **Repository / bootstrap types**
+   - `Repository`
+   - `Bootstrap`
+   - `BuildBootstrap(rawArgs []string, opts ...BootstrapOption)`
+   - repository precedence helpers for CLI flags, env vars, and defaults
+
+2. **Discovery helpers**
+   - `DiscoverBots(...)`
+   - `ScanBotRepositories(...)`
+   - a shared entrypoint-only scanner wrapper that avoids helper-library leakage
+
+3. **CLI registration helpers**
+   - `NewCommand(bootstrap, opts...) (*cobra.Command, error)`
+   - or `AttachToRoot(root, rawArgs, opts...) error`
+   - support for both `bots <bot> run` and `bots run <bot>`
+
+4. **Framework integration hooks**
+   - `WithRuntimeFactory(...)`
+   - `WithFrameworkOptions(...)`
+   - `WithAppName(...)` so Glazed env middleware works in downstream apps too
+
+The important boundary is:
+
+- **core framework**: runtime, transport, host, dispatch, extension points
+- **optional public botcli package**: repository discovery + jsverbs scanning + Glazed/Cobra integration
+
+This preserves a clean framework core while still making “add Discord bot repos to my existing Cobra app” a one-package operation instead of a copy/paste project.
+
+A downstream app should be able to do something like:
+
+```go
+func newRootCommand(rawArgs []string) (*cobra.Command, error) {
+    root := &cobra.Command{Use: "my-app"}
+
+    root.PersistentFlags().StringArray("bot-repository", nil,
+        "Bot repository root to scan for named JavaScript bots")
+
+    bootstrap, err := botcli.BuildBootstrap(rawArgs,
+        botcli.WithCLIFlag("bot-repository"),
+        botcli.WithEnvVar("MY_APP_BOT_REPOSITORIES"),
+        botcli.WithDefaultPath("./bots"),
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    botsCmd, err := botcli.NewCommand(bootstrap,
+        botcli.WithAppName("my-app"),
+        botcli.WithRuntimeFactory(myRuntimeFactory),
+    )
+    if err != nil {
+        return nil, err
+    }
+    root.AddCommand(botsCmd)
+
+    return root, nil
+}
+```
+
+Because dynamic bot commands must exist before Cobra parses subcommands, the public package must also own the awkward but necessary **raw argv pre-scan** story. That is exactly the kind of footgun embedders should not have to rediscover for themselves.
 
 ## Alternatives Considered
 
@@ -2445,6 +2520,13 @@ discord-bot-framework/
 ├── host_dispatch.go         # Dispatch methods
 ├── host_responses.go        # Responders
 ├── ... (all existing extracted files)
+├── botcli/                  # ★ OPTIONAL public package: bots list/help/run tree ★
+│   ├── bootstrap.go         # raw argv pre-scan + repository precedence
+│   ├── discover.go          # DiscoverBots + ResolveBot helpers
+│   ├── jsverbs_scan.go      # entrypoint-only explicit-verb scanning
+│   ├── run_description.go   # synthetic + explicit run descriptions
+│   ├── command.go           # NewCommand / AttachToRoot
+│   └── invoker.go           # bot-aware jsverbs invoker with discord registrar
 ├── providers/
 │   ├── gateway/
 │   ├── http/
@@ -2464,3 +2546,74 @@ discord-bot-framework/
 | **Runtime creation** | Fixed to engine.NewBuilder | RuntimeFactory interface (NewBotRuntime + NewVerbRuntime) |
 | **Embedder control** | Options + 3 small interfaces | Options + 4 interfaces (add RuntimeFactory) |
 | **Loupedeck-style override** | Partial — would need fork | Full — implement RuntimeFactory |
+
+### 2026-04-22 revision: make the current bots command tree reusable, not just the runtime
+
+The codebase now has a working proof that repository discovery + jsverbs scanning + host-managed run commands can coexist cleanly in one command tree. That proof changes the extraction recommendation in an important way.
+
+The earlier draft treated jsverbs integration mostly as a low-level concern:
+
+- export repository discovery,
+- export runtime factory hooks,
+- let embedders assemble their own CLI integration.
+
+That is still technically possible, but it is no longer the best default. The current `discord-bot` has already solved several sharp edges that downstream apps would otherwise have to rediscover:
+
+1. **Root bootstrap must happen before Cobra parsing**
+   - dynamic commands like `bots knowledge-base run` do not exist unless repositories are known up front,
+   - so the package must support raw-argv pre-scan for `--bot-repository`.
+
+2. **Scanning should be entrypoint-only and explicit-verb-only**
+   - otherwise helper libraries leak fake commands like `first-value`,
+   - so the reusable package should own the scan policy instead of leaving it to each embedder.
+
+3. **`run` is not a normal jsverb**
+   - it is a host-managed long-lived command,
+   - so the reusable package must recognize `__verb__("run")` and synthesize a `BareCommand` that starts the bot runtime.
+
+4. **Older bots still need a synthetic run path**
+   - embedders should not have to migrate every historical bot before importing the framework package.
+
+5. **Dynamic commands should still benefit from Glazed env middleware**
+   - `DISCORD_BOT_TOKEN` and `DISCORD_APPLICATION_ID` should work in downstream apps too,
+   - so the reusable package needs an `AppName`-style parser hook, not just bare command descriptions.
+
+Because these are framework-quality integration rules rather than one-off app quirks, the recommended extraction target is now:
+
+- a **core runtime framework** that stays transport- and CLI-agnostic,
+- plus an **optional public `botcli` package** that gives embedders the same repository + jsverbs powered command tree the standalone app uses.
+
+### Revised embedding goal
+
+A downstream Cobra application should be able to add bot support with roughly this amount of code:
+
+```go
+func newRootCommand(rawArgs []string) (*cobra.Command, error) {
+    root := &cobra.Command{Use: "my-app"}
+
+    botsCmd, err := botcli.NewRootCommand(rawArgs,
+        botcli.WithCLIFlag("bot-repository"),
+        botcli.WithEnvVar("MY_APP_BOT_REPOSITORIES"),
+        botcli.WithDefaultPath("./bots"),
+        botcli.WithAppName("my-app"),
+        botcli.WithRuntimeFactory(myRuntimeFactory),
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    root.AddCommand(botsCmd)
+    return root, nil
+}
+```
+
+That is the standard this extraction should optimize for: embedders import one optional package, pass raw args + runtime hooks, and immediately get:
+
+- `bots list`
+- `bots help <bot>`
+- `bots <bot> run`
+- `bots run <bot>`
+- explicit non-run jsverbs from bot scripts
+- environment-backed credentials for dynamic bot commands
+
+without copying the standalone application's command-construction logic.

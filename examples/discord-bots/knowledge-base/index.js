@@ -13,55 +13,6 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
     name: "knowledge-base",
     description: "Listen to Discord chat, record candidate knowledge, and curate it as a shared memory",
     category: "knowledge",
-    run: {
-      fields: {
-        dbPath: {
-          type: "string",
-          help: "SQLite path for the knowledge store",
-          default: "./examples/discord-bots/knowledge-base/data/knowledge.sqlite",
-        },
-        captureEnabled: {
-          type: "bool",
-          help: "Enable passive capture from messageCreate events",
-          default: true,
-        },
-        captureThreshold: {
-          type: "number",
-          help: "Minimum confidence required to save a passive capture",
-          default: 0.65,
-        },
-        captureChannels: {
-          type: "string",
-          help: "Optional comma-separated channel IDs to allow for passive capture",
-          default: "",
-        },
-        reviewLimit: {
-          type: "integer",
-          help: "Number of entries to show in review lists",
-          default: 5,
-        },
-        seedEntries: {
-          type: "bool",
-          help: "Seed onboarding entries the first time the SQLite store is created",
-          default: true,
-        },
-        reactionPromoteEmojis: {
-          type: "string",
-          help: "Comma-separated emojis that promote a captured message into the review queue",
-          default: "🧠,📌",
-        },
-        trustedReviewerIds: {
-          type: "string",
-          help: "Optional comma-separated user IDs allowed to promote candidates with reactions",
-          default: "",
-        },
-        trustedReviewerRoleIds: {
-          type: "string",
-          help: "Optional comma-separated role IDs allowed to promote candidates with reactions",
-          default: "",
-        },
-      },
-    },
   })
 
   event("ready", async (ctx) => {
@@ -123,7 +74,7 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
   }, async (ctx) => {
     store.ensure(ctx.config)
     const query = String((ctx.args || {}).query || "").trim()
-    const limit = Number((ctx.config || {}).reviewLimit || 5)
+    const limit = reviewLimitFromConfig(ctx.config)
     const results = store.search(ctx.config, query, limit)
     search.stateFromSearchCommand(ctx, query, limit, results)
     return search.buildSearchMessage(search.searchView(ctx, store))
@@ -142,7 +93,7 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
   }, async (ctx) => {
     store.ensure(ctx.config)
     const query = String((ctx.args || {}).query || "").trim()
-    const limit = Number((ctx.config || {}).reviewLimit || 5)
+    const limit = reviewLimitFromConfig(ctx.config)
     const results = store.search(ctx.config, query, limit)
     search.stateFromSearchCommand(ctx, query, limit, results)
     return search.buildSearchMessage(search.searchView(ctx, store))
@@ -209,7 +160,7 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
   }, async (ctx) => {
     store.ensure(ctx.config)
     const status = review.normalizeStatus((ctx.args || {}).status)
-    const limit = Number((ctx.args || {}).limit || (ctx.config || {}).reviewLimit || 5)
+    const limit = Number((ctx.args || {}).limit || reviewLimitFromConfig(ctx.config) || 5)
     const entries = store.listByStatus(ctx.config, status, limit)
     review.stateFromQueueCommand(ctx, status, limit, entries)
     return review.buildQueueMessage(entries, { status, limit, selectedId: entries[0] && entries[0].id })
@@ -232,7 +183,7 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
   }, async (ctx) => {
     store.ensure(ctx.config)
     const status = review.normalizeStatus((ctx.args || {}).status)
-    const limit = Number((ctx.args || {}).limit || (ctx.config || {}).reviewLimit || 5)
+    const limit = Number((ctx.args || {}).limit || reviewLimitFromConfig(ctx.config) || 5)
     const entries = store.listByStatus(ctx.config, status, limit)
     review.stateFromQueueCommand(ctx, status, limit, entries)
     return review.buildQueueMessage(entries, { status, limit, selectedId: entries[0] && entries[0].id })
@@ -248,7 +199,7 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
       },
     },
   }, async (ctx) => {
-    const entries = store.recent(ctx.config, Number((ctx.args || {}).limit || (ctx.config || {}).reviewLimit || 5))
+    const entries = store.recent(ctx.config, Number((ctx.args || {}).limit || reviewLimitFromConfig(ctx.config) || 5))
     return render.recentResults("Recent knowledge entries", entries)
   })
 
@@ -262,7 +213,7 @@ module.exports = defineBot(({ command, event, component, modal, autocomplete, co
       },
     },
   }, async (ctx) => {
-    const entries = store.recent(ctx.config, Number((ctx.args || {}).limit || (ctx.config || {}).reviewLimit || 5))
+    const entries = store.recent(ctx.config, Number((ctx.args || {}).limit || reviewLimitFromConfig(ctx.config) || 5))
     return render.recentResults("Recent knowledge entries", entries)
   })
 
@@ -573,8 +524,97 @@ function buildTeachModal() {
   }
 }
 
+function run() {
+  return { status: "host-managed" }
+}
+
+__verb__("run", {
+  short: "Run the knowledge-base Discord bot",
+  output: "text",
+  fields: {
+    "bot-token": {
+      type: "string",
+      required: true,
+      help: "Discord bot token"
+    },
+    "application-id": {
+      type: "string",
+      required: true,
+      help: "Discord application/client ID"
+    },
+    "guild-id": {
+      type: "string",
+      help: "Optional guild ID for development sync"
+    },
+    "db-path": {
+      type: "string",
+      help: "SQLite path for the knowledge store",
+      default: "./examples/discord-bots/knowledge-base/data/knowledge.sqlite"
+    },
+    "capture-enabled": {
+      type: "bool",
+      help: "Enable passive capture from messageCreate events",
+      default: true
+    },
+    "capture-threshold": {
+      type: "float",
+      help: "Minimum confidence required to save a passive capture",
+      default: 0.65
+    },
+    "capture-channels": {
+      type: "string",
+      help: "Optional comma-separated channel IDs to allow for passive capture",
+      default: ""
+    },
+    "review-limit": {
+      type: "integer",
+      help: "Number of entries to show in review lists",
+      default: 5
+    },
+    "seed-entries": {
+      type: "bool",
+      help: "Seed onboarding entries the first time the SQLite store is created",
+      default: true
+    },
+    "reaction-promote-emojis": {
+      type: "string",
+      help: "Comma-separated emojis that promote a captured message into the review queue",
+      default: "🧠,📌"
+    },
+    "trusted-reviewer-ids": {
+      type: "string",
+      help: "Optional comma-separated user IDs allowed to promote candidates with reactions",
+      default: ""
+    },
+    "trusted-reviewer-role-ids": {
+      type: "string",
+      help: "Optional comma-separated role IDs allowed to promote candidates with reactions",
+      default: ""
+    }
+  }
+})
+
 function actorId(ctx) {
   return String((ctx.user && ctx.user.id) || (ctx.me && ctx.me.id) || "").trim()
+}
+
+function reviewLimitFromConfig(config) {
+  const raw = configValue(config, ["review_limit", "reviewLimit"], 5)
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 5
+  }
+  return parsed
+}
+
+function configValue(config, names, fallback) {
+  for (const name of names || []) {
+    if (!name) continue
+    if (config && Object.prototype.hasOwnProperty.call(config, name) && config[name] !== undefined && config[name] !== null && String(config[name]).trim() !== "") {
+      return config[name]
+    }
+  }
+  return fallback
 }
 
 function firstValue(values) {

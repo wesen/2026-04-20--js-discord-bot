@@ -15,6 +15,11 @@ The source files for those help pages live in the repo at:
 - `pkg/doc/topics/discord-js-bot-api-reference.md` — comprehensive API reference for the JavaScript bot DSL, handler contexts, payload shapes, and outbound Discord operations
 - `pkg/doc/tutorials/building-and-running-discord-js-bots.md` — step-by-step tutorial covering repository layout, command and event registration, buttons, modals, autocomplete, runtime config, and troubleshooting
 
+If you want the public embedding paths instead of the standalone repo-driven CLI, see:
+- `examples/framework-single-bot/` — minimal Go application using `pkg/framework`
+- `examples/framework-custom-module/` — explicit bot plus a custom Go-native `require("app")` module
+- `examples/framework-combined/` — downstream app combining one explicit built-in bot with repo-driven bots via `pkg/botcli`
+
 ## Bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
@@ -24,26 +29,79 @@ The source files for those help pages live in the repo at:
 - `poker/` — video poker hand management, Hold'em action advice, buttons, and modals
 - `interaction-types/` — demo of all Discord application command interaction types: slash commands, subcommands, user context menu commands, and message context menu commands
 - `ui-showcase/` — comprehensive UI DSL showcase: builder patterns, modal forms, stateful search/review screens, paginated lists, card galleries, confirmations, all select menu types, and alias registration
+- `show-space/` — venue operations bot for upcoming shows, announcement posting, pin management, DB-backed show records, and a debug dashboard for role troubleshooting
 - `announcements.js` — root-level bot script to exercise direct file discovery
+- `unified-demo/` — demonstrates the new unified pattern: `defineBot(...)` for Discord behavior plus `__verb__("run")` / `__verb__("status")` metadata for CLI integration
+
+## Embedding one explicit bot from Go
+
+The repository now also exposes a public single-bot package for downstream embedders who do **not** want repository scanning.
+
+Minimal example app:
+
+```bash
+GOWORK=off go run ./examples/framework-single-bot
+```
+
+That example:
+- imports `github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/framework`
+- selects one explicit script with `framework.WithScript(...)`
+- loads credentials with `framework.WithCredentialsFromEnv()`
+- injects `ctx.config` values with `framework.WithRuntimeConfig(...)`
+- optionally syncs commands on startup with `framework.WithSyncOnStart(true)`
+
+For the next extension seam beyond runtime config, see:
+
+```bash
+GOWORK=off go run ./examples/framework-custom-module
+```
+
+That example shows `framework.WithRuntimeModuleRegistrars(...)` with one explicit bot script that calls `require("app")`.
 
 ## Example commands
 
+Use the root-level `--bot-repository` flag to choose which bot repository roots are scanned. The flag is repeatable and applies to `bots list`, `bots help`, and discovered bot verbs such as `bots knowledge-base run`.
+
+Structured bot inventory and metadata:
+
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots help ping --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots help knowledge-base --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots help poker --bot-repository ./examples/discord-bots
-GOWORK=off go run ./cmd/discord-bot bots run ping --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run poker --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run knowledge-base --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite --sync-on-start
-GOWORK=off go run ./cmd/discord-bot bots run ui-showcase --bot-repository ./examples/discord-bots --bot-token "$DISCORD_BOT_TOKEN" --application-id "$DISCORD_APPLICATION_ID" --guild-id "$DISCORD_GUILD_ID" --sync-on-start
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots list --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots help ping --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots help unified-demo --output json
 ```
+
+Run discovered bot verbs exposed from bot scripts:
+
+```bash
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots unified-demo status --output json
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots unified-demo run --help
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots unified-demo run \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --db-path ./examples/discord-bots/unified-demo/data/demo.sqlite \
+  --api-key local-demo-key
+
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots knowledge-base run --help
+GOWORK=off go run ./cmd/discord-bot --bot-repository ./examples/discord-bots bots knowledge-base run \
+  --bot-token "$DISCORD_BOT_TOKEN" \
+  --application-id "$DISCORD_APPLICATION_ID" \
+  --guild-id "$DISCORD_GUILD_ID" \
+  --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite \
+  --capture-enabled \
+  --review-limit 10
+```
+
+If `--bot-repository` is omitted, `discord-bot` still falls back to `DISCORD_BOT_REPOSITORIES` and then `./examples/discord-bots` for local development.
 
 ## Runtime notes
 
 - Use `/ping` for the JS showcase bot with buttons, modals, autocomplete, outbound operations, and a deferred `/search` demo.
 - `/search` shows a private "Searching..." state, waits about 2 seconds, then edits in the results.
-- `knowledge-base` now demonstrates bot startup config via `configure({ run: ... })`; for example `dbPath` becomes the CLI flag `--db-path` and is exposed in JavaScript as `ctx.config.dbPath`.
+- Component interactions in `ui-showcase` now default to in-place updates (`UPDATE_MESSAGE`) so button/select flows stay in one message thread unless the handler explicitly opts into a new follow-up.
+- `unified-demo` demonstrates the new unified pattern: `__verb__("run", { fields: ... })` declares the CLI schema, Glazed parses the flags, and the host injects the parsed values into the running bot as `ctx.config.*`.
+- `knowledge-base` has also been migrated to the same host-managed `__verb__("run")` pattern, so a real non-trivial example now uses jsverbs-declared run metadata instead of `configure({ run: ... })`.
+- The field-name bridge converts kebab-case CLI flags into snake_case config keys; for example `--db-path` becomes `ctx.config.db_path`, `--api-key` becomes `ctx.config.api_key`, and `--review-limit` becomes `ctx.config.review_limit`.
 - `support` now also includes `support-fetch-thread`, `support-join-thread`, `support-leave-thread`, and `support-start-thread` to demonstrate the DISCORD-BOT-014 thread utility helpers.
 - Use `/poker-help` in Discord to see the command list and examples.
 - `/poker-help` includes quick-action buttons and modal entry points for rank/action examples.
@@ -54,7 +112,9 @@ GOWORK=off go run ./cmd/discord-bot bots run ui-showcase --bot-repository ./exam
 - `moderation` also now includes host-backed `mod-add-role`, `mod-timeout`, `mod-kick`, `mod-ban`, and `mod-unban` commands that demonstrate `ctx.discord.members.*` operations using explicit Discord IDs.
 - `moderation` now also includes `mod-list-messages`, `mod-fetch-message`, `mod-pin`, `mod-unpin`, `mod-list-pins`, `mod-bulk-delete`, `mod-fetch-channel`, `mod-set-topic`, `mod-set-slowmode`, `mod-fetch-guild`, `mod-list-roles`, `mod-fetch-role`, `mod-fetch-member`, and `mod-list-members` to demonstrate the DISCORD-BOT-010 message/channel moderation utilities, the DISCORD-BOT-011 guild/role lookup helpers, the DISCORD-BOT-012 member lookup helpers, and the new DISCORD-BOT-013 message history helpers.
 - The moderation example is now split across `lib/register-*.js` modules to demonstrate the preferred in-bot composition pattern as the bot grows.
-- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration).
+- `ui-showcase` demonstrates the UI DSL builder pattern with commands: `/demo-message` (builders), `/demo-form` (modal DSL), `/demo-search` and `/find` (stateful search with pager), `/demo-review` (review queue with select and action buttons), `/demo-confirm` (confirmation dialogs), `/demo-pager` (paginated list), `/demo-cards` and `/browse` (card gallery with select), `/demo-selects` (all select menu types), and `/demo-alias` / `/demo-alias-alt` (alias registration). The showcase now uses the Go-side `require("ui")` module for builders, so component interactions update messages in place instead of creating a new message for every click.
+- `show-space` currently includes `/debug`, `/debug-roles`, `/debug-my-roles`, `/upcoming`, `/announce`, `/add-show`, `/show`, `/cancel-show`, `/archive-show`, `/past-shows`, `/unpin-old`, and `/archive-expired` for role troubleshooting, show listings, announcement posting, show records, cancellation/archival, and pin cleanup in the venue Discord server.
+- The bot can run in phase-1 mode with seeded JSON data only, or in phase-2 mode with `dbPath` configured for SQLite-backed persistence.
 
 ## Moderation / event prerequisites
 

@@ -81,6 +81,14 @@ func (s *RuntimeState) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("defineBot", func(call goja.FunctionCall) goja.Value {
 		return s.defineBot(vm, call)
 	})
+
+	// Polyfill jsverbs metadata functions so bot scripts can coexist
+	// with __verb__ / __section__ / __package__ declarations.
+	for _, name := range []string{"__package__", "__section__", "__verb__", "doc"} {
+		if v := vm.Get(name); v == nil || goja.IsUndefined(v) {
+			_ = vm.Set(name, func(goja.FunctionCall) goja.Value { return goja.Undefined() })
+		}
+	}
 }
 
 func (s *RuntimeState) defineBot(vm *goja.Runtime, call goja.FunctionCall) goja.Value {

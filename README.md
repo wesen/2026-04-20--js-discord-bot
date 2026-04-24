@@ -132,7 +132,7 @@ GOWORK=off go run ./cmd/discord-bot bots help ping --bot-repository ./examples/d
 ### 3. Run one selected bot
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots run ping \
+GOWORK=off go run ./cmd/discord-bot bots ping run \
   --bot-repository ./examples/discord-bots \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
@@ -145,7 +145,7 @@ GOWORK=off go run ./cmd/discord-bot bots run ping \
 Example with the knowledge-base bot:
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots run knowledge-base \
+GOWORK=off go run ./cmd/discord-bot bots knowledge-base run \
   --bot-repository ./examples/discord-bots \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
@@ -164,7 +164,7 @@ The main recommended UX is:
 ```bash
 discord-bot bots list
 discord-bot bots help <bot>
-discord-bot bots run <bot>
+discord-bot bots <bot> run
 ```
 
 In practice:
@@ -172,7 +172,7 @@ In practice:
 ```bash
 GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots list
 GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots help knowledge-base
-GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots run moderation --sync-on-start
+GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots moderation run --sync-on-start
 ```
 
 ### Direct host commands
@@ -192,7 +192,48 @@ GOWORK=off go run ./cmd/discord-bot run \
   --guild-id "$DISCORD_GUILD_ID"
 ```
 
-For everyday use, `bots run <bot>` is usually the clearer path.
+For everyday use, `bots <bot> run` is the main named-bot path.
+
+### Public single-bot embedding path
+There is now also a public Go package for the simple one-bot case:
+
+```go
+bot, err := framework.New(
+    framework.WithCredentialsFromEnv(),
+    framework.WithScript("./examples/discord-bots/unified-demo/index.js"),
+    framework.WithRuntimeConfig(map[string]any{
+        "db_path": "./examples/discord-bots/unified-demo/data/demo.sqlite",
+        "api_key": "local-dev-key",
+    }),
+    framework.WithSyncOnStart(true),
+)
+```
+
+See:
+- `pkg/framework/` — public single-bot API
+- `examples/framework-single-bot/` — minimal embeddable app example
+- `examples/framework-custom-module/` — explicit bot + custom Go-native `require("app")` module example
+- `examples/framework-combined/` — downstream app combining one built-in bot via `pkg/framework` plus repo-driven bots via `pkg/botcli`
+
+### Recommended public split
+The extracted public API is now intentionally split into two layers:
+
+- `pkg/framework` — the simple path when one explicit built-in bot should be easy
+- `pkg/botcli` — the optional path when repository-driven multi-bot workflows should be easy
+
+The main public `pkg/botcli` customization hooks are now:
+- `botcli.WithAppName(...)` — change the env prefix used by dynamic bot commands
+- `botcli.WithRuntimeModuleRegistrars(...)` — add custom Go-native `require()` modules while keeping the default runtime construction
+- `botcli.WithRuntimeFactory(...)` — override ordinary jsverb runtime creation when runtime construction itself must change
+
+A good rule of thumb is:
+- use `WithAppName(...)` when only env-prefix behavior changes
+- use `WithRuntimeModuleRegistrars(...)` when scripts simply need extra native `require()` modules
+- use `WithRuntimeFactory(...)` only when `WithRuntimeModuleRegistrars(...)` is not enough and you must change runtime creation itself (module roots, require behavior, builder/runtime setup, or runtime lifecycle)
+- if that same customization must also affect discovery and host-managed bot runs, make the runtime factory implement `botcli.HostOptionsProvider`
+
+The combined downstream example lives at:
+- `examples/framework-combined/`
 
 ---
 
@@ -249,7 +290,6 @@ cmd/
 
 internal/
   bot/                     live Discordgo session wrapper
-  botcli/                  named bot repository discovery and runner
   config/                  host config decoding and validation
   jsdiscord/               embedded JS runtime, defineBot API, dispatch, payload normalization
 
@@ -257,6 +297,7 @@ examples/
   discord-bots/            named JS bot implementations
 
 pkg/
+  botcli/                  public named-bot repository discovery and runner
   doc/                     embedded help pages
 
 ttmp/
@@ -272,7 +313,7 @@ This repo intentionally uses a **single selected JavaScript bot** in each runnin
 
 That means:
 
-- `discord-bot bots run <bot>` selects one named implementation,
+- `discord-bot bots <bot> run` selects one named implementation,
 - startup/runtime config applies to that one bot,
 - composition should happen inside the selected bot rather than via host-side multi-bot composition.
 
@@ -330,7 +371,7 @@ Common validation commands:
 
 ```bash
 GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
-GOWORK=off go test ./internal/botcli ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
+GOWORK=off go test ./pkg/botcli ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
 GOWORK=off go test ./...
 ```
 

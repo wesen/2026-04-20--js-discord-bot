@@ -73,8 +73,8 @@ type AutocompleteDescriptor struct {
 	OptionName  string
 }
 
-func InspectScript(ctx context.Context, scriptPath string) (*BotDescriptor, error) {
-	loaded, err := LoadBot(ctx, scriptPath)
+func InspectScript(ctx context.Context, scriptPath string, opts ...HostOption) (*BotDescriptor, error) {
+	loaded, err := LoadBot(ctx, scriptPath, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +87,8 @@ type LoadedBot struct {
 	Host       *Host
 }
 
-func LoadBot(ctx context.Context, scriptPath string) (*LoadedBot, error) {
-	host, err := NewHost(ctx, scriptPath)
+func LoadBot(ctx context.Context, scriptPath string, opts ...HostOption) (*LoadedBot, error) {
+	host, err := NewHost(ctx, scriptPath, opts...)
 	if err != nil {
 		return nil, err
 	}
