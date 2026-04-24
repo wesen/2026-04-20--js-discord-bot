@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 )
 
@@ -56,11 +57,11 @@ func buildRuntimeConfig(parsedValues *values.Values) map[string]any {
 		return ret
 	}
 	parsedValues.ForEach(func(slug string, sectionVals *values.SectionValues) {
-		if sectionVals == nil || sectionVals.Fields == nil {
+		if slug != schema.DefaultSlug || sectionVals == nil || sectionVals.Fields == nil {
 			return
 		}
 		sectionVals.Fields.ForEach(func(fieldName string, fv *fields.FieldValue) {
-			if fv == nil || fv.Definition == nil {
+			if fv == nil || fv.Definition == nil || isHostManagedRuntimeField(fieldName) {
 				return
 			}
 			configKey := runtimeFieldInternalName(fieldName)
@@ -68,4 +69,13 @@ func buildRuntimeConfig(parsedValues *values.Values) map[string]any {
 		})
 	})
 	return ret
+}
+
+func isHostManagedRuntimeField(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "bot-token", "application-id", "guild-id", "sync-on-start":
+		return true
+	default:
+		return false
+	}
 }
