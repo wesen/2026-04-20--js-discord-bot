@@ -1718,3 +1718,99 @@ So this step turned the old report into a true study document. I rewrote the cod
 - The rewritten review guide is now structured as a study workbook with conceptual chapters, package maps, review checklists, concrete validation commands, and exercises.
 - The design review guide now reflects the final state where `internal/botcli` is gone and `pkg/botcli` is the canonical public repo-driven layer.
 - The new review guidance is grounded in the current final file layout: `command_root.go`, focused command files, public runtime docs, and the cleaned test/example paths.
+
+## Step 22: Exclude host-only fields from `ctx.config`
+
+This was a real regression, not just a cleanup nit. The public `pkg/botcli` path had ended up rebuilding runtime config by walking all parsed fields, which meant the JS runtime could see host-only credentials and unrelated Glazed/global fields through `ctx.config`. That is exactly the kind of bug a cleaned public package should not allow to linger.
+
+I fixed it narrowly and defensively: only the default runtime section now contributes to `ctx.config`, and even there the known host-managed fields are explicitly excluded. That preserves the intended contract that `ctx.config` is for bot runtime values, not host credentials or CLI framework internals.
+
+### Prompt Context
+
+**User prompt (verbatim):** "P1 Badge Exclude host credentials from bot runtime config
+
+buildRuntimeConfig currently walks every parsed section and copies every field into ctx.config, so host-only flags like --bot-token, --application-id, and formatter/global CLI flags are injected into the JavaScript runtime. This is a regression from the previous path that only forwarded bot run-schema fields, and it creates a secret-leak path (untrusted bot scripts can read the token) plus key-collision bugs when a bot defines a run field that matches a global flag name.
+
+Useful? React with 👍 / 👎.
+
+Fix the issue"
+
+**Assistant interpretation:** Treat this as a P1 bug in the public botcli runtime-config path and fix it with code plus regression coverage.
+
+**Inferred user intent:** The user wants the secret-leak and config-surface regression removed immediately, not just discussed in review comments.
+
+**Commit (code):** dbf02e0 — "Exclude host fields from bot runtime config"
+
+### What I did
+
+- Updated:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go`
+- `buildRuntimeConfig(...)` now:
+  - ignores non-default sections,
+  - ignores host-managed fields:
+    - `bot-token`
+    - `application-id`
+    - `guild-id`
+    - `sync-on-start`
+- Added:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers_test.go`
+- The regression test proves that:
+  - bot runtime fields such as `db-path` and `api-key` still flow into `ctx.config`,
+  - secret-bearing host fields do not,
+  - unrelated global flags such as `config-file` and `print-schema` do not.
+- Ran:
+  - `gofmt -w pkg/botcli/runtime_helpers.go pkg/botcli/runtime_helpers_test.go`
+  - `go test ./pkg/botcli ./cmd/discord-bot ./...`
+
+### What worked
+
+- The narrow filtering fix resolves both classes of bug described in the prompt:
+  - secret leakage into JS,
+  - accidental inclusion of unrelated global CLI/framework fields.
+- The regression test directly exercises the bug surface rather than only indirectly relying on command-level behavior.
+
+### What didn't work
+
+- My first test version used `APIKey` to exercise name normalization and expected `api_key`, but the existing `runtimeFieldInternalName(...)` behavior normalizes that spelling to `apikey`. That was unrelated to the security bug being fixed.
+- The initial test failure was:
+  - expected: `"api_key":"service-key"`
+  - actual: `"apikey":"service-key"`
+- I corrected the test to use the more typical `api-key` field name so it remained focused on the host-field leak.
+
+### What I learned
+
+- The bug existed because `buildRuntimeConfig(...)` had become too generic after the cleanup work: it treated every parsed section/value as runtime config instead of preserving the narrower semantic contract.
+- For bugs like this, a direct unit test around the config-shaping helper is much better than trying to observe the problem only through high-level command behavior.
+
+### What was tricky to build
+
+- The tricky part was deciding how narrow the filter should be. Restricting to the default section alone was not sufficient, because the default section also contains host-managed fields like credentials and `sync-on-start`. The correct fix had to combine two rules:
+  - only the default runtime section is eligible,
+  - and even there, explicitly reserved host-managed fields are excluded.
+
+### What warrants a second pair of eyes
+
+- Whether any future host-only fields added to the default section should also be treated as reserved and excluded from `ctx.config`.
+- Whether we want a follow-up test closer to the full command path that asserts a bot cannot observe credentials through JS-level runtime config, in addition to this helper-level unit test.
+
+### What should be done in the future
+
+- Keep `buildRuntimeConfig(...)` conservative and review any future additions to default-section host flags against this reserved-field filter.
+
+### Code review instructions
+
+- Start with:
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go`
+  - `/home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers_test.go`
+- Validate with:
+  - `go test ./pkg/botcli ./cmd/discord-bot ./...`
+
+### Technical details
+
+- The fix keeps bot runtime config extraction limited to the default runtime section.
+- The reserved host-managed field set is currently:
+  - `bot-token`
+  - `application-id`
+  - `guild-id`
+  - `sync-on-start`
+- Global Glazed fields are naturally excluded because non-default sections are ignored.

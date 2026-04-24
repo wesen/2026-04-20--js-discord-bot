@@ -224,3 +224,12 @@ Refreshed the framework review guidance after the final botcli clean cut. Rewrot
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/reference/02-public-botcli-code-review-cleanup-report.md — Now a textbook-style code review guide and study workbook for the final `pkg/botcli` design
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/design-doc/02-framework-extraction-design-review-and-decision-guide.md — Updated design judgment for the cleaned final public-package state
 - /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/ttmp/2026/04/21/DISCORD-BOT-FRAMEWORK--extract-reusable-discord-bot-framework-for-embedding-in-other-go-applications/tasks.md — Review-guidance refresh tasks completed
+
+## 2026-04-23
+
+Fixed a runtime-config leak in the cleaned public `pkg/botcli` path. `buildRuntimeConfig(...)` had been copying every parsed field into `ctx.config`, which meant host-only credentials and unrelated global CLI flags could leak into the JavaScript runtime. The fix now restricts runtime-config extraction to the default bot runtime section and explicitly excludes host-managed fields such as `bot-token`, `application-id`, `guild-id`, and `sync-on-start`. Added a focused regression test proving both secret-bearing fields and global flags stay out of `ctx.config`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers.go — Runtime-config extraction now filters out host-managed fields and non-default sections
+- /home/manuel/workspaces/2026-04-22/discord-bot-framework/2026-04-20--js-discord-bot/pkg/botcli/runtime_helpers_test.go — Regression test for secret/global-field exclusion from `ctx.config`
