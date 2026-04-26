@@ -8,6 +8,9 @@ import (
 	"syscall"
 )
 
+// version is set by GoReleaser via -ldflags -X main.version=...
+var version = "dev"
+
 func main() {
 	rootCmd, err := newRootCommand(os.Args[1:]...)
 	if err != nil {

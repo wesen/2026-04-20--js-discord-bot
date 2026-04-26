@@ -16,6 +16,7 @@ func newRootCommand(rawArgs ...string) (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:           "discord-bot",
 		Short:         "A simple Go Discord bot",
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
