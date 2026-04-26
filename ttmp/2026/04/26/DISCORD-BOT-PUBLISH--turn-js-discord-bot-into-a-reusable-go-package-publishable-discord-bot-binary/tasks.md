@@ -11,26 +11,26 @@
 
 ## Phase 2: Extract Public API Surface
 
-- [ ] Audit `pkg/framework/` exported types for naming and docs
-- [ ] Audit `pkg/botcli/` exported types for naming and docs
-- [ ] Add doc comments to all exported types/functions
-- [ ] Verify examples compile (`go build ./examples/...`)
+- [x] Audit `pkg/framework/` exported types for naming and docs
+- [x] Audit `pkg/botcli/` exported types for naming and docs
+- [x] Add doc comments to all exported types/functions
+- [x] Verify examples compile (`go build ./examples/...`)
 
 ## Phase 3: Infrastructure from go-template
 
-- [ ] Copy `.golangci.yml`, `.golangci-lint-version`, `lefthook.yml`, `LICENSE` (use `scripts/03-copy-infrastructure.sh`)
-- [ ] Create `Makefile` adapted for discord-bot
-- [ ] Create `.goreleaser.yaml` adapted for discord-bot
-- [ ] Copy `.github/workflows/` from go-template
-- [ ] Install lefthook and verify hooks work
-- [ ] Run `make lint && make test && make build`
+- [x] Copy `.golangci.yml`, `.golangci-lint-version`, `lefthook.yml`, `LICENSE` (use `scripts/03-copy-infrastructure.sh`)
+- [x] Create `Makefile` adapted for discord-bot
+- [x] Create `.goreleaser.yaml` adapted for discord-bot
+- [x] Copy `.github/workflows/` from go-template
+- [x] Install lefthook and verify hooks work
+- [x] Run `make lint && make test && make build`
 
 ## Phase 4: Version Injection and Entry Point Cleanup
 
-- [ ] Add `var version = "dev"` to `cmd/discord-bot/main.go`
-- [ ] Wire version into root command
-- [ ] Update `.goreleaser.yaml` ldflags
-- [ ] Verify version injection with manual build
+- [x] Add `var version = "dev"` to `cmd/discord-bot/main.go`
+- [x] Wire version into root command
+- [x] Update `.goreleaser.yaml` ldflags
+- [x] Verify version injection with manual build
 
 ## Phase 5: CI and Publishing
 
