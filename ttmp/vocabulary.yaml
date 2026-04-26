@@ -51,6 +51,14 @@ topics:
       description: Extracting reusable Go packages from prototypes
     - slug: ci
       description: CI/CD, GitHub Actions, GoReleaser
+    - slug: gitops
+      description: GitOps workflows and repository-managed deployment state
+    - slug: k3s
+      description: K3s Kubernetes cluster operations and deployments
+    - slug: kubernetes
+      description: Kubernetes manifests, workloads, controllers, and validation
+    - slug: vault
+      description: HashiCorp Vault secret storage, policy, auth, and operator integration
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
