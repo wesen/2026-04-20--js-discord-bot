@@ -20,7 +20,7 @@ RelatedFiles:
       Note: Post-deploy validation script
 ExternalSources: []
 Summary: Chronological investigation diary for the Discord UI showcase bot k3s deployment guide.
-LastUpdated: 2026-04-26T15:58:00-04:00
+LastUpdated: 2026-04-26T17:05:00-04:00
 WhatFor: Record what was investigated, generated, and attempted for the deployment ticket.
 WhenToUse: Read before resuming implementation of the discord-ui-showcase k3s deployment.
 ---
@@ -448,3 +448,130 @@ N/A for this step.
 
 - Review the seed script for no secret printing.
 - Validate future cluster sync with `kubectl -n discord-ui-showcase get secret discord-ui-showcase-runtime -o jsonpath='{range $k,$v := .data}{printf "%s\n" $k}{end}'`.
+
+## Step 5: Build image, add GitOps manifests, and verify live k3s deployment
+
+I continued from the seeded runtime credentials and completed the remaining deployment path: prove a container image exists, add the k3s GitOps/Vault wiring, push it so Argo CD can fetch it, and validate the live workload.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Resume the Discord UI showcase deployment by moving from documented/generated manifests to an actual image and live k3s application.
+
+**Inferred user intent:** Finish the deployment rather than only leaving a handoff plan.
+
+**Commit (code):**
+
+- Discord bot repo: `5051de69770815d00ea5c3c94019392b870c3b37` (`docs: document k3s deployment for UI showcase bot`).
+- Hetzner k3s repo: rebased/pushed deployment commit `bb060d8...` containing `feat(gitops): deploy Discord UI showcase bot`.
+
+### What I did
+
+- Added a Dockerfile to the Discord bot repo. The image copies a Linux AMD64 `discord-bot` binary and the `examples/discord-bots` directory into `/app/examples/discord-bots`.
+- Built the Linux AMD64 binary with CGO enabled after a static `CGO_ENABLED=0` build failed due to tree-sitter build constraints.
+- Built, smoke-tested, and pushed:
+
+```text
+ghcr.io/go-go-golems/discord-bot:sha-596f442
+sha256:e8bdebe024d4f6faad3e606f9899318693d7a7e83f0c176a1b61faa607affc08
+```
+
+- Seeded GHCR pull credentials into Vault at:
+
+```text
+kv/apps/discord-ui-showcase/prod/image-pull
+```
+
+Only field names and operational status were handled in logs/docs; token values were not printed.
+
+- Added the real k3s files under `/home/manuel/code/wesen/2026-03-27--hetzner-k3s`:
+  - `gitops/applications/discord-ui-showcase.yaml`
+  - `gitops/kustomize/discord-ui-showcase/*`
+  - `vault/policies/kubernetes/discord-ui-showcase.hcl`
+  - `vault/roles/kubernetes/discord-ui-showcase.json`
+- Validated the render locally with:
+
+```bash
+kubectl kustomize gitops/kustomize/discord-ui-showcase
+```
+
+- Applied the Vault Kubernetes auth bootstrap script so the new policy and role exist in Vault.
+- Committed the k3s manifests, rebased over the latest `origin/main`, and pushed to GitHub so Argo CD could read the new path.
+- Applied and refreshed the Argo CD application from the k3s repo.
+- Fixed `scripts/03-validate-discord-ui-showcase-deploy.sh` after kubectl rejected the original JSONPath expression for listing secret keys; the script now uses `jq`.
+
+### Why
+
+- Argo CD reads the k3s Git repo, not local unpushed files, so the manifests had to be committed and pushed before the `Application` could converge reliably.
+- The image is private on GHCR, so VSO also needed to render a `kubernetes.io/dockerconfigjson` pull secret from Vault.
+- The bot is an outbound Discord gateway process, so the live validation focuses on Argo status, VSO secret sync, pod rollout, and logs rather than HTTP probes.
+
+### What worked
+
+The live app reached:
+
+```text
+Argo CD: Synced Healthy
+VaultAuth discord-ui-showcase: HEALTHY=True READY=True
+VaultStaticSecret discord-ui-showcase-ghcr-pull: SYNCED=True HEALTHY=True READY=True
+VaultStaticSecret discord-ui-showcase-runtime: SYNCED=True HEALTHY=True READY=True
+Deployment rollout: successfully rolled out
+Pod: 1/1 Running, 0 restarts
+```
+
+The bot logs confirmed the important application-level events:
+
+```text
+loaded javascript bot implementation bot=ui-showcase
+synced discord application commands ... scope=guild:586274407350272042
+discord bot connected ... user=llm-bot
+ui-showcase bot ready ... meta.name=ui-showcase
+```
+
+### What didn't work
+
+- The first Linux binary build attempted `CGO_ENABLED=0`, but the repository's tree-sitter dependency requires CGO build support for this target.
+- The first push of the k3s repository was rejected because remote `main` had newer commits. I resolved this with `git fetch` and `git rebase origin/main`, then pushed the rebased history normally.
+- The validation script used a JSONPath syntax that kubectl does not support. I changed it to read `.data | keys[]` with `jq`.
+
+### What I learned
+
+- The container image must be built with CGO enabled for the current dependency set.
+- The existing k3s Vault Secrets Operator pattern works cleanly for both runtime `Opaque` secrets and private registry pull secrets.
+- Discord command sync and gateway connection are visible in logs and are enough to prove the bot is alive before a human tries slash commands in Discord.
+
+### What was tricky to build
+
+- The k3s Argo application source points at GitHub, so applying a local `Application` before pushing manifests would not be enough.
+- The GHCR pull secret transformation has to render `.dockerconfigjson` exactly; otherwise Kubernetes will create a Secret that exists but cannot authenticate image pulls.
+
+### What warrants a second pair of eyes
+
+- A human should test one or two Discord commands in the target guild, for example `/demo-message`, `/demo-form`, or `/demo-selects`.
+- Consider whether trace-level native module registration logs should be reduced in production.
+
+### What should be done in the future
+
+- Move image publication into CI instead of building/pushing manually from a workstation.
+- Consider pinning the deployment image by digest rather than only by `sha-596f442` tag.
+- Add a small operational runbook section for rotating Discord credentials and GHCR pull credentials.
+
+### Code review instructions
+
+- In the k3s repo, review `gitops/kustomize/discord-ui-showcase/` against the existing `smailnail` VSO pattern.
+- Verify that `deployment.yaml` keeps `replicas: 1` unless Discord gateway sharding/coordination is implemented.
+- Verify that the Kubernetes manifests do not contain raw Discord or GHCR secret values.
+
+### Technical details
+
+Useful validation commands:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
+kubectl -n argocd get application discord-ui-showcase
+kubectl -n discord-ui-showcase get vaultauth,vaultstaticsecret,secret,pods -o wide
+kubectl -n discord-ui-showcase rollout status deployment/discord-ui-showcase --timeout=180s
+kubectl -n discord-ui-showcase logs deployment/discord-ui-showcase --tail=120
+```

@@ -23,13 +23,15 @@ require_env() {
 }
 
 require_cmd kubectl
+require_cmd jq
 require_env KUBECONFIG
 
 echo "Argo application status:"
 kubectl -n argocd get application "${app}" -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}'
 
 echo "Vault-rendered Kubernetes Secret keys:"
-kubectl -n "${namespace}" get secret "${secret_name}" -o jsonpath='{range $k,$v := .data}{printf "  - %s\n" $k}{end}'
+kubectl -n "${namespace}" get secret "${secret_name}" -o json \
+  | jq -r '.data | keys[] | "  - " + .'
 
 echo "Deployment rollout:"
 kubectl -n "${namespace}" rollout status "deployment/${app}" --timeout=180s
