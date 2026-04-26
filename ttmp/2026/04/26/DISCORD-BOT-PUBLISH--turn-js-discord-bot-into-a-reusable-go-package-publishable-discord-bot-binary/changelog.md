@@ -22,3 +22,8 @@ Phase 1 complete: renamed module to github.com/go-go-golems/discord-bot, removed
 
 Phases 2-4 complete: added framework doc comment, infrastructure (Makefile, GoReleaser, CI, lint, hooks), version injection
 
+
+## 2026-04-26
+
+Phases 5-6 complete: README rewritten, AGENT.md added, Dependabot configured. Tagged v0.1.0, GoReleaser released (linux/darwin, deb/rpm, Homebrew, fury.io). All CI green.
+

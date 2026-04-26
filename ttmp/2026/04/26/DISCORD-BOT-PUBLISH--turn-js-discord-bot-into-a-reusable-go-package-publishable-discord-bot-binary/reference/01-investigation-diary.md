@@ -188,3 +188,59 @@ These three phases are the mechanical infrastructure setup. Phase 2 ensures the 
 ### Technical details
 
 Commits: `3b7f3b2` (docs), `1ee251d` (infrastructure), `d3f72c6` (version injection)
+
+## Step 4: Phases 5–6 — docs polish, tag v0.1.0, release
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue" (after confirming org secrets are all inherited)
+**Assistant interpretation:** Continue with Phase 6 (docs polish) then Phase 5 (tag and release).
+**Inferred user intent:** Ship the first release with polished docs.
+
+### What I did
+
+- **Phase 6:** Rewrote README.md from scratch (removed all `GOWORK=off` references, added install instructions, Go API examples, architecture diagram). Created AGENT.md. Added `.github/dependabot.yml` (copied from pinocchio). Updated `.gitignore` (added `dist/`, `.bin/`, `*.db`). Committed.
+- **Phase 5:** Verified all 5 org-level secrets are available (GORELEASER_KEY, HOMEBREW_TAP_TOKEN, GPG signing key+passphrase, FURY_TOKEN). Deleted `v0.0.1-dev` tag. Pushed `v0.1.0` tag. Release workflow triggered and completed successfully.
+
+### Why
+
+Polishing docs before the first tag means the GitHub release page, Homebrew formula, and pkg.go.dev all show clean, accurate documentation from day one.
+
+### What worked
+
+- Org-level secrets were already configured — zero setup needed.
+- GoReleaser split build (linux + darwin + merge) completed in ~3 minutes total.
+- Homebrew formula and fury.io packages pushed automatically.
+- Dependabot immediately opened 2 PRs to bump action versions.
+
+### What didn't work
+
+- Nothing significant. The release pipeline worked first try.
+
+### What was tricky to build
+
+- Nothing. The go-template infrastructure pattern proved itself — adapting it for discord-bot was mechanical.
+
+### What warrants a second pair of eyes
+
+- Verify `brew install go-go-golems/tap/discord-bot` works on a fresh machine.
+- Verify the fury.io apt/rpm repos are serving the packages.
+
+### What should be done in the future
+
+- Fix the 30 pre-existing lint issues in `internal/jsdiscord/`.
+- Review and merge the 2 Dependabot PRs.
+- Delete or archive the old `wesen/2026-04-20--js-discord-bot` repo.
+
+### Code review instructions
+
+- `gh release view v0.1.0 --repo go-go-golems/discord-bot` → should show 10 assets
+- `gh run list --repo go-go-golems/discord-bot --workflow=release.yaml --limit 1` → should be green
+- `head -3 go.mod` → `module github.com/go-go-golems/discord-bot`
+- `grep replace go.mod` → (no output)
+
+### Technical details
+
+Release: v0.1.0
+Assets: checksums.txt + sig, linux amd64/arm64 (tar.gz + deb + rpm), darwin amd64/arm64 (tar.gz)
+URL: https://github.com/go-go-golems/discord-bot/releases/tag/v0.1.0

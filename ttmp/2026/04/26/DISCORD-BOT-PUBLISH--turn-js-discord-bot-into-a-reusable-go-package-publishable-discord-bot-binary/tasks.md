@@ -34,17 +34,17 @@
 
 ## Phase 5: CI and Publishing
 
-- [ ] Configure GitHub secrets (GPG, GoReleaser, Homebrew, fury.io)
-- [ ] Create first tag (`v0.1.0`)
-- [ ] Push tag and watch release workflow
-- [ ] Approve release in GitHub UI
-- [ ] Verify Homebrew formula, deb/rpm packages
+- [x] Configure GitHub secrets (GPG, GoReleaser, Homebrew, fury.io)
+- [x] Create first tag (`v0.1.0`)
+- [x] Push tag and watch release workflow
+- [x] Approve release in GitHub UI
+- [x] Verify Homebrew formula, deb/rpm packages
 
 ## Phase 6: Polish and Documentation
 
-- [ ] Update README.md with installation instructions and Go API examples
-- [ ] Create AGENT.md
-- [ ] Review embedded help pages
-- [ ] Add Dependabot config
-- [ ] Final validation: `make lint && make test && make build`
+- [x] Update README.md with installation instructions and Go API examples
+- [x] Create AGENT.md
+- [x] Review embedded help pages
+- [x] Add Dependabot config
+- [x] Final validation: `make lint && make test && make build`
 
