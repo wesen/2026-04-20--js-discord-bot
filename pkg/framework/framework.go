@@ -1,3 +1,16 @@
+// Package framework provides a simple embedding API for running a single Discord bot
+// with a JavaScript authoring runtime inside any Go application.
+//
+// The main entrypoint is New(), which accepts functional options:
+//
+//	bot, err := framework.New(
+//	    framework.WithCredentialsFromEnv(),
+//	    framework.WithScript("./my-bot/index.js"),
+//	    framework.WithSyncOnStart(true),
+//	)
+//	bot.Run(ctx)
+//
+// For custom native modules, use WithRuntimeModuleRegistrars.
 package framework
 
 import (
