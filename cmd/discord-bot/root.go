@@ -8,8 +8,8 @@ import (
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
 
-	publicbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/botcli"
-	appdoc "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/doc"
+	publicbotcli "github.com/go-go-golems/discord-bot/pkg/botcli"
+	appdoc "github.com/go-go-golems/discord-bot/pkg/doc"
 )
 
 func newRootCommand(rawArgs ...string) (*cobra.Command, error) {

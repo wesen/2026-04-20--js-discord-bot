@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
+	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 )
 
 func DiscoverBots(ctx context.Context, bootstrap Bootstrap, hostOpts ...jsdiscord.HostOption) ([]DiscoveredBot, error) {

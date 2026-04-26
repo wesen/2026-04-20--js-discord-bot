@@ -10,7 +10,7 @@ import (
 	"github.com/dop251/goja"
 	noderequire "github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/engine"
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/framework"
+	"github.com/go-go-golems/discord-bot/pkg/framework"
 )
 
 func main() {

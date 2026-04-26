@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"path/filepath"
 
-	publicbotcli "github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/botcli"
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/pkg/framework"
+	publicbotcli "github.com/go-go-golems/discord-bot/pkg/botcli"
+	"github.com/go-go-golems/discord-bot/pkg/framework"
 	"github.com/spf13/cobra"
 )
 

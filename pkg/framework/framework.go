@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/engine"
-	appbot "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/bot"
-	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
+	appbot "github.com/go-go-golems/discord-bot/internal/bot"
+	appconfig "github.com/go-go-golems/discord-bot/internal/config"
+	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 )
 
 // Credentials holds the explicit Discord settings needed to run one bot.

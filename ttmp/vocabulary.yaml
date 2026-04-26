@@ -43,6 +43,14 @@ topics:
       description: Reusable framework APIs and embedding-oriented package design
     - slug: embedding
       description: Embedding one package or runtime into another host application
+    - slug: packaging
+      description: Go package publishing and release infrastructure
+    - slug: publishing
+      description: Binary release, Homebrew, deb/rpm distribution
+    - slug: reusable-package
+      description: Extracting reusable Go packages from prototypes
+    - slug: ci
+      description: CI/CD, GitHub Actions, GoReleaser
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

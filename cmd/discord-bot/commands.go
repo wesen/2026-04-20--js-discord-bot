@@ -15,8 +15,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/spf13/cobra"
 
-	botapp "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/bot"
-	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
+	botapp "github.com/go-go-golems/discord-bot/internal/bot"
+	appconfig "github.com/go-go-golems/discord-bot/internal/config"
 )
 
 type runCommand struct {

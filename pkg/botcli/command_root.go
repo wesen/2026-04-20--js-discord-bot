@@ -10,7 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/spf13/cobra"
 
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
+	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 )
 
 func botCLIParserConfig(appName string) glazed_cli.CobraParserConfig {

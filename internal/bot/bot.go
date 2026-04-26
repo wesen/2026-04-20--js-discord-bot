@@ -8,8 +8,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/rs/zerolog/log"
 
-	appconfig "github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/config"
-	"github.com/manuel/wesen/2026-04-20--js-discord-bot/internal/jsdiscord"
+	appconfig "github.com/go-go-golems/discord-bot/internal/config"
+	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 )
 
 // Bot wraps the Discord session and bot behavior.
