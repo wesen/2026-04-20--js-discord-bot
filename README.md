@@ -1,138 +1,51 @@
-# js-discord-bot
+# discord-bot
 
 A Go-hosted Discord bot runtime with a local JavaScript bot API.
 
-This repository lets you build Discord bots in JavaScript while keeping the outer Discord session, command sync, process lifecycle, and runtime embedding in Go.
+[![Go Reference](https://pkg.go.dev/badge/github.com/go-go-golems/discord-bot.svg)](https://pkg.go.dev/github.com/go-go-golems/discord-bot)
 
-At a high level:
-
-- Go owns the Discord gateway/session and embeds the JavaScript runtime.
-- JavaScript owns the bot behavior through `require("discord")`.
-- Bots are discovered as named implementations from a bot repository such as `examples/discord-bots/`.
-- The current runtime model is **one selected JavaScript bot per process**.
+Go owns the Discord gateway/session and embeds a JavaScript runtime (goja). JavaScript owns the bot behavior through `require("discord")`. The current model is **one selected JavaScript bot per process**.
 
 ---
 
-## What this project is for
+## Install
 
-This project is useful when you want:
+**Homebrew (macOS / Linux):**
 
-- a real Discord bot process with Go-level control over runtime and deployment,
-- a JavaScript authoring experience for bot logic,
-- local example bots that double as executable documentation,
-- a host API that exposes Discord interactions, events, components, modals, autocomplete, and request-scoped outbound operations.
-
-It is **not** a generic Node Discord bot template. The JavaScript runs inside an embedded goja runtime hosted by Go.
-
----
-
-## Current model in one diagram
-
-```text
-operator / CLI
-    ↓
-cmd/discord-bot
-    ↓
-internal/bot          (Discordgo session host)
-    ↓
-internal/jsdiscord    (embedded JS runtime + require("discord"))
-    ↓
-examples/discord-bots/<bot>/index.js
+```bash
+brew install go-go-golems/tap/discord-bot
 ```
 
-More concretely:
+**deb / rpm (Linux):**
 
-```text
-bots list / bots help / bots run
-    ↓
-discover one named bot implementation
-    ↓
-load selected script into goja runtime
-    ↓
-expose defineBot(...) via require("discord")
-    ↓
-forward Discord events/interactions into JS handlers
-    ↓
-normalize JS return payloads back into Discordgo responses
+See [releases](https://github.com/go-go-golems/discord-bot/releases) for `.deb` and `.rpm` packages, or use the [fury.io apt repo](https://push.fury.io/go-go-golems/).
+
+**From source:**
+
+```bash
+go install github.com/go-go-golems/discord-bot/cmd/discord-bot@latest
 ```
-
----
-
-## Main features
-
-### JavaScript bot authoring API
-From JavaScript, bots currently use:
-
-- `defineBot(...)`
-- `command(...)`
-- `event(...)`
-- `component(...)`
-- `modal(...)`
-- `autocomplete(...)`
-- `configure(...)`
-- request-scoped context helpers like:
-  - `ctx.reply(...)`
-  - `ctx.defer(...)`
-  - `ctx.edit(...)`
-  - `ctx.followUp(...)`
-  - `ctx.showModal(...)`
-  - `ctx.log.*(...)`
-  - `ctx.store.*(...)`
-  - `ctx.discord.*(...)`
-
-### Discord interaction support
-The host supports a growing set of Discord features, including:
-
-- slash commands
-- subcommands
-- user commands
-- message commands
-- buttons and select menus
-- modals and text inputs
-- autocomplete
-- message, reaction, and guild-member events
-- request-scoped outbound Discord operations
-- message moderation utilities
-- guild/role/member lookup helpers
-- message history helpers
-- thread helpers
-
-### Bot-level runtime config
-Bots can describe startup/runtime config with:
-
-```js
-configure({
-  run: {
-    fields: {
-      dbPath: { type: "string", default: "./data.sqlite" },
-    },
-  },
-})
-```
-
-Those fields become CLI flags on `bots run ...` and are exposed to handlers as `ctx.config`.
 
 ---
 
 ## Quick start
 
-### 1. Inspect the available bots
+### 1. List available bots
 
 ```bash
-cd /home/manuel/code/wesen/2026-04-20--js-discord-bot
-GOWORK=off go run ./cmd/discord-bot bots list --bot-repository ./examples/discord-bots
+discord-bot bots list --bot-repository ./examples/discord-bots
 ```
 
 ### 2. Inspect one bot
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots help ping --bot-repository ./examples/discord-bots
+discord-bot bots help ping --bot-repository ./examples/discord-bots
 ```
 
-### 3. Run one selected bot
+### 3. Run a bot
 
 ```bash
-GOWORK=off go run ./cmd/discord-bot bots ping run \
+discord-bot bots ping run \
   --bot-repository ./examples/discord-bots \
   --bot-token "$DISCORD_BOT_TOKEN" \
   --application-id "$DISCORD_APPLICATION_ID" \
@@ -140,202 +53,83 @@ GOWORK=off go run ./cmd/discord-bot bots ping run \
   --sync-on-start
 ```
 
-### 4. Run a bot with runtime config
+### Environment variables
 
-Example with the knowledge-base bot:
-
-```bash
-GOWORK=off go run ./cmd/discord-bot bots knowledge-base run \
-  --bot-repository ./examples/discord-bots \
-  --bot-token "$DISCORD_BOT_TOKEN" \
-  --application-id "$DISCORD_APPLICATION_ID" \
-  --guild-id "$DISCORD_GUILD_ID" \
-  --db-path ./examples/discord-bots/knowledge-base/data/knowledge.sqlite \
-  --sync-on-start
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DISCORD_BOT_TOKEN` | Yes | Discord bot token |
+| `DISCORD_APPLICATION_ID` | Yes | Discord application ID |
+| `DISCORD_GUILD_ID` | No | Scope commands to a specific guild |
+| `DISCORD_PUBLIC_KEY` | No | For HTTP interaction verification |
+| `DISCORD_CLIENT_ID` | No | For OAuth flows |
+| `DISCORD_CLIENT_SECRET` | No | For OAuth flows |
 
 ---
 
-## Operator-facing commands
+## Go API — embedding discord-bot in your application
 
-### Named bot runner
-The main recommended UX is:
-
-```bash
-discord-bot bots list
-discord-bot bots help <bot>
-discord-bot bots <bot> run
-```
-
-In practice:
-
-```bash
-GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots list
-GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots help knowledge-base
-GOWORK=off go run ./cmd/discord-bot bots --bot-repository ./examples/discord-bots moderation run --sync-on-start
-```
-
-### Direct host commands
-There are also direct host-level commands:
-
-- `run`
-- `validate-config`
-- `sync-commands`
-
-Use them when you want to point the host directly at one explicit script path:
-
-```bash
-GOWORK=off go run ./cmd/discord-bot run \
-  --bot-script ./examples/discord-bots/ping/index.js \
-  --bot-token "$DISCORD_BOT_TOKEN" \
-  --application-id "$DISCORD_APPLICATION_ID" \
-  --guild-id "$DISCORD_GUILD_ID"
-```
-
-For everyday use, `bots <bot> run` is the main named-bot path.
-
-### Public single-bot embedding path
-There is now also a public Go package for the simple one-bot case:
+### Simple single-bot embedding (`pkg/framework`)
 
 ```go
-bot, err := framework.New(
-    framework.WithCredentialsFromEnv(),
-    framework.WithScript("./examples/discord-bots/unified-demo/index.js"),
-    framework.WithRuntimeConfig(map[string]any{
-        "db_path": "./examples/discord-bots/unified-demo/data/demo.sqlite",
-        "api_key": "local-dev-key",
-    }),
-    framework.WithSyncOnStart(true),
+package main
+
+import (
+    "context"
+    "github.com/go-go-golems/discord-bot/pkg/framework"
+)
+
+func main() {
+    bot, err := framework.New(
+        framework.WithCredentialsFromEnv(),
+        framework.WithScript("./my-bot/index.js"),
+        framework.WithSyncOnStart(true),
+    )
+    if err != nil {
+        panic(err)
+    }
+    bot.Run(context.Background())
+}
+```
+
+### Repo-driven multi-bot CLI (`pkg/botcli`)
+
+For the full `bots list / bots help / bots <name> run` experience inside your own Cobra command tree:
+
+```go
+bootstrap, _ := botcli.BuildBootstrap(
+    os.Args[1:],
+    botcli.WithDefaultRepositories("./bots"),
+)
+botsCmd, _ := botcli.NewBotsCommand(bootstrap)
+rootCmd.AddCommand(botsCmd)
+```
+
+### Custom native modules
+
+Add Go-native `require()` modules that your JS bot scripts can use:
+
+```go
+botsCmd, _ := botcli.NewBotsCommand(
+    bootstrap,
+    botcli.WithRuntimeModuleRegistrars(&MyAppModule{}),
 )
 ```
 
-See:
-- `pkg/framework/` — public single-bot API
-- `examples/framework-single-bot/` — minimal embeddable app example
-- `examples/framework-custom-module/` — explicit bot + custom Go-native `require("app")` module example
-- `examples/framework-combined/` — downstream app combining one built-in bot via `pkg/framework` plus repo-driven bots via `pkg/botcli`
+See `examples/framework-custom-module/` for a complete example.
 
-### Recommended public split
-The extracted public API is now intentionally split into two layers:
+### Embedding examples
 
-- `pkg/framework` — the simple path when one explicit built-in bot should be easy
-- `pkg/botcli` — the optional path when repository-driven multi-bot workflows should be easy
-
-The main public `pkg/botcli` customization hooks are now:
-- `botcli.WithAppName(...)` — change the env prefix used by dynamic bot commands
-- `botcli.WithRuntimeModuleRegistrars(...)` — add custom Go-native `require()` modules while keeping the default runtime construction
-- `botcli.WithRuntimeFactory(...)` — override ordinary jsverb runtime creation when runtime construction itself must change
-
-A good rule of thumb is:
-- use `WithAppName(...)` when only env-prefix behavior changes
-- use `WithRuntimeModuleRegistrars(...)` when scripts simply need extra native `require()` modules
-- use `WithRuntimeFactory(...)` only when `WithRuntimeModuleRegistrars(...)` is not enough and you must change runtime creation itself (module roots, require behavior, builder/runtime setup, or runtime lifecycle)
-- if that same customization must also affect discovery and host-managed bot runs, make the runtime factory implement `botcli.HostOptionsProvider`
-
-The combined downstream example lives at:
-- `examples/framework-combined/`
+| Example | Description |
+|---------|-------------|
+| `examples/framework-single-bot/` | Minimal single-bot embedding |
+| `examples/framework-custom-module/` | Custom `require("app")` module |
+| `examples/framework-combined/` | Built-in bot + repo-driven discovery |
 
 ---
 
-## Embedded docs
+## JavaScript bot authoring API
 
-The CLI ships with embedded help pages.
-
-Show them with:
-
-```bash
-GOWORK=off go run ./cmd/discord-bot help discord-js-bot-api-reference
-GOWORK=off go run ./cmd/discord-bot help build-and-run-discord-js-bots
-```
-
-The source files live at:
-
-- `pkg/doc/topics/discord-js-bot-api-reference.md`
-- `pkg/doc/tutorials/building-and-running-discord-js-bots.md`
-
-If you want the full handler/payload/API details, start there after reading this README.
-
----
-
-## Example bots
-
-Current example bot repository:
-
-- `examples/discord-bots/ping/`
-  - API showcase for buttons, modals, autocomplete, deferred replies, and outbound operations
-- `examples/discord-bots/knowledge-base/`
-  - SQLite-backed knowledge steward with capture, teach/remember, search, article, review, and source workflows
-- `examples/discord-bots/support/`
-  - deferred/edit/follow-up flows and thread helpers
-- `examples/discord-bots/moderation/`
-  - event-heavy admin/moderation helper bot exercising member/message/channel/guild/role utilities
-- `examples/discord-bots/poker/`
-  - richer stateful example with game logic and action advice
-- `examples/discord-bots/interaction-types/`
-  - demo of slash commands, subcommands, user commands, and message commands
-- `examples/discord-bots/announcements.js`
-  - root-level script to exercise direct-file discovery
-
-Repository-level notes and examples:
-
-- `examples/discord-bots/README.md`
-
----
-
-## Project layout
-
-```text
-cmd/
-  discord-bot/             CLI entrypoint
-
-internal/
-  bot/                     live Discordgo session wrapper
-  config/                  host config decoding and validation
-  jsdiscord/               embedded JS runtime, defineBot API, dispatch, payload normalization
-
-examples/
-  discord-bots/            named JS bot implementations
-
-pkg/
-  botcli/                  public named-bot repository discovery and runner
-  doc/                     embedded help pages
-
-ttmp/
-  ...                      ticket-based project documentation and diaries
-```
-
----
-
-## Important runtime concepts
-
-### One selected JS bot per process
-This repo intentionally uses a **single selected JavaScript bot** in each running process.
-
-That means:
-
-- `discord-bot bots <bot> run` selects one named implementation,
-- startup/runtime config applies to that one bot,
-- composition should happen inside the selected bot rather than via host-side multi-bot composition.
-
-### The JS API is request-scoped
-Outbound Discord operations live under `ctx.discord`, for example:
-
-- `ctx.discord.channels.send(...)`
-- `ctx.discord.messages.edit(...)`
-- `ctx.discord.messages.fetch(...)`
-- `ctx.discord.members.addRole(...)`
-- `ctx.discord.guilds.fetch(...)`
-- `ctx.discord.roles.list(...)`
-- `ctx.discord.threads.start(...)`
-
-This is intentional: the bot API is tied to a live request/session context, not a global singleton client.
-
-### The example bots are part of the product story
-The example bots are not just fixtures. They are the main demonstrations of the authoring API and should be treated as executable docs.
-
----
-
-## Minimal JavaScript bot example
+### Minimal bot
 
 ```js
 const { defineBot } = require("discord")
@@ -347,77 +141,108 @@ module.exports = defineBot(({ command, event, configure }) => {
   })
 
   event("ready", async (ctx) => {
-    ctx.log.info("demo bot ready", {
-      user: ctx.me && ctx.me.username,
-    })
+    ctx.log.info("demo bot ready", { user: ctx.me && ctx.me.username })
   })
 
-  command("ping", {
-    description: "Reply with pong",
-  }, async () => {
+  command("ping", { description: "Reply with pong" }, async () => {
     return { content: "pong" }
   })
 })
 ```
 
----
+### Handler context (`ctx`)
 
-## Development notes
+- **Responses:** `ctx.reply(...)`, `ctx.defer(...)`, `ctx.edit(...)`, `ctx.followUp(...)`, `ctx.showModal(...)`
+- **Logging:** `ctx.log.info(...)`, `ctx.log.warn(...)`, `ctx.log.error(...)`, `ctx.log.debug(...)`
+- **Store:** `ctx.store.get(key)`, `ctx.store.set(key, value)`, `ctx.store.delete(key)`, `ctx.store.keys()`
+- **Discord ops:** `ctx.discord.channels.*`, `ctx.discord.messages.*`, `ctx.discord.members.*`, `ctx.discord.guilds.*`, `ctx.discord.roles.*`, `ctx.discord.threads.*`
+- **Config:** `ctx.config` — runtime config from CLI flags
 
-### Validation
-The repo has been worked on in a way where `GOWORK=off` is the safest default for tests and local runs.
+### Registration functions
 
-Common validation commands:
+- `command(name, spec, handler)` — slash commands, user commands, message commands
+- `event(name, handler)` — ready, messageCreate, messageUpdate, guildMemberAdd, ...
+- `component(customId, handler)` — button and select menu interactions
+- `modal(customId, handler)` — modal submit interactions
+- `autocomplete(commandName, handler)` — autocomplete for command options
+- `configure(spec)` — bot metadata and runtime config fields
 
-```bash
-GOWORK=off go test ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
-GOWORK=off go test ./pkg/botcli ./internal/jsdiscord ./internal/bot ./cmd/discord-bot
-GOWORK=off go test ./...
+### Runtime config
+
+Bots can declare CLI flags that become `ctx.config` values:
+
+```js
+configure({
+  run: {
+    fields: {
+      dbPath: { type: "string", default: "./data.sqlite" },
+    },
+  },
+})
 ```
 
-### Local dependency note
-This repo currently uses a local replace for `go-go-goja`:
-
-- see `go.mod`
-- current replace target: `/home/manuel/code/wesen/corporate-headquarters/go-go-goja`
-
-That means local development expects that dependency to exist on this machine or be adjusted in `go.mod` for your environment.
-
-### Environment variables
-Common runtime variables are:
-
-- `DISCORD_BOT_TOKEN`
-- `DISCORD_APPLICATION_ID`
-- `DISCORD_GUILD_ID`
-- optionally `DISCORD_PUBLIC_KEY`
-- optionally `DISCORD_CLIENT_ID`
-- optionally `DISCORD_CLIENT_SECRET`
-
-Example environment scaffolding:
-
-- `.envrc.example`
+Those fields appear as `--db-path` on `bots <name> run`.
 
 ---
 
-## Where to read next
+## Example bots
 
-If you are new to the project, this is the recommended reading order:
-
-1. `README.md`
-2. `cmd/discord-bot/root.go`
-3. `cmd/discord-bot/commands.go`
-4. `internal/config/config.go`
-5. `internal/bot/bot.go`
-6. `internal/jsdiscord/runtime.go`
-7. `internal/jsdiscord/bot.go`
-8. `internal/jsdiscord/host_dispatch.go`
-9. `internal/jsdiscord/host_payloads.go`
-10. `examples/discord-bots/ping/index.js`
-11. `examples/discord-bots/knowledge-base/index.js`
-12. `pkg/doc/tutorials/building-and-running-discord-js-bots.md`
+| Bot | Description |
+|-----|-------------|
+| `ping/` | API showcase: buttons, modals, autocomplete, deferred replies, outbound ops |
+| `knowledge-base/` | SQLite-backed knowledge steward with capture, search, review workflows |
+| `support/` | Deferred/edit/follow-up flows and thread helpers |
+| `moderation/` | Event-heavy admin/moderation helper |
+| `poker/` | Stateful game logic example |
+| `interaction-types/` | Slash, subcommands, user commands, message commands |
+| `show-space/` | Show/space management with date parsing |
+| `unified-demo/` | Combined demo of all features |
 
 ---
 
-## Current status in one sentence
+## Architecture
 
-This is a working Go-hosted Discord bot platform with a real local JavaScript bot API, a named bot repository runner, embedded help docs, and a growing set of example bots that exercise the runtime in realistic ways.
+```text
+discord-bot binary (cmd/discord-bot)
+    │
+    ├── internal/bot/        Discordgo session wrapper
+    ├── internal/config/     Host config (credentials, validation)
+    ├── internal/jsdiscord/  Embedded JS runtime + require("discord")
+    │
+    ├── pkg/framework/       Public: simple single-bot embedding
+    ├── pkg/botcli/          Public: repo-driven multi-bot CLI
+    └── pkg/doc/             Embedded help pages
+```
+
+Data flow at runtime:
+
+```text
+Discord gateway → discordgo session → jsdiscord.Host
+  → dispatch event → find JS handler → call with ctx
+  → normalize return payload → send response via discordgo
+```
+
+---
+
+## Development
+
+```bash
+make lint          # Run golangci-lint
+make test          # Run all tests
+make build         # Build binary
+make goreleaser    # Snapshot release (local)
+```
+
+### Where to start reading
+
+1. This README
+2. `cmd/discord-bot/root.go` — CLI wiring
+3. `internal/bot/bot.go` — Session lifecycle
+4. `internal/jsdiscord/host.go` — JS runtime host
+5. `pkg/doc/tutorials/building-and-running-discord-js-bots.md`
+
+---
+
+## License
+
+MIT
