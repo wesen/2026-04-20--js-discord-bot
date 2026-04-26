@@ -19,7 +19,7 @@ func normalizeTimeoutUntil(payload any) (*time.Time, error) {
 	case float64:
 		return timeoutFromDurationSeconds(int64(v))
 	case map[string]any:
-		if clear, ok := v["clear"].(bool); ok && clear {
+		if shouldClear, ok := v["clear"].(bool); ok && shouldClear {
 			return nil, nil
 		}
 		if untilRaw, ok := v["until"]; ok {

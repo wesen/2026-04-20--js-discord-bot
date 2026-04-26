@@ -1,6 +1,7 @@
 package jsdiscord
 
 import (
+	"context"
 	"testing"
 )
 
@@ -21,7 +22,7 @@ func TestJsverbsPolyfillsAllowVerbInBotScript(t *testing.T) {
 
 	handle := loadTestBot(t, scriptPath)
 
-	desc, err := handle.Describe(nil)
+	desc, err := handle.Describe(context.TODO())
 	if err != nil {
 		t.Fatalf("describe: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestJsverbsPolyfillsAllowSectionInBotScript(t *testing.T) {
 
 	handle := loadTestBot(t, scriptPath)
 
-	desc, err := handle.Describe(nil)
+	desc, err := handle.Describe(context.TODO())
 	if err != nil {
 		t.Fatalf("describe: %v", err)
 	}
@@ -73,7 +74,7 @@ func TestJsverbsPolyfillsAllowPackageInBotScript(t *testing.T) {
 
 	handle := loadTestBot(t, scriptPath)
 
-	desc, err := handle.Describe(nil)
+	desc, err := handle.Describe(context.TODO())
 	if err != nil {
 		t.Fatalf("describe: %v", err)
 	}

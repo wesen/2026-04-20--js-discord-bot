@@ -102,7 +102,7 @@ func TestDiscordContextSupportsMemberAdminOps(t *testing.T) {
 					}
 				}
 				if timeouts == 2 {
-					if clear, _ := mapping["clear"].(bool); !clear {
+					if shouldClear, _ := mapping["clear"].(bool); !shouldClear {
 						t.Fatalf("clear payload = %#v", payload)
 					}
 				}

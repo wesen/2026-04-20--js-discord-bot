@@ -254,13 +254,6 @@ func rowComponentsFromAny(value any) ([]discordgo.MessageComponent, bool) {
 
 // extractEmbedBuilder attempts to get an EmbedBuilder from a proxy argument.
 // Used by ui.card() which inherits embed methods.
-func extractEmbedBuilder(vm *goja.Runtime, arg goja.Value) *EmbedBuilder {
-	// The argument is a Proxy — we can't directly access the Go struct.
-	// Instead we use .build() and trust the result.
-	_ = vm
-	return nil // not used directly
-}
-
 // fmtStr is a helper for map[string]any values.
 func fmtStr(v any) string {
 	if v == nil {

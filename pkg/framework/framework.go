@@ -19,10 +19,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/engine"
 	appbot "github.com/go-go-golems/discord-bot/internal/bot"
 	appconfig "github.com/go-go-golems/discord-bot/internal/config"
 	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
+	"github.com/go-go-golems/go-go-goja/engine"
 )
 
 // Credentials holds the explicit Discord settings needed to run one bot.

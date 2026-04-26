@@ -430,7 +430,7 @@ func componentToMap(c discordgo.MessageComponent) map[string]any {
 }
 
 func selectTypeStr(t discordgo.SelectMenuType) string {
-	switch t {
+	switch t { //nolint:exhaustive
 	case discordgo.UserSelectMenu:
 		return "userSelect"
 	case discordgo.RoleSelectMenu:

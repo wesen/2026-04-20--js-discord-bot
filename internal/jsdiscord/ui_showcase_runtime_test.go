@@ -14,8 +14,8 @@ func TestUIShowcaseBotMessageBuilders(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-message",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-message",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -45,12 +45,12 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 
 	// Search for "discord" — should find multiple articles
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name:   "demo-search",
-		Args:   map[string]any{"query": "discord"},
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "demo-search",
+		Args:    map[string]any{"query": "discord"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 
@@ -73,11 +73,11 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 
 	// Click "next" to paginate
 	nextResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name:   "showcase.search:next",
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "showcase.search:next",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 	nextMsg := nextResult
@@ -85,11 +85,11 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 
 	// Click "previous" to go back
 	prevResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name:   "showcase.search:previous",
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "showcase.search:previous",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 	prevMsg := prevResult
@@ -97,11 +97,11 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 
 	// Open the selected article
 	openResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name:   "showcase.search:open",
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "showcase.search:open",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 	openMsg := openResult
@@ -109,12 +109,12 @@ func TestUIShowcaseBotSearchFlow(t *testing.T) {
 
 	// Search alias (/find) should return the same shape
 	aliasResult, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name:   "find",
-		Args:   map[string]any{"query": "pagination"},
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "find",
+		Args:    map[string]any{"query": "pagination"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 	aliasMsg := aliasResult
@@ -142,12 +142,12 @@ func TestUIShowcaseBotReviewFlow(t *testing.T) {
 
 	// Open review queue for "review" status
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name:   "demo-review",
-		Args:   map[string]any{"status": "review"},
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "demo-review",
+		Args:    map[string]any{"status": "review"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 
@@ -172,11 +172,11 @@ func TestUIShowcaseBotReviewFlow(t *testing.T) {
 
 	// Verify the article
 	verifyResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name:   "showcase.review:verify",
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "showcase.review:verify",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
-		Config: config,
+		Config:  config,
 	})
 	require.NoError(t, err)
 	verifyMsg := verifyResult
@@ -189,9 +189,9 @@ func TestUIShowcaseBotConfirmDialog(t *testing.T) {
 
 	// Trigger confirmation
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-confirm",
-		Args: map[string]any{"action": "delete everything"},
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-confirm",
+		Args:    map[string]any{"action": "delete everything"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -212,8 +212,8 @@ func TestUIShowcaseBotConfirmDialog(t *testing.T) {
 
 	// Confirm the action
 	confirmResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "showcase:confirm:yes",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "showcase:confirm:yes",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -223,8 +223,8 @@ func TestUIShowcaseBotConfirmDialog(t *testing.T) {
 
 	// Cancel the action
 	cancelResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "showcase:confirm:no",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "showcase:confirm:no",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -238,8 +238,8 @@ func TestUIShowcaseBotPager(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-pager",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-pager",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -254,8 +254,8 @@ func TestUIShowcaseBotPager(t *testing.T) {
 
 	// Next page
 	nextResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "showcase.pager:next",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "showcase.pager:next",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -265,8 +265,8 @@ func TestUIShowcaseBotPager(t *testing.T) {
 
 	// Previous page
 	prevResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "showcase.pager:previous",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "showcase.pager:previous",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -280,8 +280,8 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-cards",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-cards",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -300,10 +300,10 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 
 	// Select a different product
 	selectResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name:   "showcase.cards:select",
-		Values: []string{"prod-3"},
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "showcase.cards:select",
+		Values:  []string{"prod-3"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
@@ -314,8 +314,8 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 
 	// Get info for the selected product
 	infoResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "showcase.cards:info",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "showcase.cards:info",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -325,8 +325,8 @@ func TestUIShowcaseBotCardGallery(t *testing.T) {
 
 	// Alias: /browse should work the same
 	browseResult, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "browse",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "browse",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -340,8 +340,8 @@ func TestUIShowcaseBotSelects(t *testing.T) {
 	handle := loadTestBot(t, scriptPath)
 
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-selects",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-selects",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -359,10 +359,10 @@ func TestUIShowcaseBotSelects(t *testing.T) {
 
 	// Click a string select option
 	selectResult, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name:   "showcase:select:string",
-		Values: []string{"banana"},
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		Name:    "showcase:select:string",
+		Values:  []string{"banana"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
@@ -383,8 +383,8 @@ func TestUIShowcaseBotModalForm(t *testing.T) {
 			"rating":   "5",
 			"tags":     "ui, dsl, builders",
 		},
-		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild:  map[string]any{"id": "guild-1"},
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
 	require.NoError(t, err)
@@ -404,8 +404,8 @@ func TestUIShowcaseBotAliasRegistration(t *testing.T) {
 
 	// Both aliases should return the same content
 	result1, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-alias",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-alias",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})
@@ -414,8 +414,8 @@ func TestUIShowcaseBotAliasRegistration(t *testing.T) {
 	require.Contains(t, fmt.Sprint(msg1["content"]), "alias demo")
 
 	result2, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
-		Name: "demo-alias-alt",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Name:    "demo-alias-alt",
+		User:    UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild:   map[string]any{"id": "guild-1"},
 		Channel: map[string]any{"id": "channel-1"},
 	})

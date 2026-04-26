@@ -61,8 +61,6 @@ func (h *BotHandle) dispatch(ctx context.Context, fn goja.Callable, request Disp
 	return settleValue(ctx, bindings.Owner, ret)
 }
 
-
-
 // DispatchCommandAsMap dispatches a command and normalizes the result to map[string]any.
 // This is used by tests that expect the old map[string]any format.
 func (h *BotHandle) DispatchCommandAsMap(ctx context.Context, request DispatchRequest) (map[string]any, error) {

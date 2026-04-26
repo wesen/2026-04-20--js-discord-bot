@@ -65,15 +65,15 @@ func sliceLen(value any) (int, bool) {
 	}
 }
 
-func truncateLogText(s string, max int) string {
+func truncateLogText(s string, maxLength int) string {
 	s = strings.TrimSpace(s)
-	if max <= 0 || len(s) <= max {
+	if maxLength <= 0 || len(s) <= maxLength {
 		return s
 	}
-	if max <= 3 {
-		return s[:max]
+	if maxLength <= 3 {
+		return s[:maxLength]
 	}
-	return s[:max-3] + "..."
+	return s[:maxLength-3] + "..."
 }
 
 func mergeLogFields(base map[string]any, extras ...map[string]any) map[string]any {

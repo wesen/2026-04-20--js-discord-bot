@@ -623,10 +623,10 @@ func TestFlowHelperComponentIds(t *testing.T) {
 	arr := vm.NewArray()
 	o := vm.NewObject()
 	_ = o.Set("name", "approve")
-	arr.Set("0", o)
+	require.NoError(t, arr.Set("0", o))
 	o2 := vm.NewObject()
 	_ = o2.Set("name", "reject")
-	arr.Set("1", o2)
+	require.NoError(t, arr.Set("1", o2))
 
 	result := mustCall(t, obj, "componentIds", arr)
 	resultObj := result.(*goja.Object)

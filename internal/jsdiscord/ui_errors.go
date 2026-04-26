@@ -11,41 +11,41 @@ import (
 // Used by each Proxy Get trap to produce "wrong parent" error messages.
 var methodOwner = map[string]string{
 	// MessageBuilder
-	"content":  "ui.message()",
+	"content":   "ui.message()",
 	"ephemeral": "ui.message()",
-	"tts":      "ui.message()",
-	"embed":    "ui.message()",
-	"row":      "ui.message()",
-	"file":     "ui.message()",
+	"tts":       "ui.message()",
+	"embed":     "ui.message()",
+	"row":       "ui.message()",
+	"file":      "ui.message()",
 
 	// EmbedBuilder / CardBuilder
 	"description": "ui.embed()",
-	"color":      "ui.embed()",
-	"field":      "ui.embed()",
-	"fields":     "ui.embed()",
-	"footer":     "ui.embed()",
-	"author":     "ui.embed()",
-	"timestamp":  "ui.embed()",
-	"meta":       "ui.card()",
+	"color":       "ui.embed()",
+	"field":       "ui.embed()",
+	"fields":      "ui.embed()",
+	"footer":      "ui.embed()",
+	"author":      "ui.embed()",
+	"timestamp":   "ui.embed()",
+	"meta":        "ui.card()",
 
 	// ButtonBuilder
 	"disabled": "ui.button()",
 	"emoji":    "ui.button()",
 
 	// SelectBuilder
-	"option":      "ui.select()",
-	"options":     "ui.select()",
-	"minValues":   "ui.select()",
-	"maxValues":   "ui.select()",
+	"option":    "ui.select()",
+	"options":   "ui.select()",
+	"minValues": "ui.select()",
+	"maxValues": "ui.select()",
 
 	// FormBuilder
-	"text":       "ui.form()",
-	"textarea":   "ui.form()",
-	"required":   "ui.form()",
-	"value":      "ui.form()",
+	"text":        "ui.form()",
+	"textarea":    "ui.form()",
+	"required":    "ui.form()",
+	"value":       "ui.form()",
 	"placeholder": "ui.form()",
-	"min":        "ui.form()",
-	"max":        "ui.form()",
+	"min":         "ui.form()",
+	"max":         "ui.form()",
 }
 
 // wrongParentError produces a Goja TypeError explaining that `method` belongs
@@ -71,7 +71,7 @@ func unknownMethodError(vm *goja.Runtime, builderName, method string, available 
 // typeMismatchError produces a Goja TypeError explaining that a raw JS object
 // was passed where a builder was expected.
 func typeMismatchError(vm *goja.Runtime, builderName, method, expected string, got goja.Value) goja.Value {
-	gotType := "unknown"
+	var gotType string
 	if goja.IsUndefined(got) || goja.IsNull(got) {
 		gotType = "undefined"
 	} else if _, ok := got.Export().(map[string]any); ok {

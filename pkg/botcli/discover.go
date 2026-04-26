@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
 )
 
 func DiscoverBots(ctx context.Context, bootstrap Bootstrap, hostOpts ...jsdiscord.HostOption) ([]DiscoveredBot, error) {

@@ -37,18 +37,18 @@ func TestShowSpaceAnnouncePinsAndRejectsUnauthorizedUsers(t *testing.T) {
 	unauthorized, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name: "announce",
 		Args: map[string]any{
-			"artist": "Test Set",
-			"date": "2026-05-22",
-			"doors_time": "7pm",
+			"artist":          "Test Set",
+			"date":            "2026-05-22",
+			"doors_time":      "7pm",
 			"age_restriction": "All ages",
-			"price": "Free",
+			"price":           "Free",
 		},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"member"}},
 		Config: map[string]any{
 			"upcomingShowsChannelId": "chan-1",
-			"adminRoleId":             "admin-role",
-			"bookerRoleId":            "booker-role",
-			"timeZone":                "America/New_York",
+			"adminRoleId":            "admin-role",
+			"bookerRoleId":           "booker-role",
+			"timeZone":               "America/New_York",
 		},
 	})
 	if err != nil {
@@ -63,19 +63,19 @@ func TestShowSpaceAnnouncePinsAndRejectsUnauthorizedUsers(t *testing.T) {
 	authorized, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name: "announce",
 		Args: map[string]any{
-			"artist":           "Test Set",
-			"date":             "2026-05-22",
-			"doors_time":       "7pm",
-			"age_restriction":  "All ages",
-			"price":            "Free",
-			"notes":            "Bring a jacket.",
+			"artist":          "Test Set",
+			"date":            "2026-05-22",
+			"doors_time":      "7pm",
+			"age_restriction": "All ages",
+			"price":           "Free",
+			"notes":           "Bring a jacket.",
 		},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"booker-role"}},
 		Config: map[string]any{
 			"upcomingShowsChannelId": "chan-1",
-			"adminRoleId":             "admin-role",
-			"bookerRoleId":            "booker-role",
-			"timeZone":                "America/New_York",
+			"adminRoleId":            "admin-role",
+			"bookerRoleId":           "booker-role",
+			"timeZone":               "America/New_York",
 		},
 		Discord: &DiscordOps{
 			ChannelSend: func(_ context.Context, channelID string, payload any) error {
@@ -89,7 +89,7 @@ func TestShowSpaceAnnouncePinsAndRejectsUnauthorizedUsers(t *testing.T) {
 			MessageList: func(_ context.Context, channelID string, payload any) ([]map[string]any, error) {
 				lists++
 				return []map[string]any{{
-					"id": "msg-1",
+					"id":     "msg-1",
 					"embeds": []any{map[string]any{"title": "🎵 Test Set — Fri May 22, 2026"}},
 				}}, nil
 			},
@@ -123,13 +123,13 @@ func TestShowSpaceUnpinOldRemovesExpiredPins(t *testing.T) {
 	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
 	var unpins int
 	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
-		Name: "unpin-old",
+		Name:   "unpin-old",
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"admin-role"}},
 		Config: map[string]any{
 			"upcomingShowsChannelId": "chan-1",
-			"adminRoleId":             "admin-role",
-			"bookerRoleId":            "booker-role",
-			"timeZone":                "America/New_York",
+			"adminRoleId":            "admin-role",
+			"bookerRoleId":           "booker-role",
+			"timeZone":               "America/New_York",
 		},
 		Discord: &DiscordOps{
 			MessageListPinned: func(_ context.Context, channelID string) ([]map[string]any, error) {
@@ -164,11 +164,11 @@ func TestShowSpaceDatabaseCommandsCreateShowLookupsAndArchiveIt(t *testing.T) {
 	config := map[string]any{
 		"dbPath":                 dbPath,
 		"seedFromJson":           false,
-		"upcomingShowsChannelId":  "chan-1",
-		"staffChannelId":          "staff-1",
-		"adminRoleId":             "admin-role",
-		"bookerRoleId":            "booker-role",
-		"timeZone":                "America/New_York",
+		"upcomingShowsChannelId": "chan-1",
+		"staffChannelId":         "staff-1",
+		"adminRoleId":            "admin-role",
+		"bookerRoleId":           "booker-role",
+		"timeZone":               "America/New_York",
 	}
 
 	var sends, pins, unpins int
@@ -176,12 +176,12 @@ func TestShowSpaceDatabaseCommandsCreateShowLookupsAndArchiveIt(t *testing.T) {
 	addResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name: "add-show",
 		Args: map[string]any{
-			"artist":      "Demo Night",
-			"date":        "2026-06-03",
-			"doors_time":  "7pm",
-			"age":         "All ages",
-			"price":       "$12",
-			"notes":       "Bring earplugs.",
+			"artist":     "Demo Night",
+			"date":       "2026-06-03",
+			"doors_time": "7pm",
+			"age":        "All ages",
+			"price":      "$12",
+			"notes":      "Bring earplugs.",
 		},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"booker-role"}},
 		Config: config,
@@ -196,7 +196,7 @@ func TestShowSpaceDatabaseCommandsCreateShowLookupsAndArchiveIt(t *testing.T) {
 			},
 			MessageList: func(_ context.Context, channelID string, payload any) ([]map[string]any, error) {
 				return []map[string]any{{
-					"id": "msg-1",
+					"id":     "msg-1",
 					"embeds": []any{map[string]any{"title": "🎵 Demo Night — Wed Jun 3, 2026"}},
 				}}, nil
 			},
@@ -235,8 +235,8 @@ func TestShowSpaceDatabaseCommandsCreateShowLookupsAndArchiveIt(t *testing.T) {
 	}
 
 	cancelResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
-		Name: "cancel-show",
-		Args: map[string]any{"id": 1},
+		Name:   "cancel-show",
+		Args:   map[string]any{"id": 1},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"booker-role"}},
 		Config: config,
 		Discord: &DiscordOps{
@@ -261,8 +261,8 @@ func TestShowSpaceDatabaseCommandsCreateShowLookupsAndArchiveIt(t *testing.T) {
 	}
 
 	archiveResult, err := handle.DispatchCommand(context.Background(), DispatchRequest{
-		Name: "archive-show",
-		Args: map[string]any{"id": 1},
+		Name:   "archive-show",
+		Args:   map[string]any{"id": 1},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"admin-role"}},
 		Config: config,
 		Discord: &DiscordOps{
@@ -297,25 +297,25 @@ func TestShowSpaceDatabaseCommandsCreateShowLookupsAndArchiveIt(t *testing.T) {
 func TestShowSpaceArchiveExpiredSummarizesAndUnpins(t *testing.T) {
 	handle := loadTestBot(t, filepath.Join(repoRootJSDiscord(t), "examples", "discord-bots", "show-space", "index.js"))
 	config := map[string]any{
-		"dbPath":                filepath.Join(t.TempDir(), "shows.sqlite"),
-		"seedFromJson":          false,
+		"dbPath":                 filepath.Join(t.TempDir(), "shows.sqlite"),
+		"seedFromJson":           false,
 		"upcomingShowsChannelId": "chan-1",
-		"staffChannelId":        "staff-1",
-		"adminRoleId":           "admin-role",
-		"bookerRoleId":          "booker-role",
-		"timeZone":              "America/New_York",
+		"staffChannelId":         "staff-1",
+		"adminRoleId":            "admin-role",
+		"bookerRoleId":           "booker-role",
+		"timeZone":               "America/New_York",
 	}
 
 	var sends, unpins int
 	_, err := handle.DispatchCommand(context.Background(), DispatchRequest{
 		Name: "add-show",
 		Args: map[string]any{
-			"artist":      "Ancient Echo",
-			"date":        "2021-01-01",
-			"doors_time":  "7pm",
-			"age":         "All ages",
-			"price":       "Free",
-			"notes":       "This one should archive.",
+			"artist":     "Ancient Echo",
+			"date":       "2021-01-01",
+			"doors_time": "7pm",
+			"age":        "All ages",
+			"price":      "Free",
+			"notes":      "This one should archive.",
 		},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"booker-role"}},
 		Config: config,
@@ -326,7 +326,7 @@ func TestShowSpaceArchiveExpiredSummarizesAndUnpins(t *testing.T) {
 			},
 			MessageList: func(_ context.Context, channelID string, payload any) ([]map[string]any, error) {
 				return []map[string]any{{
-					"id": "msg-old",
+					"id":     "msg-old",
 					"embeds": []any{map[string]any{"title": "🎵 Ancient Echo — Fri Jan 1, 2021"}},
 				}}, nil
 			},
@@ -340,7 +340,7 @@ func TestShowSpaceArchiveExpiredSummarizesAndUnpins(t *testing.T) {
 	}
 
 	result, err := handle.DispatchCommand(context.Background(), DispatchRequest{
-		Name: "archive-expired",
+		Name:   "archive-expired",
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"admin-role"}},
 		Config: config,
 		Discord: &DiscordOps{
@@ -400,12 +400,12 @@ func TestShowSpaceDebugDashboardShowsUserAndRoleButtons(t *testing.T) {
 	result, err := handle.DispatchCommandAsMap(context.Background(), DispatchRequest{
 		Name: "debug",
 		Config: map[string]any{
-			"debug": true,
+			"debug":        true,
 			"adminRoleId":  "role-admin",
 			"bookerRoleId": "role-booker",
 		},
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:  map[string]any{"id": "guild-1", "name": "The Venue"},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
 		Discord: &DiscordOps{
 			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
@@ -435,12 +435,12 @@ func TestShowSpaceDebugDashboardShowsUserAndRoleButtons(t *testing.T) {
 	}
 
 	memberView, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "show-space:debug:member",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Name:   "show-space:debug:member",
+		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:  map[string]any{"id": "guild-1", "name": "The Venue"},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
 		Config: map[string]any{
-			"debug": true,
+			"debug":        true,
 			"adminRoleId":  "role-admin",
 			"bookerRoleId": "role-booker",
 		},
@@ -465,12 +465,12 @@ func TestShowSpaceDebugDashboardShowsUserAndRoleButtons(t *testing.T) {
 	}
 
 	checksView, err := handle.DispatchComponentAsMap(context.Background(), DispatchRequest{
-		Name: "show-space:debug:checks",
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		Name:   "show-space:debug:checks",
+		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:  map[string]any{"id": "guild-1", "name": "The Venue"},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
 		Config: map[string]any{
-			"debug": true,
+			"debug":        true,
 			"adminRoleId":  "role-admin",
 			"bookerRoleId": "role-booker",
 		},
@@ -502,7 +502,7 @@ func TestShowSpaceDebugRolesListsGuildRolesWhenEnabled(t *testing.T) {
 		Config: map[string]any{
 			"debug": true,
 		},
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		User:  UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
 		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
 		Discord: &DiscordOps{
 			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {
@@ -534,8 +534,8 @@ func TestShowSpaceDebugMyRolesListsRolesVisibleOnMember(t *testing.T) {
 		Config: map[string]any{
 			"debug": true,
 		},
-		User: UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
-		Guild: map[string]any{"id": "guild-1", "name": "The Venue"},
+		User:   UserSnapshot{ID: "user-1", Username: "Ada", Bot: false},
+		Guild:  map[string]any{"id": "guild-1", "name": "The Venue"},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"role-admin", "role-booker", "role-helper"}},
 		Discord: &DiscordOps{
 			RoleList: func(_ context.Context, guildID string) ([]map[string]any, error) {

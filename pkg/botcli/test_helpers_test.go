@@ -9,9 +9,9 @@ import (
 
 	"github.com/dop251/goja"
 	noderequire "github.com/dop251/goja_nodejs/require"
+	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 	"github.com/go-go-golems/go-go-goja/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
-	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 	"github.com/stretchr/testify/require"
 )
 

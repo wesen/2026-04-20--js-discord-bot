@@ -223,7 +223,7 @@ func (h *Host) DispatchInteraction(ctx context.Context, session *discordgo.Sessi
 		return nil
 	}
 
-	switch interaction.Type {
+	switch interaction.Type { //nolint:exhaustive
 	case discordgo.InteractionApplicationCommand:
 		return h.dispatchApplicationCommandInteraction(ctx, session, interaction)
 	case discordgo.InteractionMessageComponent:
@@ -250,7 +250,7 @@ func (h *Host) dispatchApplicationCommandInteraction(ctx context.Context, sessio
 		Msg("dispatching javascript interaction")
 	responder := newInteractionResponder(session, interaction, h.scriptPath)
 
-	switch data.CommandType {
+	switch data.CommandType { //nolint:exhaustive
 	case discordgo.UserApplicationCommand:
 		args := map[string]any{}
 		if data.Resolved != nil && data.Resolved.Users != nil {
@@ -496,7 +496,7 @@ func interactionUserID(interaction *discordgo.InteractionCreate) string {
 }
 
 func interactionTypeLabel(kind discordgo.InteractionType) string {
-	switch kind {
+	switch kind { //nolint:exhaustive
 	case discordgo.InteractionApplicationCommand:
 		return "applicationCommand"
 	case discordgo.InteractionMessageComponent:
@@ -522,7 +522,7 @@ func interactionLogFields(scriptPath string, interaction *discordgo.InteractionC
 	fields["guildId"] = interaction.GuildID
 	fields["channelId"] = interaction.ChannelID
 	fields["userId"] = interactionUserID(interaction)
-	switch interaction.Type {
+	switch interaction.Type { //nolint:exhaustive
 	case discordgo.InteractionApplicationCommand, discordgo.InteractionApplicationCommandAutocomplete:
 		data := interaction.ApplicationCommandData()
 		fields["command"] = data.Name

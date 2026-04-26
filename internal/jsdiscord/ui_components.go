@@ -299,7 +299,7 @@ func (b *SelectBuilder) build() discordgo.SelectMenu {
 }
 
 func selectName(menuType discordgo.SelectMenuType) string {
-	switch menuType {
+	switch menuType { //nolint:exhaustive
 	case discordgo.UserSelectMenu:
 		return "userSelect"
 	case discordgo.RoleSelectMenu:

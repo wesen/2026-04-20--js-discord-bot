@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/discord-bot/internal/jsdiscord"
 )
 
 type helpBotsCommand struct {

@@ -95,8 +95,9 @@ func uiActions(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 
 // uiConfirm returns a *normalizedResponse with an embed and confirm/cancel buttons.
 // Supports two calling conventions:
-//   ui.confirm(message, confirmId, cancelId)            — Go-style (positional)
-//   ui.confirm(confirmId, cancelId, {body, title, ...}) — JS-style (options object)
+//
+//	ui.confirm(message, confirmId, cancelId)            — Go-style (positional)
+//	ui.confirm(confirmId, cancelId, {body, title, ...}) — JS-style (options object)
 func uiConfirm(vm *goja.Runtime, call goja.FunctionCall) goja.Value {
 	arg0 := argString(call, 0)
 	arg1 := argString(call, 1)

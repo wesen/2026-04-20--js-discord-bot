@@ -123,8 +123,8 @@ func TestDiscordEventContextSupportsReactionAddAndRemove(t *testing.T) {
 	added, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name:     "reactionAdd",
 		Message:  &MessageSnapshot{ID: "msg-1", ChannelID: "chan-1"},
-		User: UserSnapshot{ID: "user-1"},
-		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"mod"}},
+		User:     UserSnapshot{ID: "user-1"},
+		Member:   &MemberSnapshot{ID: "user-1", Roles: []string{"mod"}},
 		Reaction: ReactionSnapshot{MessageID: "msg-1", Emoji: EmojiSnapshot{Name: "🔥"}},
 	})
 	if err != nil {
@@ -137,7 +137,7 @@ func TestDiscordEventContextSupportsReactionAddAndRemove(t *testing.T) {
 	removed, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name:     "reactionRemove",
 		Message:  &MessageSnapshot{ID: "msg-2", ChannelID: "chan-1"},
-		User: UserSnapshot{ID: "user-2"},
+		User:     UserSnapshot{ID: "user-2"},
 		Reaction: ReactionSnapshot{MessageID: "msg-2", Emoji: EmojiSnapshot{Name: "✅"}},
 	})
 	if err != nil {
@@ -171,7 +171,7 @@ func TestDiscordEventContextSupportsGuildMemberEvents(t *testing.T) {
 	added, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name:   "guildMemberAdd",
 		Guild:  map[string]any{"id": "guild-1"},
-		User: UserSnapshot{ID: "user-1"},
+		User:   UserSnapshot{ID: "user-1"},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"mod", "helper"}},
 	})
 	if err != nil {
@@ -184,7 +184,7 @@ func TestDiscordEventContextSupportsGuildMemberEvents(t *testing.T) {
 	updated, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name:   "guildMemberUpdate",
 		Guild:  map[string]any{"id": "guild-1"},
-		User: UserSnapshot{ID: "user-1"},
+		User:   UserSnapshot{ID: "user-1"},
 		Member: &MemberSnapshot{ID: "user-1", Roles: []string{"mod", "helper", "trusted"}},
 		Before: map[string]any{"id": "user-1", "roles": []string{"mod"}},
 	})
@@ -198,7 +198,7 @@ func TestDiscordEventContextSupportsGuildMemberEvents(t *testing.T) {
 	removed, err := handle.DispatchEvent(context.Background(), DispatchRequest{
 		Name:   "guildMemberRemove",
 		Guild:  map[string]any{"id": "guild-1"},
-		User: UserSnapshot{ID: "user-2"},
+		User:   UserSnapshot{ID: "user-2"},
 		Member: &MemberSnapshot{ID: "user-2", Roles: []string{"member"}},
 	})
 	if err != nil {

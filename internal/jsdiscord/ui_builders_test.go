@@ -40,7 +40,7 @@ func mustCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value)
 
 // tryCall attempts to call a method and returns (result, error).
 // It does not fail the test on error — the caller decides.
-func tryCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value) (result goja.Value, err error) {
+func tryCall(t *testing.T, obj *goja.Object, method string, args ...goja.Value) (result goja.Value, err error) { //nolint:nonamedreturns
 	t.Helper()
 	// Proxy Get trap panics propagate — catch them
 	defer func() {

@@ -40,24 +40,6 @@ func findFocusedOption(options []*discordgo.ApplicationCommandInteractionDataOpt
 	return nil
 }
 
-func focusedOptionMap(option *discordgo.ApplicationCommandInteractionDataOption) map[string]any {
-	if option == nil {
-		return map[string]any{}
-	}
-	return map[string]any{
-		"name":  option.Name,
-		"type":  option.Type.String(),
-		"value": option.Value,
-	}
-}
-
-func componentMap(data discordgo.MessageComponentInteractionData) map[string]any {
-	return map[string]any{
-		"customId": data.CustomID,
-		"type":     componentTypeLabel(data.ComponentType),
-	}
-}
-
 func componentValues(data discordgo.MessageComponentInteractionData) any {
 	if len(data.Values) == 0 {
 		return []string{}
@@ -84,7 +66,7 @@ func modalValues(components []discordgo.MessageComponent) map[string]any {
 }
 
 func componentTypeLabel(componentType discordgo.ComponentType) string {
-	switch componentType {
+	switch componentType { //nolint:exhaustive
 	case discordgo.ActionsRowComponent:
 		return "actionRow"
 	case discordgo.ButtonComponent:
@@ -106,43 +88,11 @@ func componentTypeLabel(componentType discordgo.ComponentType) string {
 	}
 }
 
-func interactionMap(interaction *discordgo.InteractionCreate) map[string]any {
-	if interaction == nil || interaction.Interaction == nil {
-		return map[string]any{}
-	}
-	return map[string]any{"id": interaction.ID, "type": fmt.Sprint(interaction.Type), "guildID": interaction.GuildID, "channelID": interaction.ChannelID}
-}
-
 func userMap(user *discordgo.User) map[string]any {
 	if user == nil {
 		return map[string]any{}
 	}
 	return map[string]any{"id": user.ID, "username": user.Username, "discriminator": user.Discriminator, "bot": user.Bot}
-}
-
-func userRefMap(userID string) map[string]any {
-	userID = strings.TrimSpace(userID)
-	if userID == "" {
-		return map[string]any{}
-	}
-	return map[string]any{"id": userID}
-}
-
-func interactionUserMap(interaction *discordgo.InteractionCreate) map[string]any {
-	if interaction == nil {
-		return map[string]any{}
-	}
-	if interaction.Member != nil && interaction.Member.User != nil {
-		return userMap(interaction.Member.User)
-	}
-	return userMap(interaction.User)
-}
-
-func currentUserMap(session *discordgo.Session) map[string]any {
-	if session == nil || session.State == nil {
-		return map[string]any{}
-	}
-	return userMap(session.State.User)
 }
 
 func memberMap(member *discordgo.Member) map[string]any {
@@ -165,27 +115,6 @@ func memberMap(member *discordgo.Member) map[string]any {
 		ret["joinedAt"] = member.JoinedAt.Format("2006-01-02T15:04:05Z07:00")
 	}
 	return ret
-}
-
-func emojiMap(emoji discordgo.Emoji) map[string]any {
-	return map[string]any{
-		"id":       emoji.ID,
-		"name":     emoji.Name,
-		"animated": emoji.Animated,
-	}
-}
-
-func reactionMap(reaction *discordgo.MessageReaction) map[string]any {
-	if reaction == nil {
-		return map[string]any{}
-	}
-	return map[string]any{
-		"userId":    reaction.UserID,
-		"messageId": reaction.MessageID,
-		"channelId": reaction.ChannelID,
-		"guildId":   reaction.GuildID,
-		"emoji":     emojiMap(reaction.Emoji),
-	}
 }
 
 func guildMap(guildID string) map[string]any {
@@ -353,13 +282,13 @@ func messageMap(message *discordgo.Message) map[string]any {
 		attachments := make([]map[string]any, 0, len(message.Attachments))
 		for _, att := range message.Attachments {
 			attachments = append(attachments, map[string]any{
-				"id":       att.ID,
-				"filename": att.Filename,
-				"size":     att.Size,
-				"url":      att.URL,
-				"proxyURL": att.ProxyURL,
-				"width":    att.Width,
-				"height":   att.Height,
+				"id":          att.ID,
+				"filename":    att.Filename,
+				"size":        att.Size,
+				"url":         att.URL,
+				"proxyURL":    att.ProxyURL,
+				"width":       att.Width,
+				"height":      att.Height,
 				"contentType": att.ContentType,
 			})
 		}
@@ -388,23 +317,6 @@ func messageMap(message *discordgo.Message) map[string]any {
 		ret["referencedMessage"] = messageMap(message.ReferencedMessage)
 	}
 	return ret
-}
-
-func messageDeleteMap(message *discordgo.MessageDelete) map[string]any {
-	if message == nil {
-		return map[string]any{}
-	}
-	if message.Message != nil {
-		ret := messageMap(message.Message)
-		ret["deleted"] = true
-		return ret
-	}
-	return map[string]any{
-		"id":        message.ID,
-		"guildID":   message.GuildID,
-		"channelID": message.ChannelID,
-		"deleted":   true,
-	}
 }
 
 func commandSnapshots(value any) []any {
