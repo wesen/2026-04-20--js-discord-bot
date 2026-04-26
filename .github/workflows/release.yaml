@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser-pro
           version: "~> v2"
@@ -53,7 +53,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser-pro
           version: "~> v2"
@@ -103,7 +103,7 @@ jobs:
           gpg_private_key: ${{ secrets.GO_GO_GOLEMS_SIGN_KEY }}
           passphrase: ${{ secrets.GO_GO_GOLEMS_SIGN_PASSPHRASE }}
           fingerprint: "6EBE1DF0BDF48A1BBA381B5B79983EF218C6ED7E"
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser-pro
           version: "~> v2"
