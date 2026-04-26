@@ -85,3 +85,57 @@ The design doc needs to be comprehensive enough for an intern who has never seen
 
 - Total design document size: ~50KB across 6 files.
 - Key blocker: `replace github.com/go-go-golems/go-go-goja => /home/manuel/...` in go.mod.
+
+## Step 2: Phase 1 execution — rename, reparent, push
+
+### Prompt Context
+
+**User prompt (verbatim):** "let's go task by task, with phases, committing at appropriate intervals, keeping a diary as we work"
+**User prompt (verbatim):** "let me rename the repo to go-go-golems/discord-bot while we are at it"
+**Assistant interpretation:** Execute Phase 1 of the implementation plan step by step, committing at each milestone. Also rename/reparent the GitHub repo to go-go-golems/discord-bot.
+**Inferred user intent:** Get the repo properly named and pushed to the go-go-golems org so the rest of the phases can proceed.
+
+### What I did
+
+- Verified go-go-goja v0.4.12 is published (local HEAD matches tag).
+- Renamed module path in go.mod from `github.com/manuel/wesen/2026-04-20--js-discord-bot` to `github.com/go-go-golems/discord-bot`.
+- Updated all 17 Go source files with the new import path using sed.
+- Changed go-go-goja dependency from `v0.0.0` (local replace) to `v0.4.12` (published).
+- Removed the `replace` directive.
+- Ran `go mod tidy && go build ./... && go test ./...` — all passed.
+- Committed as `3c72f02`.
+- Found that `go-go-golems/discord-bot` already existed on GitHub (from a previous attempt). Added as `upstream` remote and force-pushed.
+- Tagged `v0.0.1-dev` and pushed.
+
+### Why
+
+The module path rename is the foundation for everything else — GoReleaser, CI, Homebrew, and importability all depend on having a canonical module path.
+
+### What worked
+
+- `sed -i` for bulk import path replacement was clean and reliable.
+- go-go-goja v0.4.12 resolved cleanly from the Go module proxy.
+- All tests passed on first try after the rename.
+
+### What didn't work
+
+- `gh repo create` failed because the repo already existed. Had to add it as `upstream` and force-push instead.
+
+### What was tricky to build
+
+- The go.mod `replace` line removal needed python because sed had issues with the `=>` syntax in the expression.
+
+### What warrants a second pair of eyes
+
+- Verify that `go get github.com/go-go-golems/discord-bot@v0.0.1-dev` works from a fresh GOPATH (needs the tag to propagate to the proxy, may take a few minutes).
+
+### What should be done in the future
+
+- Once all phases are done, delete the old `wesen/2026-04-20--js-discord-bot` repo or redirect it.
+
+### Code review instructions
+
+- `git log --oneline -1` → `3c72f02`
+- `head -3 go.mod` → should show `module github.com/go-go-golems/discord-bot`
+- `grep replace go.mod` → should return nothing
+- `go build ./...` → should succeed

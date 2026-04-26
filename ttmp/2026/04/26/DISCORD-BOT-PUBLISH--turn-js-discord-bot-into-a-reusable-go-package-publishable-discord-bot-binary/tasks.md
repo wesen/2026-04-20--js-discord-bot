@@ -2,12 +2,12 @@
 
 ## Phase 1: Rename and Reparent
 
-- [ ] Update go.mod module path to `github.com/go-go-golems/discord-bot`
-- [ ] Replace all import paths in Go source files (use `scripts/02-rename-module-path.sh`)
-- [ ] Remove or gate the local `replace` directive for go-go-goja
-- [ ] Run `go mod tidy && go build ./... && go test ./...`
-- [ ] Create GitHub repository `go-go-golems/discord-bot`
-- [ ] Push to GitHub
+- [x] Update go.mod module path to `github.com/go-go-golems/discord-bot`
+- [x] Replace all import paths in Go source files (use `scripts/02-rename-module-path.sh`)
+- [x] Remove or gate the local `replace` directive for go-go-goja
+- [x] Run `go mod tidy && go build ./... && go test ./...`
+- [x] Create GitHub repository `go-go-golems/discord-bot`
+- [x] Push to GitHub
 
 ## Phase 2: Extract Public API Surface
 
