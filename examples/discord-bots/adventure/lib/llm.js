@@ -1,10 +1,10 @@
 const llm = require("adventure_llm")
 const { parseLLMJson } = require("./schema")
 
-function completeJson(request) {
-  console.log("[adventure] llm.completeJson request", JSON.stringify({ purpose: request && request.purpose, metadata: request && request.metadata }))
-  const result = llm.completeJson(request)
-  console.log("[adventure] llm.completeJson raw result", JSON.stringify({ ok: result && result.ok, provider: result && result.provider, error: result && result.error, usage: result && result.usage }))
+function completeJson(request, onChunk) {
+  console.log("[adventure] llm.completeJson request", JSON.stringify({ purpose: request && request.purpose, metadata: request && request.metadata, streaming: Boolean(onChunk && llm.streamJson) }))
+  const result = onChunk && llm.streamJson ? llm.streamJson(request, onChunk) : llm.completeJson(request)
+  console.log("[adventure] llm.completeJson raw result", JSON.stringify({ ok: result && result.ok, provider: result && result.provider, error: result && result.error, usage: result && result.usage, streamed: result && result.streamed }))
   if (!result || result.ok !== true) {
     return {
       ok: false,

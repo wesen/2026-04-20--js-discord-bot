@@ -29,6 +29,19 @@ function messageTurn(ctx) {
   return match ? Number(match[1]) : null
 }
 
+function makeProgressEditor(ctx, session, title, details) {
+  let lastLength = 0
+  let edits = 0
+  return (event) => {
+    const text = String((event && event.text) || "")
+    if (!text || event.done) return
+    if (edits >= 8 || text.length - lastLength < 160) return
+    lastLength = text.length
+    edits += 1
+    ctx.edit(render.loadingMessage(session, title, Object.assign({}, details || {}, { streamText: text })))
+  }
+}
+
 function requireOwnedSession(ctx, options) {
   ensureStore(ctx)
   const session = store.findActiveSessionInChannel(channelId(ctx))
@@ -68,6 +81,7 @@ async function startAdventure(ctx) {
     session,
     currentScene: null,
     input: { kind: "start", opening_prompt: seed.openingPrompt },
+    onChunk: makeProgressEditor(ctx, session, "Opening the gate...", { actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }),
   })
   if (!generated.ok) {
     console.log("[adventure] opening scene generation failed", JSON.stringify({ sessionId: session.id, error: generated.error }))
@@ -99,6 +113,7 @@ async function choose(ctx, index) {
     session: applied.session,
     currentScene: loaded.scene,
     input: applied.input,
+    onChunk: makeProgressEditor(ctx, applied.session, "Resolving your choice...", { scene: loaded.scene, action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }),
   })
   if (!generated.ok) {
     await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
@@ -194,7 +209,8 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       await ctx.edit(render.errorMessage("Free-form action cannot be empty."))
       return
     }
-    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text })
+    const freeformDetails = { scene: loaded.scene, action: text || "free-form action", actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }
+    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text, onChunk: makeProgressEditor(ctx, loaded.session, "Interpreting your action...", freeformDetails) })
     if (!interpreted.ok) {
       await ctx.edit(render.errorMessage(`Could not interpret action: ${interpreted.error}`))
       return
@@ -205,6 +221,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       session: interpreted.session,
       currentScene: loaded.scene,
       input: interpreted.input,
+      onChunk: makeProgressEditor(ctx, interpreted.session, "Trying something else...", freeformDetails),
     })
     if (!generated.ok) {
       await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))

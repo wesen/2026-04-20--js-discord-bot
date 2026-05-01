@@ -25,7 +25,7 @@ function publicScene(scene) {
   }
 }
 
-function generateScene({ store, seed, session, currentScene, input }) {
+function generateScene({ store, seed, session, currentScene, input, onChunk }) {
   console.log("[adventure] generateScene", JSON.stringify({ sessionId: session.id, turn: session.turn, inputKind: input && input.kind }))
   const request = {
     purpose: "scene_patch",
@@ -39,7 +39,7 @@ function generateScene({ store, seed, session, currentScene, input }) {
     }),
     metadata: { sessionId: session.id, turn: session.turn, adventureId: session.adventureId },
   }
-  const completed = llm.completeJson(request)
+  const completed = llm.completeJson(request, onChunk)
   console.log("[adventure] generateScene llm result", JSON.stringify({ sessionId: session.id, ok: completed.ok, error: completed.error || "" }))
   if (!completed.ok) {
     store.addAudit({ sessionId: session.id, turn: session.turn, kind: "scene_patch_error", input, llmRequest: request, llmResponseText: completed.rawText || "", parsed: completed.parsed || {}, validation: { ok: false, errors: [completed.error] } })
@@ -67,7 +67,7 @@ function applyChoice(store, session, scene, choiceIndex) {
   return { ok: true, session: nextSession, input: { kind: "choice", choice_id: choice.id, label: choice.label, effects: choice.proposedEffects || {}, next_hint: choice.nextHint || "" } }
 }
 
-function interpretFreeform({ store, seed, session, currentScene, text }) {
+function interpretFreeform({ store, seed, session, currentScene, text, onChunk }) {
   console.log("[adventure] interpretFreeform", JSON.stringify({ sessionId: session.id, turn: session.turn, textLength: String(text || "").length }))
   const request = {
     purpose: "interpret_action",
@@ -75,7 +75,7 @@ function interpretFreeform({ store, seed, session, currentScene, text }) {
     user: prompts.actionUserPrompt({ seed, session: publicSession(session), currentScene: publicScene(currentScene), text }),
     metadata: { sessionId: session.id, turn: session.turn, adventureId: session.adventureId },
   }
-  const completed = llm.completeJson(request)
+  const completed = llm.completeJson(request, onChunk)
   console.log("[adventure] interpretFreeform llm result", JSON.stringify({ sessionId: session.id, ok: completed.ok, error: completed.error || "" }))
   if (!completed.ok) {
     store.addAudit({ sessionId: session.id, turn: session.turn, kind: "interpret_action_error", input: { text }, llmRequest: request, llmResponseText: completed.rawText || "", parsed: completed.parsed || {}, validation: { ok: false, errors: [completed.error] } })

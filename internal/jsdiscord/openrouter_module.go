@@ -1,6 +1,7 @@
 package jsdiscord
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -50,6 +51,24 @@ func openRouterLoader(vm *goja.Runtime, moduleObj *goja.Object) {
 		result := client.complete(context.Background(), input)
 		return vm.ToValue(result)
 	})
+	_ = exports.Set("streamJson", func(call goja.FunctionCall) goja.Value {
+		input, err := parseOpenRouterInput(call)
+		if err != nil {
+			return vm.ToValue(openRouterErrorResult(err.Error(), false))
+		}
+		if len(call.Arguments) < 2 {
+			return vm.ToValue(openRouterErrorResult("adventure_llm.streamJson expects input and callback", false))
+		}
+		callback, ok := goja.AssertFunction(call.Arguments[1])
+		if !ok {
+			return vm.ToValue(openRouterErrorResult("adventure_llm.streamJson callback must be a function", false))
+		}
+		result := client.stream(context.Background(), input, func(event map[string]any) error {
+			_, err := callback(goja.Undefined(), vm.ToValue(event))
+			return err
+		})
+		return vm.ToValue(result)
+	})
 }
 
 type openRouterClient struct {
@@ -75,6 +94,7 @@ type openRouterChatRequest struct {
 	Messages    []openRouterChatMessage `json:"messages"`
 	Temperature float64                 `json:"temperature"`
 	MaxTokens   int                     `json:"max_tokens"`
+	Stream      bool                    `json:"stream,omitempty"`
 }
 
 type openRouterChatMessage struct {
@@ -87,6 +107,7 @@ type openRouterChatResponse struct {
 	Model   string `json:"model"`
 	Choices []struct {
 		Message openRouterChatMessage `json:"message"`
+		Delta   openRouterChatMessage `json:"delta"`
 	} `json:"choices"`
 	Usage struct {
 		PromptTokens     int `json:"prompt_tokens"`
@@ -109,7 +130,7 @@ func newOpenRouterClientFromEnv() *openRouterClient {
 }
 
 func parseOpenRouterInput(call goja.FunctionCall) (openRouterInput, error) {
-	if len(call.Arguments) != 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
+	if len(call.Arguments) < 1 || goja.IsUndefined(call.Arguments[0]) || goja.IsNull(call.Arguments[0]) {
 		return openRouterInput{}, fmt.Errorf("adventure_llm.completeJson expects one input object")
 	}
 	exported := call.Arguments[0].Export()
@@ -131,13 +152,7 @@ func parseOpenRouterInput(call goja.FunctionCall) (openRouterInput, error) {
 	return input, nil
 }
 
-func (c *openRouterClient) complete(ctx context.Context, input openRouterInput) map[string]any {
-	if c == nil {
-		return openRouterErrorResult("OpenRouter client is not configured", false)
-	}
-	if strings.TrimSpace(c.APIKey) == "" {
-		return openRouterErrorResult("OPENROUTER_API_KEY is not configured", false)
-	}
+func (c *openRouterClient) buildRequest(ctx context.Context, input openRouterInput, stream bool) (*http.Request, error) {
 	messages := []openRouterChatMessage{}
 	if input.System != "" {
 		messages = append(messages, openRouterChatMessage{Role: "system", Content: input.System})
@@ -145,20 +160,13 @@ func (c *openRouterClient) complete(ctx context.Context, input openRouterInput) 
 	if input.User != "" {
 		messages = append(messages, openRouterChatMessage{Role: "user", Content: input.User})
 	}
-	requestPayload := openRouterChatRequest{
-		Model:       c.Model,
-		Messages:    messages,
-		Temperature: c.Temperature,
-		MaxTokens:   c.MaxTokens,
-	}
-	body, err := json.Marshal(requestPayload)
+	body, err := json.Marshal(openRouterChatRequest{Model: c.Model, Messages: messages, Temperature: c.Temperature, MaxTokens: c.MaxTokens, Stream: stream})
 	if err != nil {
-		return openRouterErrorResult("failed to encode LLM request", false)
+		return nil, fmt.Errorf("failed to encode LLM request")
 	}
-	endpoint := strings.TrimRight(c.BaseURL, "/") + "/chat/completions"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return openRouterErrorResult("failed to build LLM request", false)
+		return nil, fmt.Errorf("failed to build LLM request")
 	}
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	req.Header.Set("Content-Type", "application/json")
@@ -168,7 +176,20 @@ func (c *openRouterClient) complete(ctx context.Context, input openRouterInput) 
 	if c.Title != "" {
 		req.Header.Set("X-Title", c.Title)
 	}
+	return req, nil
+}
 
+func (c *openRouterClient) complete(ctx context.Context, input openRouterInput) map[string]any {
+	if c == nil {
+		return openRouterErrorResult("OpenRouter client is not configured", false)
+	}
+	if strings.TrimSpace(c.APIKey) == "" {
+		return openRouterErrorResult("OPENROUTER_API_KEY is not configured", false)
+	}
+	req, err := c.buildRequest(ctx, input, false)
+	if err != nil {
+		return openRouterErrorResult(err.Error(), false)
+	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return openRouterErrorResult("LLM request failed", true)
@@ -207,6 +228,72 @@ func (c *openRouterClient) complete(ctx context.Context, input openRouterInput) 
 			"totalTokens":      decoded.Usage.TotalTokens,
 		},
 	}
+}
+
+func (c *openRouterClient) stream(ctx context.Context, input openRouterInput, onChunk func(map[string]any) error) map[string]any {
+	if c == nil {
+		return openRouterErrorResult("OpenRouter client is not configured", false)
+	}
+	if strings.TrimSpace(c.APIKey) == "" {
+		return openRouterErrorResult("OPENROUTER_API_KEY is not configured", false)
+	}
+	req, err := c.buildRequest(ctx, input, true)
+	if err != nil {
+		return openRouterErrorResult(err.Error(), false)
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return openRouterErrorResult("LLM stream request failed", true)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return map[string]any{"ok": false, "error": "LLM stream request failed", "retryable": resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500, "statusCode": resp.StatusCode}
+	}
+	accumulated := ""
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 2<<20)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" {
+			continue
+		}
+		if data == "[DONE]" {
+			break
+		}
+		var decoded openRouterChatResponse
+		if err := json.Unmarshal([]byte(data), &decoded); err != nil {
+			continue
+		}
+		chunk := ""
+		if len(decoded.Choices) > 0 {
+			chunk = decoded.Choices[0].Delta.Content
+		}
+		if chunk == "" {
+			continue
+		}
+		accumulated += chunk
+		if onChunk != nil {
+			if err := onChunk(map[string]any{"chunk": chunk, "text": accumulated, "done": false}); err != nil {
+				return openRouterErrorResult("LLM stream callback failed: "+err.Error(), false)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return openRouterErrorResult("failed to read LLM stream", true)
+	}
+	if onChunk != nil {
+		if err := onChunk(map[string]any{"chunk": "", "text": accumulated, "done": true}); err != nil {
+			return openRouterErrorResult("LLM stream callback failed: "+err.Error(), false)
+		}
+	}
+	if strings.TrimSpace(accumulated) == "" {
+		return openRouterErrorResult("LLM stream did not include message content", true)
+	}
+	return map[string]any{"ok": true, "text": accumulated, "provider": "openrouter", "streamed": true}
 }
 
 func openRouterErrorResult(message string, retryable bool) map[string]any {

@@ -2,6 +2,7 @@ package jsdiscord
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -77,6 +78,42 @@ func TestOpenRouterModuleCompleteJson(t *testing.T) {
 	require.Len(t, captured.Messages, 2)
 	require.Equal(t, "system", captured.Messages[0].Role)
 	require.Equal(t, "user", captured.Messages[1].Role)
+}
+
+func TestOpenRouterModuleStreamJsonCallsBackWithChunks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var requestBody openRouterChatRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&requestBody))
+		require.True(t, requestBody.Stream)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"scene\\\"\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\":true}\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+	t.Setenv("OPENROUTER_API_KEY", "test-key")
+	t.Setenv("OPENROUTER_BASE_URL", server.URL)
+
+	factory, err := engine.NewBuilder().WithRuntimeModuleRegistrars(&OpenRouterRegistrar{}).Build()
+	require.NoError(t, err)
+	rt, err := factory.NewRuntime(t.Context())
+	require.NoError(t, err)
+	defer func() { _ = rt.Close(t.Context()) }()
+	value, err := rt.Require.Require("adventure_llm")
+	require.NoError(t, err)
+	module := value.ToObject(rt.VM)
+	stream, ok := goja.AssertFunction(module.Get("streamJson"))
+	require.True(t, ok)
+	chunks := []string{}
+	callback := func(event map[string]any) { chunks = append(chunks, fmt.Sprint(event["text"])) }
+	resultValue, err := stream(goja.Undefined(), rt.VM.ToValue(map[string]any{"user": "hello"}), rt.VM.ToValue(callback))
+	require.NoError(t, err)
+	result := resultValue.Export().(map[string]any)
+	require.Equal(t, true, result["ok"])
+	require.Equal(t, true, result["streamed"])
+	require.Equal(t, "{\"scene\":true}", result["text"])
+	require.Contains(t, chunks, "{\"scene\"")
+	require.Contains(t, chunks, "{\"scene\":true}")
 }
 
 func TestOpenRouterModuleRequiresAPIKey(t *testing.T) {

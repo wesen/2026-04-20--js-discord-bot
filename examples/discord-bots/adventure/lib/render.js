@@ -53,6 +53,7 @@ function loadingMessage(session, text, details) {
   ].filter(Boolean) : []
   const action = details && details.action ? `Action: ${details.action}` : ""
   const actor = details && details.actor ? `By: ${details.actor}` : ""
+  const streamText = details && details.streamText ? `\nStreaming draft:\n${String(details.streamText).slice(-800)}` : ""
   return ui.message()
     .content([
       "```",
@@ -64,6 +65,7 @@ function loadingMessage(session, text, details) {
       actor,
       "",
       "The mist curls while the next scene is written...",
+      streamText,
       "```",
     ].filter((line) => line !== "").join("\n").slice(0, 1900))
     .build()
