@@ -33,6 +33,7 @@ func defaultRuntimeFactory(cfg commandOptions) RuntimeFactory {
 		runtimeRegistrars = append(runtimeRegistrars, cfg.runtimeModuleRegistrars...)
 
 		builder := engine.NewBuilder().
+			WithModules(engine.DefaultRegistryModulesNamed("database")).
 			WithRequireOptions(require.WithLoader(registry.RequireLoader())).
 			WithRuntimeModuleRegistrars(runtimeRegistrars...)
 
@@ -40,6 +41,7 @@ func defaultRuntimeFactory(cfg commandOptions) RuntimeFactory {
 			builder = engine.NewBuilder(
 				engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
 			).
+				WithModules(engine.DefaultRegistryModulesNamed("database")).
 				WithRequireOptions(
 					require.WithLoader(registry.RequireLoader()),
 					require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules")),

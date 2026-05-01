@@ -14,6 +14,7 @@ func loadTestBot(t *testing.T, scriptPath string) *BotHandle {
 	factory, err := engine.NewBuilder(
 		engine.WithModuleRootsFromScript(scriptPath, engine.DefaultModuleRootsOptions()),
 	).
+		WithModules(engine.DefaultRegistryModulesNamed("database")).
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{}), &UIRegistrar{}).
 		Build()
 	if err != nil {
