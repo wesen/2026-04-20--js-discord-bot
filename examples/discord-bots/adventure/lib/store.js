@@ -155,6 +155,11 @@ function createStore() {
     return sessionFromRow(row)
   }
 
+  function findActiveSessionInChannel(channelId) {
+    const row = one(`SELECT * FROM adventure_sessions WHERE channel_id = ? AND status = 'active' ORDER BY updated_at DESC LIMIT 1`, [channelId || ""])
+    return sessionFromRow(row)
+  }
+
   function sessionFromRow(row) {
     if (!row || !row.id) return null
     return {
@@ -247,7 +252,7 @@ function createStore() {
     database.exec(`UPDATE adventure_sessions SET status = 'abandoned', updated_at = ? WHERE owner_user_id = ? AND channel_id = ? AND status = 'active'`, nowISO(), ownerUserId || "", channelId || "")
   }
 
-  return { ensure, getSeed, createSession, getSession, findActiveSession, saveScene, getScene, getCurrentScene, advanceSession, addAudit, resetActive }
+  return { ensure, getSeed, createSession, getSession, findActiveSession, findActiveSessionInChannel, saveScene, getScene, getCurrentScene, advanceSession, addAudit, resetActive }
 }
 
 module.exports = { createStore }

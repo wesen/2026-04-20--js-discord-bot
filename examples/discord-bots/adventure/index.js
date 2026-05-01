@@ -31,7 +31,7 @@ function messageTurn(ctx) {
 
 function requireOwnedSession(ctx, options) {
   ensureStore(ctx)
-  const session = store.findActiveSession(userId(ctx), channelId(ctx))
+  const session = store.findActiveSessionInChannel(channelId(ctx))
   if (!session) return { ok: false, error: "No active adventure session in this channel. Use /adventure-start first." }
   if (session.ownerUserId && session.ownerUserId !== userId(ctx)) {
     return { ok: false, error: "This adventure belongs to another player." }
