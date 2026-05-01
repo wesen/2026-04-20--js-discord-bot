@@ -45,3 +45,12 @@ Step 2: Adjusted Slack responder so public command replies create tracked messag
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Added fake Slack API response routing test
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 2
 
+
+## 2026-05-01
+
+Added Slack backend setup and smoke-test playbook covering manifest generation, app install, slack-serve, command/button/modal checks, and SQLite inspection.
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/playbook/01-slack-backend-setup-and-smoke-test.md — New repeatable Slack setup and validation playbook
+
