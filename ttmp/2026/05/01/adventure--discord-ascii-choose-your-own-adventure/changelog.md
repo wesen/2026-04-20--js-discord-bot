@@ -34,3 +34,13 @@ Step 1: Added Go-owned OpenRouter LLM adapter exposed as adventure_llm.completeJ
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — OpenRouter adapter implementation
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module_test.go — Adapter tests
 
+
+## 2026-05-01
+
+Step 2: Added repo-discovered JS adventure bot prototype with SQLite-defined scenes, JSON LLM contracts, buttons, free-form modal flow, and audit persistence (commit 3feb8ef).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Adventure bot entrypoint
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/store.js — SQLite persistence layer
+

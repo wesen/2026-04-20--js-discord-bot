@@ -10,6 +10,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: examples/discord-bots/adventure/README.md
+      Note: Run instructions for adventure bot (commit 3feb8ef)
+    - Path: examples/discord-bots/adventure/index.js
+      Note: Adventure bot command/component/modal entrypoint (commit 3feb8ef)
+    - Path: examples/discord-bots/adventure/lib/engine.js
+      Note: Adventure state advancement and LLM orchestration (commit 3feb8ef)
+    - Path: examples/discord-bots/adventure/lib/render.js
+      Note: ASCII scene card renderer and UI payloads (commit 3feb8ef)
+    - Path: examples/discord-bots/adventure/lib/schema.js
+      Note: JSON parsing and validation for LLM contracts (commit 3feb8ef)
+    - Path: examples/discord-bots/adventure/lib/store.js
+      Note: SQLite store for seeds
     - Path: internal/jsdiscord/host.go
       Note: Registers OpenRouter module in default JS bot host (commit f9a47bf)
     - Path: internal/jsdiscord/openrouter_module.go
@@ -24,6 +36,7 @@ LastUpdated: 2026-05-01T13:33:30-07:00
 WhatFor: Track implementation steps, commits, validation commands, failures, and review notes for the adventure ticket.
 WhenToUse: Use when reviewing or continuing the adventure implementation.
 ---
+
 
 
 # Diary
@@ -149,3 +162,131 @@ Go-owned configuration:
 - `OPENROUTER_TEMPERATURE` defaulting to `0.7`
 - `OPENROUTER_HTTP_REFERER`
 - `OPENROUTER_APP_TITLE` defaulting to `discord-bot-adventure`
+
+## Step 2: Add JS Adventure Bot Prototype
+
+This step built the first playable JavaScript adventure bot on top of the existing Discord framework. The bot is repo-discovered, declares slash commands/components/modals, stores seeds/sessions/scenes/choices/audit rows in SQLite, and calls the Go-owned `adventure_llm` module for JSON scene generation and free-form action interpretation.
+
+The prototype keeps dynamic component IDs intentionally simple because current component dispatch is exact-match based. To still protect against stale clicks, rendered scene content includes the turn number and component handlers compare the clicked message's turn against the canonical session turn before advancing.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I updated the underlying code. Try again"
+
+**Assistant interpretation:** Re-run validation after framework dependency/code updates, then continue implementing the JS adventure app.
+
+**Inferred user intent:** Confirm the framework now supports the needed modules and complete the first JS milestone after the Go OpenRouter adapter.
+
+**Commit (code):** 3feb8efcc0adbfdfac3751b93b82412907e89530 — "Add adventure Discord bot prototype"
+
+### What I did
+
+- Added `examples/discord-bots/adventure/index.js` as a repo-discovered `defineBot` entrypoint.
+- Added `lib/seeds.js` with the `haunted-gate` seed as JS data.
+- Added `lib/store.js` with SQLite schema and persistence for seeds, sessions, scenes, choices, and audit logs.
+- Added `lib/schema.js` with JSON extraction/parsing and validators for scene patches and interpreted free-form actions.
+- Added `lib/prompts.js` for scene and free-form interpretation prompts.
+- Added `lib/llm.js` as the JS adapter around `require("adventure_llm").completeJson(...)`.
+- Added `lib/engine.js` for session advancement, effect clamping/application, LLM orchestration, and audit writes.
+- Added `lib/render.js` for ASCII scene cards, buttons, state output, and errors.
+- Added `examples/discord-bots/adventure/README.md` with run instructions and OpenRouter configuration notes.
+
+### Why
+
+- The ticket design moved from YAML files to SQLite-defined scenes because the JS runtime has database support but no filesystem/YAML implementation.
+- JS can own Discord orchestration and SQLite state while Go owns OpenRouter/provider access.
+- A small prototype validates the full command/button/modal loop before hardening.
+
+### What worked
+
+- Bot discovery/help now succeeds:
+
+```bash
+go run ./cmd/discord-bot bots help adventure --bot-repository ./examples/discord-bots --output json
+```
+
+- Focused OpenRouter tests still pass:
+
+```bash
+go test ./internal/jsdiscord -run TestOpenRouter -count=1
+```
+
+- Broader tests pass after the underlying framework update:
+
+```bash
+go test ./pkg/framework ./pkg/botcli ./cmd/discord-bot -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+- Before the user's framework update, bot discovery failed with:
+
+```text
+error building command: discover bots: inspect bot script /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js: load js bot script: GoError: Invalid module at github.com/dop251/goja_nodejs/require.(*RequireModule).require-fm (native)
+exit status 1
+```
+
+- After the update, the same discovery command succeeded.
+
+### What I learned
+
+- The current component registration model is exact-match, so the prototype uses fixed IDs like `adv:choice:0` rather than dynamic `session:turn` IDs.
+- Stale click protection can still be approximated by parsing the turn number from the clicked message content and comparing it with canonical SQLite session state.
+- `require("database")` is enough for a durable JS-owned store with JSON columns.
+
+### What was tricky to build
+
+- The LLM output needs to be treated as untrusted text even though the prompt asks for JSON. `schema.js` extracts fenced or raw JSON, parses it, normalizes choices, clamps lengths, and returns validation errors instead of throwing.
+- Discord interaction response flow differs between slash commands, components, and modals. The bot uses `ctx.defer`/`ctx.edit` around LLM work and direct returns for lightweight state/error responses.
+- Since JS does not receive the model/provider settings, `lib/llm.js` only handles request/result shape and never attempts to configure OpenRouter.
+
+### What warrants a second pair of eyes
+
+- Stale component handling: parsing `Turn N` from message content is pragmatic but brittle. A framework-level wildcard/dynamic component routing feature would be cleaner.
+- The OpenRouter Go call is synchronous from JS's perspective; long LLM latency could block the runtime owner.
+- SQLite schema uses JSON text columns heavily; this is flexible but less queryable than fully normalized state.
+- The first prototype has no automated JS-level tests yet.
+
+### What should be done in the future
+
+- Add runtime tests for the adventure bot dispatch flow using mocked `adventure_llm` responses.
+- Consider wildcard component/modal routing or custom ID prefixes in the framework.
+- Add explicit JSON response-format support in the OpenRouter adapter if supported by the selected model/provider.
+- Add group/voting mode and thread-based sessions.
+
+### Code review instructions
+
+- Start with `examples/discord-bots/adventure/index.js` to understand the command/component/modal flow.
+- Review `examples/discord-bots/adventure/lib/store.js` for persistence/schema correctness.
+- Review `examples/discord-bots/adventure/lib/engine.js` and `lib/schema.js` for validation and state transition safety.
+- Validate with:
+
+```bash
+go run ./cmd/discord-bot bots help adventure --bot-repository ./examples/discord-bots --output json
+go test ./... -count=1
+```
+
+### Technical details
+
+Core runtime command:
+
+```bash
+export DISCORD_BOT_TOKEN=...
+export DISCORD_APPLICATION_ID=...
+export DISCORD_GUILD_ID=...
+export OPENROUTER_API_KEY=...
+
+GOWORK=off go run ./cmd/discord-bot bots adventure run \
+  --bot-repository ./examples/discord-bots \
+  --sync-on-start \
+  --session-db-path ./examples/discord-bots/adventure/data/adventure.sqlite
+```
+
+Primary files:
+
+- `examples/discord-bots/adventure/index.js`
+- `examples/discord-bots/adventure/lib/store.js`
+- `examples/discord-bots/adventure/lib/engine.js`
+- `examples/discord-bots/adventure/lib/schema.js`
+- `examples/discord-bots/adventure/lib/render.js`
