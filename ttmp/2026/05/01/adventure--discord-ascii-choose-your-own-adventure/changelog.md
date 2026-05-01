@@ -55,3 +55,14 @@ Improved adventure interaction flow: loading edits after clicks, modal submits n
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/adventure_runtime_test.go — Multiplayer ownership and stale-click tests
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/host_responses.go — Modal submissions from component messages now defer/update the original message
 
+
+## 2026-05-01
+
+Made adventure sessions channel-scoped collaborative: any channel member can advance the active session; loading cards now include previous scene context, selected action/free-form text, and actor name; tests cover another player advancing without breaking the starter's session (commit 83a7177).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Collaborative channel session behavior and actor-aware loading calls
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Loading message includes previous scene
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/adventure_runtime_test.go — Collaborative multiplayer runtime coverage
+
