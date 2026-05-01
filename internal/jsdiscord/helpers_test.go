@@ -13,7 +13,7 @@ func loadTestBot(t *testing.T, scriptPath string) *BotHandle {
 	t.Helper()
 	factory, err := engine.NewBuilder(
 		engine.WithModuleRootsFromScript(scriptPath, engine.DefaultModuleRootsOptions()),
-	).WithModules(engine.DefaultRegistryModules()).
+	).
 		WithRuntimeModuleRegistrars(NewRegistrar(Config{}), &UIRegistrar{}).
 		Build()
 	if err != nil {

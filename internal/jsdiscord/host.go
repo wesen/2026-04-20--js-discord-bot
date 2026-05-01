@@ -34,7 +34,7 @@ func NewHost(ctx context.Context, scriptPath string, opts ...HostOption) (*Host,
 	runtimeRegistrars = append(runtimeRegistrars, hostOpts.runtimeModuleRegistrars...)
 	factory, err := engine.NewBuilder(
 		engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
-	).WithModules(engine.DefaultRegistryModules()).
+	).
 		WithRuntimeModuleRegistrars(runtimeRegistrars...).
 		WithRequireOptions(require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules"))).
 		Build()

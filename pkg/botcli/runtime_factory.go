@@ -33,14 +33,13 @@ func defaultRuntimeFactory(cfg commandOptions) RuntimeFactory {
 		runtimeRegistrars = append(runtimeRegistrars, cfg.runtimeModuleRegistrars...)
 
 		builder := engine.NewBuilder().
-			WithModules(engine.DefaultRegistryModules()).
 			WithRequireOptions(require.WithLoader(registry.RequireLoader())).
 			WithRuntimeModuleRegistrars(runtimeRegistrars...)
 
 		if absScript != "" {
 			builder = engine.NewBuilder(
 				engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
-			).WithModules(engine.DefaultRegistryModules()).
+			).
 				WithRequireOptions(
 					require.WithLoader(registry.RequireLoader()),
 					require.WithGlobalFolders(filepath.Dir(absScript), filepath.Join(filepath.Dir(absScript), "node_modules")),
