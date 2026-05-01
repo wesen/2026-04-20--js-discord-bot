@@ -100,7 +100,7 @@ async function startAdventure(ctx) {
     seed,
     session,
     currentScene: null,
-    input: { kind: "start", opening_prompt: seed.openingPrompt, user_seed: userSeed },
+    input: { kind: "start", opening_prompt: userSeed || seed.openingPrompt, user_seed: userSeed, override_seed_tone: Boolean(userSeed) },
     onChunk: makeProgressEditor(ctx, session, "Opening the gate...", { actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }),
   })
   if (!generated.ok) {

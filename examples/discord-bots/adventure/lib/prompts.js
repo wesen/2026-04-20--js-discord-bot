@@ -35,6 +35,7 @@ function sceneUserPrompt({ seed, session, currentScene, input, recentHistory }) 
       },
     },
     seed,
+    user_starting_context_policy: "If user_starting_context is present on the start turn, treat it as the primary premise and tone. Re-theme the adventure around it even if it conflicts with the default seed genre/tone/opening prompt. Keep only the engine constraints and safety boundaries from the seed.",
     session,
     current_scene: currentScene || null,
     player_input: input,
