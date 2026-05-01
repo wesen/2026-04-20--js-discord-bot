@@ -8,6 +8,7 @@ function statLine(session) {
 }
 
 function sceneContent(session, scene) {
+  const displayState = scene && scene.snapshot ? Object.assign({}, session || {}, scene.snapshot) : session
   const art = scene.asciiArt ? `${scene.asciiArt}\n\n` : ""
   const body = `${art}${scene.narration || ""}`.trim()
   return [
@@ -17,7 +18,7 @@ function sceneContent(session, scene) {
     "",
     body.slice(0, 1600),
     "",
-    statLine(session),
+    statLine(displayState),
     "```",
   ].join("\n").slice(0, 1900)
 }

@@ -66,8 +66,14 @@ function createStore() {
       narration TEXT NOT NULL DEFAULT '',
       engine_notes_json TEXT NOT NULL DEFAULT '{}',
       raw_patch_json TEXT NOT NULL DEFAULT '{}',
+      stats_json TEXT NOT NULL DEFAULT '{}',
+      inventory_json TEXT NOT NULL DEFAULT '[]',
+      flags_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL
     )`)
+    ensureColumn("adventure_scenes", "stats_json", "TEXT NOT NULL DEFAULT '{}'")
+    ensureColumn("adventure_scenes", "inventory_json", "TEXT NOT NULL DEFAULT '[]'")
+    ensureColumn("adventure_scenes", "flags_json", "TEXT NOT NULL DEFAULT '{}'")
     database.exec(`CREATE TABLE IF NOT EXISTS adventure_choices (
       id TEXT PRIMARY KEY,
       scene_id TEXT NOT NULL,
@@ -95,6 +101,12 @@ function createStore() {
     database.exec(`CREATE INDEX IF NOT EXISTS idx_adventure_sessions_owner ON adventure_sessions(owner_user_id, status, updated_at DESC)`)
     database.exec(`CREATE INDEX IF NOT EXISTS idx_adventure_scenes_session_turn ON adventure_scenes(session_id, turn DESC)`)
     database.exec(`CREATE INDEX IF NOT EXISTS idx_adventure_audit_session_turn ON adventure_audit(session_id, turn DESC)`)
+  }
+
+  function ensureColumn(table, column, definition) {
+    const rows = database.query(`PRAGMA table_info(${table})`)
+    const exists = Array.isArray(rows) && rows.some((row) => row.name === column)
+    if (!exists) database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
   }
 
   function seedDefaults() {
@@ -184,8 +196,8 @@ function createStore() {
   function saveScene(session, scene) {
     const sceneId = scene.id || createId("scene")
     const ts = nowISO()
-    database.exec(`INSERT OR REPLACE INTO adventure_scenes (id, session_id, turn, title, ascii_art, narration, engine_notes_json, raw_patch_json, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      sceneId, session.id, session.turn, scene.title, scene.asciiArt || "", scene.narration || "", jsonString(scene.engineNotes || {}), jsonString(scene.rawPatch || {}), ts)
+    database.exec(`INSERT OR REPLACE INTO adventure_scenes (id, session_id, turn, title, ascii_art, narration, engine_notes_json, raw_patch_json, stats_json, inventory_json, flags_json, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      sceneId, session.id, session.turn, scene.title, scene.asciiArt || "", scene.narration || "", jsonString(scene.engineNotes || {}), jsonString(scene.rawPatch || {}), jsonString(session.stats || {}), jsonString(session.inventory || []), jsonString(session.flags || {}), ts)
     database.exec(`DELETE FROM adventure_choices WHERE scene_id = ?`, sceneId)
     ;(scene.choices || []).forEach((choice, index) => {
       database.exec(`INSERT INTO adventure_choices (id, scene_id, choice_id, label, requires_json, proposed_effects_json, next_hint, sort_order) VALUES (?,?,?,?,?,?,?,?)`,
@@ -216,6 +228,11 @@ function createStore() {
       narration: row.narration,
       engineNotes: safeJsonParse(row.engine_notes_json, {}),
       ending: { isFinal: Boolean(endingRaw.is_final || endingRaw.isFinal), summary: endingRaw.summary || "" },
+      snapshot: {
+        stats: safeJsonParse(row.stats_json, {}),
+        inventory: safeJsonParse(row.inventory_json, []),
+        flags: safeJsonParse(row.flags_json, {}),
+      },
       rawPatch,
       choices,
     }
@@ -269,6 +286,11 @@ function createStore() {
       title: scene.title,
       asciiArt: scene.ascii_art,
       narration: scene.narration,
+      snapshot: {
+        stats: safeJsonParse(scene.stats_json, {}),
+        inventory: safeJsonParse(scene.inventory_json, []),
+        flags: safeJsonParse(scene.flags_json, {}),
+      },
       rawPatch: safeJsonParse(scene.raw_patch_json, {}),
       choices: many(`SELECT choice_id, label, proposed_effects_json FROM adventure_choices WHERE scene_id = ? ORDER BY sort_order ASC`, [scene.id]).map((choice) => ({
         id: choice.choice_id,
