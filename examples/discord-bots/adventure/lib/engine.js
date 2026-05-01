@@ -26,6 +26,7 @@ function publicScene(scene) {
 }
 
 function generateScene({ store, seed, session, currentScene, input }) {
+  console.log("[adventure] generateScene", JSON.stringify({ sessionId: session.id, turn: session.turn, inputKind: input && input.kind }))
   const request = {
     purpose: "scene_patch",
     system: prompts.sceneSystemPrompt(),
@@ -39,11 +40,13 @@ function generateScene({ store, seed, session, currentScene, input }) {
     metadata: { sessionId: session.id, turn: session.turn, adventureId: session.adventureId },
   }
   const completed = llm.completeJson(request)
+  console.log("[adventure] generateScene llm result", JSON.stringify({ sessionId: session.id, ok: completed.ok, error: completed.error || "" }))
   if (!completed.ok) {
     store.addAudit({ sessionId: session.id, turn: session.turn, kind: "scene_patch_error", input, llmRequest: request, llmResponseText: completed.rawText || "", parsed: completed.parsed || {}, validation: { ok: false, errors: [completed.error] } })
     return { ok: false, error: completed.error }
   }
   const validation = validateScenePatch(completed.value, seed)
+  console.log("[adventure] generateScene validation", JSON.stringify({ sessionId: session.id, ok: validation.ok, errors: validation.errors || [] }))
   store.addAudit({ sessionId: session.id, turn: session.turn, kind: "scene_patch", input, llmRequest: request, llmResponseText: completed.rawText, parsed: completed.value, validation, appliedEffects: input && input.effects ? input.effects : {} })
   if (!validation.ok) {
     return { ok: false, error: validation.errors.join("; ") }
@@ -63,6 +66,7 @@ function applyChoice(store, session, scene, choiceIndex) {
 }
 
 function interpretFreeform({ store, seed, session, currentScene, text }) {
+  console.log("[adventure] interpretFreeform", JSON.stringify({ sessionId: session.id, turn: session.turn, textLength: String(text || "").length }))
   const request = {
     purpose: "interpret_action",
     system: prompts.actionSystemPrompt(),
@@ -70,6 +74,7 @@ function interpretFreeform({ store, seed, session, currentScene, text }) {
     metadata: { sessionId: session.id, turn: session.turn, adventureId: session.adventureId },
   }
   const completed = llm.completeJson(request)
+  console.log("[adventure] interpretFreeform llm result", JSON.stringify({ sessionId: session.id, ok: completed.ok, error: completed.error || "" }))
   if (!completed.ok) {
     store.addAudit({ sessionId: session.id, turn: session.turn, kind: "interpret_action_error", input: { text }, llmRequest: request, llmResponseText: completed.rawText || "", parsed: completed.parsed || {}, validation: { ok: false, errors: [completed.error] } })
     return { ok: false, error: completed.error }

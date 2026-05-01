@@ -19,6 +19,7 @@ function guildId(ctx) {
 }
 
 function ensureStore(ctx) {
+  console.log("[adventure] ensureStore", JSON.stringify({ config: ctx.config || {} }))
   store.ensure(ctx.config || {})
 }
 
@@ -47,6 +48,7 @@ function requireOwnedSession(ctx, options) {
 }
 
 async function startAdventure(ctx) {
+  console.log("[adventure] startAdventure", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), args: ctx.args || {} }))
   ensureStore(ctx)
   await ctx.defer({ ephemeral: false })
   const seedId = String((ctx.args && ctx.args.seed) || "haunted-gate").trim() || "haunted-gate"
@@ -58,6 +60,7 @@ async function startAdventure(ctx) {
   }
   store.resetActive(userId(ctx), channelId(ctx))
   const session = store.createSession({ seed, ownerUserId: userId(ctx), guildId: guildId(ctx), channelId: channelId(ctx), mode })
+  console.log("[adventure] session created", JSON.stringify({ sessionId: session.id, seedId: seed.id, turn: session.turn }))
   const generated = engine.generateScene({
     store,
     seed,
@@ -66,15 +69,21 @@ async function startAdventure(ctx) {
     input: { kind: "start", opening_prompt: seed.openingPrompt },
   })
   if (!generated.ok) {
+    console.log("[adventure] opening scene generation failed", JSON.stringify({ sessionId: session.id, error: generated.error }))
     await ctx.edit(render.errorMessage(`Could not generate opening scene: ${generated.error}`))
     return
   }
+  console.log("[adventure] opening scene generated", JSON.stringify({ sessionId: session.id, sceneId: generated.scene && generated.scene.id }))
   await ctx.edit(render.sceneMessage(session, generated.scene))
 }
 
 async function choose(ctx, index) {
+  console.log("[adventure] choose", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), index }))
   const loaded = requireOwnedSession(ctx, { rejectStaleMessage: true })
-  if (!loaded.ok) return render.errorMessage(loaded.error)
+  if (!loaded.ok) {
+    console.log("[adventure] choose rejected", JSON.stringify({ index, error: loaded.error }))
+    return render.errorMessage(loaded.error)
+  }
   await ctx.defer({ ephemeral: false })
   const applied = engine.applyChoice(store, loaded.session, loaded.scene, index)
   if (!applied.ok) {
@@ -119,6 +128,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
   })
 
   event("ready", async (ctx) => {
+    console.log("[adventure] ready", JSON.stringify({ metadata: ctx.metadata || {} }))
     ctx.log.info("adventure bot ready", { bot: ctx.metadata && ctx.metadata.name })
   })
 
@@ -160,6 +170,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
   component("adv:choice:3", async (ctx) => choose(ctx, 3))
 
   component("adv:freeform", async (ctx) => {
+    console.log("[adventure] freeform button", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx) }))
     const loaded = requireOwnedSession(ctx, { rejectStaleMessage: true })
     if (!loaded.ok) return render.errorMessage(loaded.error)
     await ctx.showModal(
@@ -170,6 +181,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
   })
 
   modal("adv:modal:freeform", async (ctx) => {
+    console.log("[adventure] freeform modal", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), values: ctx.values || {} }))
     const loaded = requireOwnedSession(ctx)
     if (!loaded.ok) return render.errorMessage(loaded.error)
     await ctx.defer({ ephemeral: false })
