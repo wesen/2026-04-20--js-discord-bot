@@ -1,0 +1,199 @@
+const { defineBot } = require("discord")
+const ui = require("ui")
+const { createStore } = require("./lib/store")
+const engine = require("./lib/engine")
+const render = require("./lib/render")
+
+const store = createStore()
+
+function userId(ctx) {
+  return String((ctx.user && ctx.user.id) || "")
+}
+
+function channelId(ctx) {
+  return String((ctx.channel && ctx.channel.id) || (ctx.interaction && ctx.interaction.channelID) || "")
+}
+
+function guildId(ctx) {
+  return String((ctx.guild && ctx.guild.id) || (ctx.interaction && ctx.interaction.guildID) || "")
+}
+
+function ensureStore(ctx) {
+  store.ensure(ctx.config || {})
+}
+
+function messageTurn(ctx) {
+  const content = String((ctx.message && ctx.message.content) || "")
+  const match = content.match(/Turn\s+(\d+)/i)
+  return match ? Number(match[1]) : null
+}
+
+function requireOwnedSession(ctx, options) {
+  ensureStore(ctx)
+  const session = store.findActiveSession(userId(ctx), channelId(ctx))
+  if (!session) return { ok: false, error: "No active adventure session in this channel. Use /adventure-start first." }
+  if (session.ownerUserId && session.ownerUserId !== userId(ctx)) {
+    return { ok: false, error: "This adventure belongs to another player." }
+  }
+  if (options && options.rejectStaleMessage) {
+    const turn = messageTurn(ctx)
+    if (turn !== null && turn !== Number(session.turn || 0)) {
+      return { ok: false, error: "That scene is stale. Use /adventure-resume to see the latest scene." }
+    }
+  }
+  const seed = store.getSeed(session.adventureId)
+  const scene = store.getCurrentScene(session)
+  return { ok: true, session, seed, scene }
+}
+
+async function startAdventure(ctx) {
+  ensureStore(ctx)
+  await ctx.defer({ ephemeral: false })
+  const seedId = String((ctx.args && ctx.args.seed) || "haunted-gate").trim() || "haunted-gate"
+  const mode = String((ctx.args && ctx.args.mode) || "solo").trim() || "solo"
+  const seed = store.getSeed(seedId)
+  if (!seed) {
+    await ctx.edit(render.errorMessage(`Unknown adventure seed: ${seedId}`))
+    return
+  }
+  store.resetActive(userId(ctx), channelId(ctx))
+  const session = store.createSession({ seed, ownerUserId: userId(ctx), guildId: guildId(ctx), channelId: channelId(ctx), mode })
+  const generated = engine.generateScene({
+    store,
+    seed,
+    session,
+    currentScene: null,
+    input: { kind: "start", opening_prompt: seed.openingPrompt },
+  })
+  if (!generated.ok) {
+    await ctx.edit(render.errorMessage(`Could not generate opening scene: ${generated.error}`))
+    return
+  }
+  await ctx.edit(render.sceneMessage(session, generated.scene))
+}
+
+async function choose(ctx, index) {
+  const loaded = requireOwnedSession(ctx, { rejectStaleMessage: true })
+  if (!loaded.ok) return render.errorMessage(loaded.error)
+  await ctx.defer({ ephemeral: false })
+  const applied = engine.applyChoice(store, loaded.session, loaded.scene, index)
+  if (!applied.ok) {
+    await ctx.edit(render.errorMessage(applied.error))
+    return
+  }
+  const generated = engine.generateScene({
+    store,
+    seed: loaded.seed,
+    session: applied.session,
+    currentScene: loaded.scene,
+    input: applied.input,
+  })
+  if (!generated.ok) {
+    await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
+    return
+  }
+  await ctx.edit(render.sceneMessage(applied.session, generated.scene))
+}
+
+module.exports = defineBot(({ command, component, modal, event, configure }) => {
+  configure({
+    name: "adventure",
+    description: "ASCII choose-your-own-adventure bot with Go-owned OpenRouter generation",
+    run: {
+      storage: {
+        title: "Storage",
+        fields: {
+          sessionDbPath: {
+            type: "string",
+            help: "SQLite database path for adventure sessions/scenes",
+            default: "./examples/discord-bots/adventure/data/adventure.sqlite",
+          },
+          debugYaml: {
+            type: "bool",
+            help: "Legacy debug flag; JSON state is used internally",
+            default: false,
+          },
+        },
+      },
+    },
+  })
+
+  event("ready", async (ctx) => {
+    ctx.log.info("adventure bot ready", { bot: ctx.metadata && ctx.metadata.name })
+  })
+
+  command("adventure-start", {
+    description: "Start a new ASCII adventure session",
+    options: {
+      seed: { type: "string", description: "Adventure seed ID", required: false },
+      mode: { type: "string", description: "Play mode: solo", required: false },
+    },
+  }, startAdventure)
+
+  command("adventure-resume", {
+    description: "Resume the current adventure session in this channel",
+  }, async (ctx) => {
+    const loaded = requireOwnedSession(ctx)
+    if (!loaded.ok) return render.errorMessage(loaded.error)
+    return render.sceneMessage(loaded.session, loaded.scene || { title: "Adventure", narration: "No scene has been generated yet.", choices: [] })
+  })
+
+  command("adventure-state", {
+    description: "Show debug state for your active adventure session",
+  }, async (ctx) => {
+    const loaded = requireOwnedSession(ctx)
+    if (!loaded.ok) return render.errorMessage(loaded.error)
+    return render.stateMessage(loaded.session, loaded.scene)
+  })
+
+  command("adventure-reset", {
+    description: "Abandon your active adventure session in this channel",
+  }, async (ctx) => {
+    ensureStore(ctx)
+    store.resetActive(userId(ctx), channelId(ctx))
+    return ui.message().ephemeral().content("Adventure session reset.").build()
+  })
+
+  component("adv:choice:0", async (ctx) => choose(ctx, 0))
+  component("adv:choice:1", async (ctx) => choose(ctx, 1))
+  component("adv:choice:2", async (ctx) => choose(ctx, 2))
+  component("adv:choice:3", async (ctx) => choose(ctx, 3))
+
+  component("adv:freeform", async (ctx) => {
+    const loaded = requireOwnedSession(ctx, { rejectStaleMessage: true })
+    if (!loaded.ok) return render.errorMessage(loaded.error)
+    await ctx.showModal(
+      ui.form("adv:modal:freeform", "Try something else")
+        .textarea("action", "What do you try?").required().min(2).max(800)
+        .build()
+    )
+  })
+
+  modal("adv:modal:freeform", async (ctx) => {
+    const loaded = requireOwnedSession(ctx)
+    if (!loaded.ok) return render.errorMessage(loaded.error)
+    await ctx.defer({ ephemeral: false })
+    const text = String((ctx.values || {}).action || "").trim()
+    if (!text) {
+      await ctx.edit(render.errorMessage("Free-form action cannot be empty."))
+      return
+    }
+    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text })
+    if (!interpreted.ok) {
+      await ctx.edit(render.errorMessage(`Could not interpret action: ${interpreted.error}`))
+      return
+    }
+    const generated = engine.generateScene({
+      store,
+      seed: loaded.seed,
+      session: interpreted.session,
+      currentScene: loaded.scene,
+      input: interpreted.input,
+    })
+    if (!generated.ok) {
+      await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
+      return
+    }
+    await ctx.edit(render.sceneMessage(interpreted.session, generated.scene))
+  })
+})
