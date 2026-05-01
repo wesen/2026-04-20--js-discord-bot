@@ -143,6 +143,10 @@ async function choose(ctx, index) {
     await ctx.edit(render.errorMessage(applied.error))
     return
   }
+  if (applied.scene) {
+    await ctx.edit(render.sceneMessage(applied.session, applied.scene, { exported: applied.exported }))
+    return
+  }
   const generated = engine.generateScene({
     store,
     seed: loaded.seed,
@@ -253,6 +257,10 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text, onChunk: makeProgressEditor(ctx, loaded.session, "Interpreting your action...", freeformDetails) })
     if (!interpreted.ok) {
       await ctx.edit(render.errorMessage(`Could not interpret action: ${interpreted.error}`))
+      return
+    }
+    if (interpreted.scene) {
+      await ctx.edit(render.sceneMessage(interpreted.session, interpreted.scene, { exported: interpreted.exported }))
       return
     }
     const generated = engine.generateScene({

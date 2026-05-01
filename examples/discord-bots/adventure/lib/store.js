@@ -256,7 +256,7 @@ function createStore() {
     const nextInventory = Array.isArray(session.inventory) ? session.inventory.slice() : []
     const statEffects = effects && effects.stats && typeof effects.stats === "object" ? effects.stats : {}
     Object.keys(statEffects).forEach((key) => {
-      const delta = Math.max(-3, Math.min(3, Number(statEffects[key] || 0)))
+      const delta = Math.max(-6, Math.min(3, Number(statEffects[key] || 0)))
       nextStats[key] = Number(nextStats[key] || 0) + delta
     })
     const flagEffects = effects && effects.flags && typeof effects.flags === "object" ? effects.flags : {}

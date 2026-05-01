@@ -5,6 +5,9 @@ function sceneSystemPrompt() {
     "The engine owns canonical state. You may propose effects, but do not claim they are applied.",
     "Keep scenes concise and Discord-friendly.",
     "Return 2 to 4 concrete choices unless the story has reached a logical ending.",
+    "Every non-final set of choices must include at least one obviously dangerous/bad option that causes massive harm: proposed_effects.stats must reduce HP or the non-HP stat by -4 to -6.",
+    "If HP is at or below zero, the character dies: set scene_patch.ending.is_final=true and make the ending dramatic.",
+    "If the non-HP stat is at or below zero, end the adventure dramatically in a way coherent with that stat's meaning and name.",
     "When the story should end, set scene_patch.ending.is_final=true and include a concise ending summary.",
     "Use small ASCII art, at most 12 lines, at most 80 columns.",
   ].join("\n")
@@ -45,6 +48,7 @@ function sceneUserPrompt({ seed, session, currentScene, input, recentHistory }) 
     },
     seed: seedForPrompt,
     user_starting_context_policy: "If user_starting_context or session.flags.user_theme is present, treat it as the primary premise, genre, vocabulary, and tone for EVERY turn. Re-theme the adventure around it even if it conflicts with the default seed genre/tone/opening prompt. Do not drift back to the default Haunted Gate/gothic horror framing unless the user theme asks for that. Keep only the engine constraints and safety boundaries from the seed.",
+    stat_failure_policy: "HP <= 0 means physical death. The other stat <= 0 means adventure-ending collapse themed to that stat: e.g. GROOVE zero kills the party's rhythm, MANA zero causes magical burnout, OXYGEN zero means suffocation/void exposure, COMFORT zero means the cozy world rejects you, FOCUS zero means the mystery dissolves beyond comprehension. In every non-final choices array, include one bad/risky choice with proposed_effects.stats of -4 to -6 to HP or the other stat.",
     session,
     current_scene: currentScene || null,
     player_input: input,
