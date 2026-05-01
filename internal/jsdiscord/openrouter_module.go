@@ -170,6 +170,9 @@ func (c *openRouterClient) buildRequest(ctx context.Context, input openRouterInp
 	}
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	req.Header.Set("Content-Type", "application/json")
+	if stream {
+		req.Header.Set("Accept", "text/event-stream")
+	}
 	if c.Referer != "" {
 		req.Header.Set("HTTP-Referer", c.Referer)
 	}
