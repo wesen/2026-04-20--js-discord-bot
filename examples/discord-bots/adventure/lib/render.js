@@ -24,6 +24,15 @@ function sceneContent(session, scene) {
 
 function sceneMessage(session, scene, options) {
   const builder = ui.message().content(sceneContent(session, scene))
+  const viewingHistory = Boolean(options && options.history)
+  if (viewingHistory) {
+    const rows = []
+    if (scene.turn > 0) rows.push(ui.button("adv:history:prev", "← Previous", "secondary"))
+    if (scene.turn < session.turn) rows.push(ui.button("adv:history:next", "Next →", "secondary"))
+    if (scene.turn !== session.turn) rows.push(ui.button("adv:history:current", "Current", "primary"))
+    if (rows.length > 0) builder.row(...rows)
+    return builder.build()
+  }
   if (scene && scene.ending && scene.ending.isFinal) {
     const exported = options && options.exported ? options.exported : { session, scene }
     return {
@@ -35,6 +44,9 @@ function sceneMessage(session, scene, options) {
       }],
     }
   }
+  const nav = []
+  if (scene && scene.turn > 0) nav.push(ui.button("adv:history:prev", "← Previous", "secondary"))
+  if (nav.length > 0) builder.row(...nav)
   const choices = (scene.choices || []).slice(0, 4)
   if (choices.length > 0) {
     const buttons = choices.map((choice, index) => ui.button(`adv:choice:${index}`, choice.label, index === 0 ? "primary" : "secondary"))

@@ -64,6 +64,21 @@ function requireOwnedSession(ctx, options) {
   return { ok: true, session, seed, scene }
 }
 
+async function showHistory(ctx, direction) {
+  console.log("[adventure] history", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), direction }))
+  const loaded = requireOwnedSession(ctx)
+  if (!loaded.ok) return render.errorMessage(loaded.error)
+  const currentTurn = messageTurn(ctx)
+  let targetTurn = loaded.session.turn
+  if (currentTurn !== null) {
+    if (direction === "prev") targetTurn = Math.max(0, currentTurn - 1)
+    if (direction === "next") targetTurn = Math.min(loaded.session.turn, currentTurn + 1)
+    if (direction === "current") targetTurn = loaded.session.turn
+  }
+  const scene = store.getSceneByTurn(loaded.session, targetTurn) || loaded.scene
+  return render.sceneMessage(loaded.session, scene, { history: targetTurn !== loaded.session.turn })
+}
+
 async function startAdventure(ctx) {
   console.log("[adventure] startAdventure", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), args: ctx.args || {} }))
   ensureStore(ctx)
@@ -190,6 +205,9 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
   component("adv:choice:1", async (ctx) => choose(ctx, 1))
   component("adv:choice:2", async (ctx) => choose(ctx, 2))
   component("adv:choice:3", async (ctx) => choose(ctx, 3))
+  component("adv:history:prev", async (ctx) => showHistory(ctx, "prev"))
+  component("adv:history:next", async (ctx) => showHistory(ctx, "next"))
+  component("adv:history:current", async (ctx) => showHistory(ctx, "current"))
 
   component("adv:freeform", async (ctx) => {
     console.log("[adventure] freeform button", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx) }))

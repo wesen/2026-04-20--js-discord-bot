@@ -226,6 +226,12 @@ function createStore() {
     return getScene(session.currentSceneId)
   }
 
+  function getSceneByTurn(session, turn) {
+    if (!session) return null
+    const row = one(`SELECT * FROM adventure_scenes WHERE session_id = ? AND turn = ? LIMIT 1`, [session.id, Number(turn || 0)])
+    return row && row.id ? getScene(row.id) : null
+  }
+
   function advanceSession(session, effects) {
     const nextStats = Object.assign({}, session.stats || {})
     const nextFlags = Object.assign({}, session.flags || {})
@@ -284,7 +290,7 @@ function createStore() {
     database.exec(`UPDATE adventure_sessions SET status = 'abandoned', updated_at = ? WHERE owner_user_id = ? AND channel_id = ? AND status = 'active'`, nowISO(), ownerUserId || "", channelId || "")
   }
 
-  return { ensure, getSeed, createSession, getSession, findActiveSession, findActiveSessionInChannel, saveScene, getScene, getCurrentScene, advanceSession, addAudit, finishSession, exportSession, resetActive }
+  return { ensure, getSeed, createSession, getSession, findActiveSession, findActiveSessionInChannel, saveScene, getScene, getCurrentScene, getSceneByTurn, advanceSession, addAudit, finishSession, exportSession, resetActive }
 }
 
 module.exports = { createStore }
