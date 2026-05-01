@@ -317,7 +317,7 @@ func (b *SlackBackend) dispatchSlashCommand(ctx context.Context, values url.Valu
 	responseURL := values.Get("response_url")
 	triggerID := values.Get("trigger_id")
 	args := b.slackArgsForCommand(ctx, commandName, values.Get("text"))
-	responder := newSlackResponder(b.client, b.store, responseURL, channelID, "", triggerID, b.host.scriptPath)
+	responder := newSlackResponder(b.client, b.store, teamID, responseURL, channelID, "", triggerID, b.host.scriptPath)
 	_ = b.store.AddInteraction(SlackInteraction{Kind: "slash_command", TeamID: teamID, ChannelID: channelID, UserID: userID, TriggerID: triggerID, ResponseURL: responseURL, RawPayload: string(raw)})
 	req := b.slackBaseRequest(teamID, channelID, userID)
 	req.Name = commandName
@@ -385,7 +385,7 @@ func (b *SlackBackend) dispatchBlockAction(ctx context.Context, payload map[stri
 	if content == "" {
 		content = slackTextFromBlocks(message)
 	}
-	responder := newSlackResponder(b.client, b.store, responseURL, channelID, messageTS, triggerID, b.host.scriptPath)
+	responder := newSlackResponder(b.client, b.store, teamID, responseURL, channelID, messageTS, triggerID, b.host.scriptPath)
 	_ = b.store.AddInteraction(SlackInteraction{Kind: "block_actions", TeamID: teamID, ChannelID: channelID, UserID: userID, CallbackID: actionID, ActionID: actionID, TriggerID: triggerID, ResponseURL: responseURL, MessageTS: messageTS, RawPayload: string(raw)})
 	req := b.slackBaseRequest(teamID, channelID, userID)
 	req.Name = actionID
@@ -417,7 +417,7 @@ func (b *SlackBackend) dispatchViewSubmission(ctx context.Context, payload map[s
 	responseURL := fmt.Sprint(metadata["response_url"])
 	values := modalValuesFromSlack(view)
 	stored, _ := b.store.GetMessage(teamID, channelID, messageTS)
-	responder := newSlackResponder(b.client, b.store, responseURL, channelID, messageTS, triggerID, b.host.scriptPath)
+	responder := newSlackResponder(b.client, b.store, teamID, responseURL, channelID, messageTS, triggerID, b.host.scriptPath)
 	_ = b.store.AddInteraction(SlackInteraction{Kind: "view_submission", TeamID: teamID, ChannelID: channelID, UserID: userID, CallbackID: callbackID, TriggerID: triggerID, ResponseURL: responseURL, MessageTS: messageTS, RawPayload: string(raw)})
 	req := b.slackBaseRequest(teamID, channelID, userID)
 	req.Name = callbackID
@@ -452,7 +452,7 @@ func (b *SlackBackend) dispatchEventPayload(ctx context.Context, payload map[str
 	req.Command = map[string]any{"event": typeName}
 	req.Interaction = InteractionSnapshot{ID: fmt.Sprint(event["event_ts"]), Type: "event", GuildID: teamID, ChannelID: channelID}
 	req.Message = &MessageSnapshot{ID: slackMessageID(teamID, channelID, fmt.Sprint(event["ts"])), Content: fmt.Sprint(event["text"]), GuildID: teamID, ChannelID: channelID}
-	responder := newSlackResponder(b.client, b.store, "", channelID, "", "", b.host.scriptPath)
+	responder := newSlackResponder(b.client, b.store, teamID, "", channelID, "", "", b.host.scriptPath)
 	req = withSlackResponder(req, responder)
 	result, err := b.host.handle.DispatchEvent(ctx, req)
 	if err != nil {
@@ -488,6 +488,7 @@ func withSlackResponder(req DispatchRequest, r *slackResponder) DispatchRequest 
 // SlackClient wraps the Slack Web API and response_url calls.
 type SlackClient struct {
 	BotToken   string
+	APIBaseURL string
 	HTTPClient *http.Client
 }
 
@@ -534,7 +535,11 @@ func (c *SlackClient) api(ctx context.Context, method string, payload map[string
 		return nil, fmt.Errorf("slack bot token is required for %s", method)
 	}
 	body, _ := json.Marshal(payload)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://slack.com/api/"+method, bytes.NewReader(body))
+	baseURL := strings.TrimRight(c.APIBaseURL, "/")
+	if baseURL == "" {
+		baseURL = "https://slack.com/api"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/"+method, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -678,8 +683,8 @@ type slackResponder struct {
 	teamID      string
 }
 
-func newSlackResponder(client *SlackClient, store *SlackStore, responseURL, channelID, messageTS, triggerID, scriptPath string) *slackResponder {
-	return &slackResponder{client: client, store: store, responseURL: responseURL, channelID: channelID, messageTS: messageTS, triggerID: triggerID, scriptPath: scriptPath}
+func newSlackResponder(client *SlackClient, store *SlackStore, teamID, responseURL, channelID, messageTS, triggerID, scriptPath string) *slackResponder {
+	return &slackResponder{client: client, store: store, teamID: teamID, responseURL: responseURL, channelID: channelID, messageTS: messageTS, triggerID: triggerID, scriptPath: scriptPath}
 }
 
 func (r *slackResponder) Acknowledged() bool {
@@ -722,6 +727,10 @@ func (r *slackResponder) Reply(ctx context.Context, payload any) error {
 	if r.messageTS != "" && !boolMap(message, "replace_original") {
 		message["ts"] = r.messageTS
 		resp, err = r.client.UpdateMessage(ctx, message)
+	} else if r.channelID != "" && fmt.Sprint(message["response_type"]) != "ephemeral" {
+		// Prefer chat.postMessage for public command responses so Slack returns
+		// channel+ts and later ctx.edit calls can update the same message.
+		resp, err = r.client.PostMessage(ctx, message)
 	} else if r.responseURL != "" {
 		if r.messageTS != "" {
 			message["replace_original"] = true
@@ -799,6 +808,8 @@ func (r *slackResponder) recordMessage(message map[string]any, resp map[string]a
 	if channel == "" || ts == "" {
 		return
 	}
+	r.channelID = channel
+	r.messageTS = ts
 	_ = r.store.UpsertMessage(SlackMessage{TeamID: r.teamID, ChannelID: channel, TS: ts, Content: fmt.Sprint(message["text"])}, resp)
 }
 

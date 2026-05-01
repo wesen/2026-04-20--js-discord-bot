@@ -4,6 +4,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -70,6 +73,42 @@ func TestSlackMessagePayloadMapsButtonsAndInlineFiles(t *testing.T) {
 	elements := blocks[1]["elements"].([]map[string]any)
 	if elements[0]["action_id"] != "adv:choice:0" || elements[1]["style"] != "danger" {
 		t.Fatalf("unexpected buttons: %#v", elements)
+	}
+}
+
+func TestSlackResponderPublicCommandReplyCreatesEditableMessage(t *testing.T) {
+	calls := []string{}
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.URL.Path)
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if r.URL.Path == "/chat.update" && payload["ts"] != "100.1" {
+			t.Fatalf("expected update ts, got %#v", payload)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"channel":"C1","ts":"100.1"}`))
+	}))
+	defer api.Close()
+	store, err := OpenSlackStore(t.TempDir() + "/slack.sqlite")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer store.Close()
+	client := &SlackClient{BotToken: "xoxb-test", APIBaseURL: api.URL, HTTPClient: api.Client()}
+	responder := newSlackResponder(client, store, "T1", "https://response.example", "C1", "", "trigger", "script.js")
+	if err := responder.Reply(t.Context(), map[string]any{"content": "first"}); err != nil {
+		t.Fatalf("reply: %v", err)
+	}
+	if responder.messageTS != "100.1" {
+		t.Fatalf("expected responder to remember ts, got %q", responder.messageTS)
+	}
+	if err := responder.Edit(t.Context(), map[string]any{"content": "second"}); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	if strings.Join(calls, ",") != "/chat.postMessage,/chat.update" {
+		t.Fatalf("unexpected calls: %#v", calls)
 	}
 }
 
