@@ -66,3 +66,14 @@ Made adventure sessions channel-scoped collaborative: any channel member can adv
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Loading message includes previous scene
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/adventure_runtime_test.go — Collaborative multiplayer runtime coverage
 
+
+## 2026-05-01
+
+Added Goja callback streaming for OpenRouter: adventure_llm.streamJson reads SSE chunks and invokes a JS callback; adventure JS throttles chunk previews into Discord loading-message edits while preserving final JSON parsing (commit 8f88f70).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Progress editor sends streamed draft previews to Discord
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/llm.js — Uses streamJson when an onChunk callback is provided
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — OpenRouter SSE streaming and JS callback bridge
+
