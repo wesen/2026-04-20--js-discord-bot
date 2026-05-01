@@ -189,10 +189,23 @@ func syncScopeLabel(guildID string) string {
 }
 
 func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
+	guildIDs, guildNames := readyGuildSummaries(ready)
+	configuredGuildID := strings.TrimSpace(b.cfg.GuildID)
+	configuredGuildName := readyGuildName(ready, configuredGuildID)
+	if configuredGuildID != "" && configuredGuildName == "" && session != nil {
+		if guild, err := session.Guild(configuredGuildID); err == nil && guild != nil {
+			configuredGuildName = strings.TrimSpace(guild.Name)
+		}
+	}
+
 	log.Info().
 		Str("user", ready.User.Username).
 		Str("user_id", ready.User.ID).
 		Str("bot_script", strings.TrimSpace(b.cfg.BotScript)).
+		Str("configured_guild_id", configuredGuildID).
+		Str("configured_guild_name", configuredGuildName).
+		Strs("ready_guild_ids", guildIDs).
+		Strs("ready_guild_names", guildNames).
 		Msg("discord bot connected")
 
 	if b.jsHost != nil {
@@ -200,6 +213,39 @@ func (b *Bot) handleReady(session *discordgo.Session, ready *discordgo.Ready) {
 			log.Error().Err(err).Msg("failed to dispatch ready event to javascript bot")
 		}
 	}
+}
+
+func readyGuildSummaries(ready *discordgo.Ready) ([]string, []string) {
+	if ready == nil || len(ready.Guilds) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, 0, len(ready.Guilds))
+	names := make([]string, 0, len(ready.Guilds))
+	for _, guild := range ready.Guilds {
+		if guild == nil {
+			continue
+		}
+		if strings.TrimSpace(guild.ID) != "" {
+			ids = append(ids, strings.TrimSpace(guild.ID))
+		}
+		if strings.TrimSpace(guild.Name) != "" {
+			names = append(names, strings.TrimSpace(guild.Name))
+		}
+	}
+	return ids, names
+}
+
+func readyGuildName(ready *discordgo.Ready, guildID string) string {
+	guildID = strings.TrimSpace(guildID)
+	if ready == nil || guildID == "" {
+		return ""
+	}
+	for _, guild := range ready.Guilds {
+		if guild != nil && guild.ID == guildID {
+			return strings.TrimSpace(guild.Name)
+		}
+	}
+	return ""
 }
 
 func (b *Bot) handleGuildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {
