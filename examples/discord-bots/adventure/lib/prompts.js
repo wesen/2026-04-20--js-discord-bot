@@ -4,7 +4,8 @@ function sceneSystemPrompt() {
     "Return only valid JSON. Do not wrap it in Markdown unless unavoidable.",
     "The engine owns canonical state. You may propose effects, but do not claim they are applied.",
     "Keep scenes concise and Discord-friendly.",
-    "Return 2 to 4 concrete choices.",
+    "Return 2 to 4 concrete choices unless the story has reached a logical ending.",
+    "When the story should end, set scene_patch.ending.is_final=true and include a concise ending summary.",
     "Use small ASCII art, at most 12 lines, at most 80 columns.",
   ].join("\n")
 }
@@ -29,6 +30,7 @@ function sceneUserPrompt({ seed, session, currentScene, input, recentHistory }) 
             },
           ],
         },
+        ending: { is_final: false, summary: "Only set when the adventure reaches a logical ending." },
         engine_notes: { mood: "", continuity: "" },
       },
     },

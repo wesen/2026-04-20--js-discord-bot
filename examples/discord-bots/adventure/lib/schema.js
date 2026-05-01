@@ -67,9 +67,15 @@ function validateScenePatch(value, seed) {
   const asciiArt = trimAscii(trimText(scene && scene.ascii_art), Number(constraints.maxAsciiLines || 12))
   const rawChoices = Array.isArray(scene && scene.choices) ? scene.choices : []
   const choices = rawChoices.map(normalizeChoice).filter((choice) => choice.label)
+  const endingRaw = patch && patch.ending && typeof patch.ending === "object" ? patch.ending : {}
+  const ending = {
+    isFinal: Boolean(endingRaw.is_final || endingRaw.isFinal),
+    summary: trimText(endingRaw.summary).slice(0, 1200),
+  }
   if (!title) errors.push("Scene title is required")
   if (!narration) errors.push("Scene narration is required")
-  if (choices.length < minChoices) errors.push(`At least ${minChoices} choices are required`)
+  if (!ending.isFinal && choices.length < minChoices) errors.push(`At least ${minChoices} choices are required`)
+  if (ending.isFinal && !ending.summary) ending.summary = narration
   if (choices.length > maxChoices) choices.length = maxChoices
   return {
     ok: errors.length === 0,
@@ -81,6 +87,7 @@ function validateScenePatch(value, seed) {
       narration,
       choices,
       engineNotes: patch && typeof patch.engine_notes === "object" && patch.engine_notes ? patch.engine_notes : {},
+      ending,
       rawPatch: value || {},
     },
   }

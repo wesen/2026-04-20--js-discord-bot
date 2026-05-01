@@ -61,6 +61,7 @@ async function startAdventure(ctx) {
   store.resetActive(userId(ctx), channelId(ctx))
   const session = store.createSession({ seed, ownerUserId: userId(ctx), guildId: guildId(ctx), channelId: channelId(ctx), mode })
   console.log("[adventure] session created", JSON.stringify({ sessionId: session.id, seedId: seed.id, turn: session.turn }))
+  await ctx.edit(render.loadingMessage(session, "Opening the gate..."))
   const generated = engine.generateScene({
     store,
     seed,
@@ -74,7 +75,7 @@ async function startAdventure(ctx) {
     return
   }
   console.log("[adventure] opening scene generated", JSON.stringify({ sessionId: session.id, sceneId: generated.scene && generated.scene.id }))
-  await ctx.edit(render.sceneMessage(session, generated.scene))
+  await ctx.edit(render.sceneMessage(generated.session || session, generated.scene, { exported: generated.exported }))
 }
 
 async function choose(ctx, index) {
@@ -85,6 +86,7 @@ async function choose(ctx, index) {
     return render.errorMessage(loaded.error)
   }
   await ctx.defer({ ephemeral: false })
+  await ctx.edit(render.loadingMessage(loaded.session, "Resolving your choice..."))
   const applied = engine.applyChoice(store, loaded.session, loaded.scene, index)
   if (!applied.ok) {
     await ctx.edit(render.errorMessage(applied.error))
@@ -101,7 +103,7 @@ async function choose(ctx, index) {
     await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
     return
   }
-  await ctx.edit(render.sceneMessage(applied.session, generated.scene))
+  await ctx.edit(render.sceneMessage(generated.session || applied.session, generated.scene, { exported: generated.exported }))
 }
 
 module.exports = defineBot(({ command, component, modal, event, configure }) => {
@@ -185,6 +187,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     const loaded = requireOwnedSession(ctx)
     if (!loaded.ok) return render.errorMessage(loaded.error)
     await ctx.defer({ ephemeral: false })
+    await ctx.edit(render.loadingMessage(loaded.session, "Trying something else..."))
     const text = String((ctx.values || {}).action || "").trim()
     if (!text) {
       await ctx.edit(render.errorMessage("Free-form action cannot be empty."))
@@ -206,6 +209,6 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
       return
     }
-    await ctx.edit(render.sceneMessage(interpreted.session, generated.scene))
+    await ctx.edit(render.sceneMessage(generated.session || interpreted.session, generated.scene, { exported: generated.exported }))
   })
 })

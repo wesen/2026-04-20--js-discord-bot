@@ -205,6 +205,8 @@ function createStore() {
       proposedEffects: safeJsonParse(choice.proposed_effects_json, {}),
       nextHint: choice.next_hint,
     }))
+    const rawPatch = safeJsonParse(row.raw_patch_json, {})
+    const endingRaw = rawPatch && rawPatch.scene_patch && rawPatch.scene_patch.ending ? rawPatch.scene_patch.ending : {}
     return {
       id: row.id,
       sessionId: row.session_id,
@@ -213,7 +215,8 @@ function createStore() {
       asciiArt: row.ascii_art,
       narration: row.narration,
       engineNotes: safeJsonParse(row.engine_notes_json, {}),
-      rawPatch: safeJsonParse(row.raw_patch_json, {}),
+      ending: { isFinal: Boolean(endingRaw.is_final || endingRaw.isFinal), summary: endingRaw.summary || "" },
+      rawPatch,
       choices,
     }
   }
@@ -248,11 +251,40 @@ function createStore() {
       createId("audit"), sessionId || "", Number(turn || 0), kind || "event", jsonString(input || {}), jsonString(llmRequest || {}), llmResponseText || "", jsonString(parsed || {}), jsonString(validation || {}), jsonString(appliedEffects || {}), nowISO())
   }
 
+  function finishSession(session) {
+    database.exec(`UPDATE adventure_sessions SET status = 'completed', updated_at = ? WHERE id = ?`, nowISO(), session.id)
+    return getSession(session.id)
+  }
+
+  function exportSession(session) {
+    const scenes = many(`SELECT * FROM adventure_scenes WHERE session_id = ? ORDER BY turn ASC`, [session.id]).map((scene) => ({
+      id: scene.id,
+      turn: Number(scene.turn || 0),
+      title: scene.title,
+      asciiArt: scene.ascii_art,
+      narration: scene.narration,
+      rawPatch: safeJsonParse(scene.raw_patch_json, {}),
+      choices: many(`SELECT choice_id, label, proposed_effects_json FROM adventure_choices WHERE scene_id = ? ORDER BY sort_order ASC`, [scene.id]).map((choice) => ({
+        id: choice.choice_id,
+        label: choice.label,
+        proposedEffects: safeJsonParse(choice.proposed_effects_json, {}),
+      })),
+    }))
+    const audit = many(`SELECT turn, kind, input_json, applied_effects_json, created_at FROM adventure_audit WHERE session_id = ? ORDER BY created_at ASC`, [session.id]).map((row) => ({
+      turn: Number(row.turn || 0),
+      kind: row.kind,
+      input: safeJsonParse(row.input_json, {}),
+      appliedEffects: safeJsonParse(row.applied_effects_json, {}),
+      createdAt: row.created_at,
+    }))
+    return { session, scenes, audit }
+  }
+
   function resetActive(ownerUserId, channelId) {
     database.exec(`UPDATE adventure_sessions SET status = 'abandoned', updated_at = ? WHERE owner_user_id = ? AND channel_id = ? AND status = 'active'`, nowISO(), ownerUserId || "", channelId || "")
   }
 
-  return { ensure, getSeed, createSession, getSession, findActiveSession, findActiveSessionInChannel, saveScene, getScene, getCurrentScene, advanceSession, addAudit, resetActive }
+  return { ensure, getSeed, createSession, getSession, findActiveSession, findActiveSessionInChannel, saveScene, getScene, getCurrentScene, advanceSession, addAudit, finishSession, exportSession, resetActive }
 }
 
 module.exports = { createStore }

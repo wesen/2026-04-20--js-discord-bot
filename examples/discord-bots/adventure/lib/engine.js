@@ -55,7 +55,9 @@ function generateScene({ store, seed, session, currentScene, input }) {
     validation.scene.id = `${session.id}_turn_${session.turn}`
   }
   const scene = store.saveScene(session, validation.scene)
-  return { ok: true, scene }
+  const finalSession = scene.ending && scene.ending.isFinal ? store.finishSession(session) : session
+  const exported = scene.ending && scene.ending.isFinal ? store.exportSession(finalSession) : null
+  return { ok: true, scene, session: finalSession, exported }
 }
 
 function applyChoice(store, session, scene, choiceIndex) {

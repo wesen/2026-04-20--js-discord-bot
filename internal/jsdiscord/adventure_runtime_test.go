@@ -92,8 +92,9 @@ func TestAdventureRejectsOtherPlayerWithoutBreakingOwnerSession(t *testing.T) {
 		},
 	}))
 	require.NoError(t, err)
-	require.Len(t, startEdits, 1)
-	require.Contains(t, fmt.Sprint(startEdits[0]), "Mock Scene 0")
+	require.Len(t, startEdits, 2)
+	require.Contains(t, fmt.Sprint(startEdits[0]), "Opening the gate")
+	require.Contains(t, fmt.Sprint(startEdits[1]), "Mock Scene 0")
 
 	otherResult, err := handle.DispatchComponent(ctx, mergeDispatch(base, DispatchRequest{
 		Name:    "adv:choice:0",
@@ -118,8 +119,9 @@ func TestAdventureRejectsOtherPlayerWithoutBreakingOwnerSession(t *testing.T) {
 		},
 	}))
 	require.NoError(t, err)
-	require.Len(t, ownerEdits, 1)
-	ownerEdit := fmt.Sprint(ownerEdits[0])
+	require.Len(t, ownerEdits, 2)
+	require.Contains(t, fmt.Sprint(ownerEdits[0]), "Resolving your choice")
+	ownerEdit := fmt.Sprint(ownerEdits[1])
 	require.Contains(t, ownerEdit, "Mock Scene 1")
 	require.Contains(t, ownerEdit, "Turn 1")
 
