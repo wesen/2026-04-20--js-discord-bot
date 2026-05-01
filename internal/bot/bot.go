@@ -31,7 +31,7 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 		return nil, fmt.Errorf("create discord session: %w", err)
 	}
 
-	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMessageReactions | discordgo.IntentsMessageContent
+	session.Identify.Intents = discordgo.IntentsGuilds
 
 	script = strings.TrimSpace(script)
 	if script == "" {
@@ -45,6 +45,8 @@ func NewWithScript(cfg appconfig.Settings, script string, runtimeConfig map[stri
 	jsHost := loaded.Host
 	jsHost.SetRuntimeConfig(runtimeConfig)
 	if loaded.Descriptor != nil {
+		session.Identify.Intents = intentsForDescriptor(loaded.Descriptor)
+
 		log.Info().
 			Str("bot", loaded.Descriptor.Name).
 			Str("script", loaded.Descriptor.ScriptPath).
@@ -156,6 +158,26 @@ func eventNames(events []jsdiscord.EventDescriptor) []string {
 		ret = append(ret, event.Name)
 	}
 	return ret
+}
+
+func intentsForDescriptor(desc *jsdiscord.BotDescriptor) discordgo.Intent {
+	intents := discordgo.IntentsGuilds
+	if desc == nil {
+		return intents
+	}
+	for _, event := range desc.Events {
+		switch strings.TrimSpace(event.Name) {
+		case "guildMemberAdd", "guildMemberUpdate", "guildMemberRemove":
+			intents |= discordgo.IntentsGuildMembers
+		case "messageCreate", "messageUpdate":
+			intents |= discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
+		case "messageDelete":
+			intents |= discordgo.IntentsGuildMessages
+		case "reactionAdd", "reactionRemove":
+			intents |= discordgo.IntentsGuildMessages | discordgo.IntentsGuildMessageReactions
+		}
+	}
+	return intents
 }
 
 func syncScopeLabel(guildID string) string {
