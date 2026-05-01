@@ -36,7 +36,7 @@ Optional process-level overrides, still not visible to JS as runtime config:
 
 ## Commands
 
-- `/adventure-start`
+- `/adventure-start` — optionally pass `prompt` with a premise, character, goal, or starting context
 - `/adventure-resume`
 - `/adventure-state`
 - `/adventure-reset`

@@ -38,6 +38,7 @@ function sceneUserPrompt({ seed, session, currentScene, input, recentHistory }) 
     session,
     current_scene: currentScene || null,
     player_input: input,
+    user_starting_context: input && input.user_seed ? input.user_seed : "",
     recent_history: recentHistory || [],
   }, null, 2)
 }

@@ -85,6 +85,7 @@ async function startAdventure(ctx) {
   await ctx.defer({ ephemeral: false })
   const seedId = String((ctx.args && ctx.args.seed) || "haunted-gate").trim() || "haunted-gate"
   const mode = String((ctx.args && ctx.args.mode) || "party").trim() || "party"
+  const userSeed = String((ctx.args && (ctx.args.prompt || ctx.args.info || ctx.args.seed_info)) || "").trim().slice(0, 1000)
   const seed = store.getSeed(seedId)
   if (!seed) {
     await ctx.edit(render.errorMessage(`Unknown adventure seed: ${seedId}`))
@@ -99,7 +100,7 @@ async function startAdventure(ctx) {
     seed,
     session,
     currentScene: null,
-    input: { kind: "start", opening_prompt: seed.openingPrompt },
+    input: { kind: "start", opening_prompt: seed.openingPrompt, user_seed: userSeed },
     onChunk: makeProgressEditor(ctx, session, "Opening the gate...", { actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }),
   })
   if (!generated.ok) {
@@ -174,6 +175,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     options: {
       seed: { type: "string", description: "Adventure seed ID", required: false },
       mode: { type: "string", description: "Play mode: party", required: false },
+      prompt: { type: "string", description: "Optional premise, character, goal, or starting context", required: false },
     },
   }, startAdventure)
 
