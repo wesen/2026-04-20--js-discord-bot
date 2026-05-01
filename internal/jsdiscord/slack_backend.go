@@ -131,13 +131,16 @@ func SlackManifest(desc *BotDescriptor, baseURL string) map[string]any {
 		if strings.TrimSpace(command.Name) == "" || command.Type == "user" || command.Type == "message" {
 			continue
 		}
-		commands = append(commands, map[string]any{
+		entry := map[string]any{
 			"command":       "/" + strings.TrimPrefix(command.Name, "/"),
 			"url":           base + "/slack/commands",
 			"description":   firstNonEmpty(command.Description, desc.Description, "Bot command"),
-			"usage_hint":    slackUsageHint(command),
 			"should_escape": false,
-		})
+		}
+		if usageHint := slackUsageHint(command); usageHint != "" {
+			entry["usage_hint"] = usageHint
+		}
+		commands = append(commands, entry)
 	}
 	sort.Slice(commands, func(i, j int) bool { return fmt.Sprint(commands[i]["command"]) < fmt.Sprint(commands[j]["command"]) })
 	name := firstNonEmpty(desc.Name, "discord-bot")
