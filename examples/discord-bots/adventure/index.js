@@ -38,7 +38,11 @@ function makeProgressEditor(ctx, session, title, details) {
     if (edits >= 8 || text.length - lastLength < 160) return
     lastLength = text.length
     edits += 1
-    ctx.edit(render.loadingMessage(session, title, Object.assign({}, details || {}, { streamText: text })))
+    const nextDetails = Object.assign({}, details || {}, { streamText: text })
+    const message = nextDetails.scene
+      ? render.pendingActionMessage(session, nextDetails.scene, nextDetails)
+      : render.loadingMessage(session, title, nextDetails)
+    ctx.edit(message)
   }
 }
 
@@ -101,7 +105,7 @@ async function choose(ctx, index) {
   }
   await ctx.defer({ ephemeral: false })
   const pendingChoice = loaded.scene && loaded.scene.choices ? loaded.scene.choices[index] : null
-  await ctx.edit(render.loadingMessage(loaded.session, "Resolving your choice...", { scene: loaded.scene, action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
+  await ctx.edit(render.pendingActionMessage(loaded.session, loaded.scene, { action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
   const applied = engine.applyChoice(store, loaded.session, loaded.scene, index)
   if (!applied.ok) {
     await ctx.edit(render.errorMessage(applied.error))
@@ -204,7 +208,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     if (!loaded.ok) return render.errorMessage(loaded.error)
     await ctx.defer({ ephemeral: false })
     const text = String((ctx.values || {}).action || "").trim()
-    await ctx.edit(render.loadingMessage(loaded.session, "Trying something else...", { scene: loaded.scene, action: text || "free-form action", actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
+    await ctx.edit(render.pendingActionMessage(loaded.session, loaded.scene, { action: text || "free-form action", actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
     if (!text) {
       await ctx.edit(render.errorMessage("Free-form action cannot be empty."))
       return

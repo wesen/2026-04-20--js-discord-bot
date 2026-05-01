@@ -88,11 +88,6 @@ function streamingScenePreview(jsonText) {
 }
 
 function loadingMessage(session, text, details) {
-  const scene = details && details.scene
-  const previous = scene ? [
-    `Previous scene: ${scene.title || scene.id || "Unknown"}`,
-    scene.narration ? `Previously: ${String(scene.narration).slice(0, 500)}` : "",
-  ].filter(Boolean) : []
   const action = details && details.action ? `Action: ${details.action}` : ""
   const actor = details && details.actor ? `By: ${details.actor}` : ""
   const streamText = details && details.streamText ? streamingScenePreview(details.streamText) : ""
@@ -102,7 +97,6 @@ function loadingMessage(session, text, details) {
       `╔═ ${text || "The story shifts..."}`,
       `Turn ${session ? session.turn : "?"}`,
       "",
-      ...previous,
       action,
       actor,
       "",
@@ -111,6 +105,22 @@ function loadingMessage(session, text, details) {
       "```",
     ].filter((line) => line !== "").join("\n").slice(0, 1900))
     .build()
+}
+
+function pendingActionMessage(session, scene, details) {
+  const action = details && details.action ? String(details.action) : "Something else"
+  const actor = details && details.actor ? String(details.actor) : "Someone"
+  const streamText = details && details.streamText ? streamingScenePreview(details.streamText) : ""
+  const content = [
+    sceneContent(session, scene),
+    "",
+    `**Action chosen:** ${action}`,
+    `**By:** ${actor}`,
+    "",
+    "_Writing the next scene..._",
+    streamText ? "```\n" + streamText.trim() + "\n```" : "",
+  ].filter(Boolean).join("\n").slice(0, 2000)
+  return ui.message().content(content).build()
 }
 
 function errorMessage(message) {
@@ -124,4 +134,4 @@ function stateMessage(session, scene) {
     .build()
 }
 
-module.exports = { sceneMessage, loadingMessage, errorMessage, stateMessage }
+module.exports = { sceneMessage, loadingMessage, pendingActionMessage, errorMessage, stateMessage }

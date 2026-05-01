@@ -110,7 +110,6 @@ func TestAdventureAllowsOtherPlayerToAdvanceChannelSession(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, otherEdits, 2)
 	loading := fmt.Sprint(otherEdits[0])
-	require.Contains(t, loading, "Resolving your choice")
 	require.Contains(t, loading, "Mock Scene 0")
 	require.Contains(t, loading, "Continue")
 	require.Contains(t, loading, "Player Two")
