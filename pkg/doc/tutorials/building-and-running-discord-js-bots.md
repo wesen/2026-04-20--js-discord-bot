@@ -188,54 +188,47 @@ autocomplete("search", "query", async (ctx) => {
 
 That gives the user suggestions while typing, then a deferred result after submission.
 
-## 5. Add buttons and select menus
+## 5. Add buttons and select menus with the UI DSL
 
-Buttons and select menus use the `component(...)` registration helper.
+Prefer the `require("ui")` builder DSL for Discord UI payloads. It is easier to read than raw component JSON, and the Go host validates the final message, embed, row, button, select, and modal shapes before Discord sees them. For the longer dedicated walkthrough, run `discord-bot help go-side-ui-dsl-for-discord-bots`.
 
 ```js
+const ui = require("ui")
+
 command("ping", {
   description: "Reply with a rich message",
 }, async () => {
-  return {
-    content: "pong",
-    components: [
-      {
-        type: "actionRow",
-        components: [
-          {
-            type: "button",
-            style: "primary",
-            label: "Open panel",
-            customId: "ping:panel",
-          },
-          {
-            type: "select",
-            customId: "ping:topic",
-            placeholder: "Choose a topic",
-            options: [
-              { label: "Architecture", value: "architecture" },
-              { label: "Testing", value: "testing" },
-            ],
-          },
-        ],
-      },
-    ],
-  }
+  return ui.message()
+    .content("pong")
+    .ephemeral()
+    .embed(
+      ui.embed("Ping panel")
+        .description("This response was built with the UI DSL.")
+        .field("Why use it?", "Less raw JSON, better validation", false)
+    )
+    .row(
+      ui.button("ping:panel", "Open panel", "primary"),
+      ui.select("ping:topic")
+        .placeholder("Choose a topic")
+        .option("Architecture", "architecture")
+        .option("Testing", "testing")
+    )
+    .build()
 })
 
 component("ping:panel", async () => {
-  return {
-    content: "Panel button clicked from JavaScript",
-    ephemeral: true,
-  }
+  return ui.message()
+    .ephemeral()
+    .content("Panel button clicked from JavaScript")
+    .build()
 })
 
 component("ping:topic", async (ctx) => {
   const selected = Array.isArray(ctx.values) && ctx.values.length > 0 ? ctx.values[0] : "(none)"
-  return {
-    content: `Selected topic: ${selected}`,
-    ephemeral: true,
-  }
+  return ui.message()
+    .ephemeral()
+    .content(`Selected topic: ${selected}`)
+    .build()
 })
 ```
 
@@ -246,62 +239,48 @@ Use them when you want a message to stay interactive after the initial slash com
 A good mental model is:
 
 - slash command starts the workflow
-- command response renders the UI
-- component handlers respond to clicks or selections
+- command response renders the UI with `ui.message()`, `ui.embed()`, buttons, and selects
+- component handlers respond to clicks or selections, usually updating the existing interaction message
 
-## 6. Add a modal workflow
+### Raw component payloads are still possible
 
-Modals are great when you need more than a single slash-command field.
+You can return raw Discord-shaped objects when debugging or when you need an escape hatch, but new bot code should use the UI DSL first. Raw payloads make it easier to miss action rows, typo component fields, or accidentally build shapes Discord rejects.
+
+## 6. Add a modal workflow with `ui.form()`
+
+Modals are great when you need more than a single slash-command field. Use `ui.form()` instead of hand-building action rows and text inputs.
 
 ```js
+const ui = require("ui")
+
 command("feedback", {
   description: "Open a feedback modal",
 }, async (ctx) => {
-  await ctx.showModal({
-    customId: "feedback:submit",
-    title: "Feedback",
-    components: [
-      {
-        type: "actionRow",
-        components: [
-          {
-            type: "textInput",
-            customId: "summary",
-            label: "Summary",
-            style: "short",
-            required: true,
-            minLength: 5,
-            maxLength: 100,
-          },
-        ],
-      },
-      {
-        type: "actionRow",
-        components: [
-          {
-            type: "textInput",
-            customId: "details",
-            label: "Details",
-            style: "paragraph",
-            maxLength: 500,
-          },
-        ],
-      },
-    ],
-  })
+  await ctx.showModal(
+    ui.form("feedback:submit", "Feedback")
+      .text("summary", "Summary")
+      .required()
+      .min(5)
+      .max(100)
+      .textarea("details", "Details")
+      .max(500)
+      .build()
+  )
 })
 
 modal("feedback:submit", async (ctx) => {
-  return {
-    content: `Thanks for the feedback: ${ctx.values.summary}\nDetails: ${ctx.values.details || "(none)"}`,
-    ephemeral: true,
-  }
+  return ui.message()
+    .ephemeral()
+    .content(`Thanks for the feedback: ${ctx.values.summary}\nDetails: ${ctx.values.details || "(none)"}`)
+    .build()
 })
 ```
 
 ### When to use a modal
 
 Use a modal when you want a structured form with multiple text inputs. It is much better than stuffing long text into a single slash-command option.
+
+The `customId` values you pass to `.text(customId, label)` and `.textarea(customId, label)` become keys in `ctx.values`, so keep them short and stable.
 
 ## 7. Add runtime config when the bot needs operator input
 
