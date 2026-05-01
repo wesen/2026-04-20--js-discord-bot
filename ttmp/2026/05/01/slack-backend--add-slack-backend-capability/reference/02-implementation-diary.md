@@ -159,3 +159,83 @@ Environment fallbacks:
 SLACK_BOT_TOKEN
 SLACK_SIGNING_SECRET
 ```
+
+## Step 2: Preserve Slack Message Identity for Edits
+
+This step tightened the response path for slash commands and subsequent edits. The first prototype could dispatch handlers, but public slash-command replies used `response_url`, which does not give the adapter a reliable `channel + ts` for later `ctx.edit` calls.
+
+The fix makes public command replies prefer `chat.postMessage`, records the returned `channel + ts` in both the responder and SQLite, and then routes later edits through `chat.update`. This better matches the existing Discord interaction flow where a deferred command can stream/edit a single visible message.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok lets implement it. Keep a diary and commit as you go."
+
+**Assistant interpretation:** Continue implementing the Slack backend and record important follow-up fixes as separate committed diary steps.
+
+**Inferred user intent:** The user wants a working Slack backend, not just a nominal prototype, with enough implementation detail to review and continue safely.
+
+**Commit (code):** 0bb89317ae6db6265ee098b9a5410c4d19d116e5 — "Track Slack messages for edits"
+
+### What I did
+
+- Changed `slackResponder.Reply` so public replies with a channel prefer `chat.postMessage` over `response_url`.
+- Made `slackResponder.recordMessage` update the responder's remembered `channelID` and `messageTS` after Slack returns them.
+- Added `teamID` to `newSlackResponder` so stored Slack messages can be retrieved with the same team/channel/ts keys used by incoming interactions.
+- Added `SlackClient.APIBaseURL` to make Web API routing testable with `httptest.Server`.
+- Added `TestSlackResponderPublicCommandReplyCreatesEditableMessage`, verifying first reply calls `/chat.postMessage` and later edit calls `/chat.update` with the remembered timestamp.
+
+### Why
+
+- Slack `response_url` is convenient for immediate command responses, but it does not behave like Discord's editable original interaction response for our purposes.
+- The adventure bot and streaming flows rely heavily on repeated `ctx.edit`; Slack needs a durable message timestamp to support that.
+
+### What worked
+
+- `go test ./internal/jsdiscord -run TestSlack -count=1` passed.
+- `go test ./... -count=1` passed.
+- The fake Slack API test confirmed the desired call sequence: `/chat.postMessage,/chat.update`.
+
+### What didn't work
+
+- No command failures in this step. This was a design correction discovered by reviewing the first prototype's response routing rather than by a failing test.
+
+### What I learned
+
+- For transport parity, Slack public command responses should be treated more like explicit posted bot messages than opaque webhook responses.
+- Storing team ID on outbound message records is necessary because incoming interaction lookup is keyed by Slack team/channel/timestamp.
+
+### What was tricky to build
+
+- Ephemeral messages still need `response_url`, because `chat.postMessage` would make them public. The responder therefore routes public channel messages differently from ephemeral messages.
+- The responder mutates its own remembered message identity after the first successful post; this makes subsequent `ctx.edit` calls in the same JS handler update the created message.
+
+### What warrants a second pair of eyes
+
+- Confirm live Slack accepts `chat.postMessage` immediately after an already-ACKed slash command for all target channel types where the bot is installed.
+- Confirm whether command responses should optionally use `response_url` for public messages when no bot token is present, or whether missing bot token should remain a hard failure.
+
+### What should be done in the future
+
+- Add an end-to-end fake HTTP Slack interaction test that starts `SlackBackend` and signs requests.
+- Add a live setup playbook documenting bot channel membership requirements and `chat:write` limitations.
+
+### Code review instructions
+
+- Review `slackResponder.Reply`, `slackResponder.Edit`, and `slackResponder.recordMessage` in `internal/jsdiscord/slack_backend.go`.
+- Review `TestSlackResponderPublicCommandReplyCreatesEditableMessage` in `internal/jsdiscord/slack_backend_test.go`.
+- Validate with:
+
+```bash
+go test ./internal/jsdiscord -run TestSlack -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+Expected public slash-command response flow after this step:
+
+1. HTTP handler ACKs Slack immediately.
+2. JS handler calls `ctx.defer()`; Slack responder records acknowledgement intent only.
+3. First `ctx.edit(...)` has no `messageTS`, so responder calls `chat.postMessage`.
+4. Slack returns `channel + ts`; responder stores them in SQLite and in memory.
+5. Later `ctx.edit(...)` calls `chat.update(channel, ts)`.

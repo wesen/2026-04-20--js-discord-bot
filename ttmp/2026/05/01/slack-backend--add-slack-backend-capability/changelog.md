@@ -34,3 +34,14 @@ Step 1: Added Slack HTTP backend prototype, manifest generation, SQLite adapter 
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Slack backend implementation
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Implementation diary entry
 
+
+## 2026-05-01
+
+Step 2: Adjusted Slack responder so public command replies create tracked messages and later ctx.edit calls use chat.update (commit 0bb8931).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Updated Slack responder routing and message identity tracking
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Added fake Slack API response routing test
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 2
+
