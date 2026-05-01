@@ -66,6 +66,42 @@ discord-bot bots ping run \
 
 ---
 
+## Using discord-bot with an LLM agent
+
+To use discord-bot as the runtime for an AI agent or LLM-powered bot:
+
+1. Install: `brew install go-go-golems/tap/discord-bot` (or see [Install](#install))
+2. Point the LLM to this project and tell it to run:
+   ```bash
+   discord-bot help --all
+   ```
+   to get started.
+3. The LLM can then use the CLI to explore, configure, and run bot scripts. Example workflow for the LLM:
+   ```bash
+   # Discover available bots
+   discord-bot bots list --bot-repository ./examples/discord-bots
+   
+   # Inspect a bot's help
+   discord-bot bots help knowledge-base --bot-repository ./examples/discord-bots
+   
+   # Run a bot
+   discord-bot bots knowledge-base run --bot-repository ./examples/discord-bots \
+     --bot-token "$DISCORD_BOT_TOKEN" \
+     --application-id "$DISCORD_APPLICATION_ID"
+   ```
+
+4. For documentation, tell the LLM to run:
+   ```bash
+   discord-bot help build-and-run-discord-js-bots   # Starter guide
+   discord-bot help discord-js-bot-api-reference    # API reference
+   discord-bot help go-side-ui-dsl-for-discord-bots # UI DSL tutorial
+   ```
+
+5. For embedding in Go: see [Go API — embedding discord-bot in your application](#go-api--embedding-discord-bot-in-your-application)
+
+---
+
+
 ## Go API — embedding discord-bot in your application
 
 ### Simple single-bot embedding (`pkg/framework`)
@@ -185,18 +221,40 @@ Those fields appear as `--db-path` on `bots <name> run`.
 
 ---
 
+## Documentation
+
+Start with the built-in help:
+
+```bash
+discord-bot help build-and-run-discord-js-bots   # Step-by-step tutorial
+discord-bot help discord-js-bot-api-reference    # API reference
+discord-bot help --all                           # List all topics
+```
+
+
+| Topic | Description |
+|-------|-------------|
+| `build-and-run-discord-js-bots` | Full tutorial: create bots, add interactions, use runtime config, use the database module |
+| `discord-js-bot-api-reference` | Complete API reference: `defineBot`, `command`, `event`, `component`, `modal`, `autocomplete`, `ctx.config`, `ctx.discord.*`, `ctx.store`, and `require("database")` |
+| `go-side-ui-dsl-for-discord-bots` | Tutorial for the Go-backed `require("ui")` DSL for fluent message, embed, and component builders |
+
+---
+
+
 ## Example bots
 
 | Bot | Description |
 |-----|-------------|
 | `ping/` | API showcase: buttons, modals, autocomplete, deferred replies, outbound ops |
-| `knowledge-base/` | SQLite-backed knowledge steward with capture, search, review workflows |
+| `knowledge-base/` | SQLite-backed knowledge steward: capture, search, review — the canonical reference for `require("database")` and runtime config |
 | `support/` | Deferred/edit/follow-up flows and thread helpers |
 | `moderation/` | Event-heavy admin/moderation helper |
 | `poker/` | Stateful game logic example |
 | `interaction-types/` | Slash, subcommands, user commands, message commands |
 | `show-space/` | Show/space management with date parsing |
 | `unified-demo/` | Combined demo of all features |
+
+See `examples/discord-bots/` for the full set.
 
 ---
 
