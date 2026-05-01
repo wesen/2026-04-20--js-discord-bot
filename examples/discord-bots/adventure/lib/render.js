@@ -26,14 +26,14 @@ function sceneMessage(session, scene, options) {
   const builder = ui.message().content(sceneContent(session, scene))
   if (scene && scene.ending && scene.ending.isFinal) {
     const exported = options && options.exported ? options.exported : { session, scene }
-    builder.row(ui.button("adv:ended", "Adventure complete", "secondary").disabled())
-    return Object.assign(builder.build(), {
+    return {
+      content: sceneContent(session, scene),
       files: [{
         name: `adventure-${session.id}.json`,
         content: JSON.stringify(exported, null, 2),
         contentType: "application/json",
       }],
-    })
+    }
   }
   const choices = (scene.choices || []).slice(0, 4)
   if (choices.length > 0) {
