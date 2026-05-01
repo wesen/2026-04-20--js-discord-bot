@@ -14,7 +14,7 @@ function sceneContent(session, scene) {
   return [
     "```",
     `╔═ ${scene.title || "Adventure"}`,
-    `Turn ${session.turn}`,
+    `Turn ${scene && scene.turn !== undefined ? scene.turn : session.turn}`,
     "",
     body.slice(0, 1600),
     "",
