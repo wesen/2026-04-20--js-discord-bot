@@ -11,6 +11,15 @@ function sceneSystemPrompt() {
 }
 
 function sceneUserPrompt({ seed, session, currentScene, input, recentHistory }) {
+  const userTheme = (input && input.user_seed) || (session && session.flags && session.flags.user_theme) || ""
+  const seedForPrompt = userTheme
+    ? Object.assign({}, seed || {}, {
+        genre: userTheme,
+        tone: userTheme,
+        openingPrompt: userTheme,
+        original_seed_id: seed && seed.id,
+      })
+    : seed
   return JSON.stringify({
     task: "Generate the next scene_patch JSON object.",
     schema: {
@@ -34,12 +43,12 @@ function sceneUserPrompt({ seed, session, currentScene, input, recentHistory }) 
         engine_notes: { mood: "", continuity: "" },
       },
     },
-    seed,
-    user_starting_context_policy: "If user_starting_context is present on the start turn, treat it as the primary premise and tone. Re-theme the adventure around it even if it conflicts with the default seed genre/tone/opening prompt. Keep only the engine constraints and safety boundaries from the seed.",
+    seed: seedForPrompt,
+    user_starting_context_policy: "If user_starting_context or session.flags.user_theme is present, treat it as the primary premise, genre, vocabulary, and tone for EVERY turn. Re-theme the adventure around it even if it conflicts with the default seed genre/tone/opening prompt. Do not drift back to the default Haunted Gate/gothic horror framing unless the user theme asks for that. Keep only the engine constraints and safety boundaries from the seed.",
     session,
     current_scene: currentScene || null,
     player_input: input,
-    user_starting_context: input && input.user_seed ? input.user_seed : "",
+    user_starting_context: userTheme,
     recent_history: recentHistory || [],
   }, null, 2)
 }

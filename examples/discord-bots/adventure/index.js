@@ -108,7 +108,7 @@ async function startAdventure(ctx) {
     delete seed.initialStats.sanity
   }
   store.resetActive(userId(ctx), channelId(ctx))
-  const session = store.createSession({ seed, ownerUserId: userId(ctx), guildId: guildId(ctx), channelId: channelId(ctx), mode })
+  const session = store.createSession({ seed, ownerUserId: userId(ctx), guildId: guildId(ctx), channelId: channelId(ctx), mode, userTheme: userSeed })
   console.log("[adventure] session created", JSON.stringify({ sessionId: session.id, seedId: seed.id, turn: session.turn }))
   await ctx.edit(render.loadingMessage(session, "Opening the gate..."))
   const generated = engine.generateScene({

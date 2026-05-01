@@ -149,11 +149,12 @@ function createStore() {
     }
   }
 
-  function createSession({ seed, ownerUserId, guildId, channelId, mode }) {
+  function createSession({ seed, ownerUserId, guildId, channelId, mode, userTheme }) {
     const id = createId("adv")
     const ts = nowISO()
+    const initialFlags = userTheme ? { user_theme: String(userTheme), user_tone_override: true } : {}
     database.exec(`INSERT INTO adventure_sessions (id, adventure_id, owner_user_id, guild_id, channel_id, mode, stats_json, inventory_json, flags_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-      id, seed.id, ownerUserId || "", guildId || "", channelId || "", mode || "solo", jsonString(seed.initialStats || {}), "[]", "{}", ts, ts)
+      id, seed.id, ownerUserId || "", guildId || "", channelId || "", mode || "solo", jsonString(seed.initialStats || {}), "[]", jsonString(initialFlags), ts, ts)
     return getSession(id)
   }
 
