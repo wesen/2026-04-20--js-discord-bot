@@ -45,9 +45,27 @@ function sceneMessage(session, scene, options) {
   return builder.build()
 }
 
-function loadingMessage(session, text) {
+function loadingMessage(session, text, details) {
+  const scene = details && details.scene
+  const previous = scene ? [
+    `Previous scene: ${scene.title || scene.id || "Unknown"}`,
+    scene.narration ? `Previously: ${String(scene.narration).slice(0, 500)}` : "",
+  ].filter(Boolean) : []
+  const action = details && details.action ? `Action: ${details.action}` : ""
+  const actor = details && details.actor ? `By: ${details.actor}` : ""
   return ui.message()
-    .content(["```", `╔═ ${text || "The story shifts..."}`, `Turn ${session ? session.turn : "?"}`, "", "The mist curls while the next scene is written...", "```"].join("\n"))
+    .content([
+      "```",
+      `╔═ ${text || "The story shifts..."}`,
+      `Turn ${session ? session.turn : "?"}`,
+      "",
+      ...previous,
+      action,
+      actor,
+      "",
+      "The mist curls while the next scene is written...",
+      "```",
+    ].filter((line) => line !== "").join("\n").slice(0, 1900))
     .build()
 }
 

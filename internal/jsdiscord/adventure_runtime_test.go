@@ -70,7 +70,7 @@ func loadAdventureTestBot(t *testing.T) *BotHandle {
 	return handle
 }
 
-func TestAdventureRejectsOtherPlayerWithoutBreakingOwnerSession(t *testing.T) {
+func TestAdventureAllowsOtherPlayerToAdvanceChannelSession(t *testing.T) {
 	handle := loadAdventureTestBot(t)
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "adventure.sqlite")
@@ -96,34 +96,35 @@ func TestAdventureRejectsOtherPlayerWithoutBreakingOwnerSession(t *testing.T) {
 	require.Contains(t, fmt.Sprint(startEdits[0]), "Opening the gate")
 	require.Contains(t, fmt.Sprint(startEdits[1]), "Mock Scene 0")
 
-	otherResult, err := handle.DispatchComponent(ctx, mergeDispatch(base, DispatchRequest{
+	var otherEdits []any
+	_, err = handle.DispatchComponent(ctx, mergeDispatch(base, DispatchRequest{
 		Name:    "adv:choice:0",
 		User:    UserSnapshot{ID: "player-2", Username: "Player Two"},
 		Message: &MessageSnapshot{Content: "Turn 0", ChannelID: "channel-1", GuildID: "guild-1"},
-	}))
-	require.NoError(t, err)
-	otherResponse, ok := otherResult.(*normalizedResponse)
-	require.True(t, ok, "other result type = %T", otherResult)
-	require.Contains(t, otherResponse.Content, "belongs to another player")
-	require.True(t, otherResponse.Ephemeral)
-
-	var ownerEdits []any
-	_, err = handle.DispatchComponent(ctx, mergeDispatch(base, DispatchRequest{
-		Name:    "adv:choice:0",
-		User:    UserSnapshot{ID: "player-1", Username: "Player One"},
-		Message: &MessageSnapshot{Content: "Turn 0", ChannelID: "channel-1", GuildID: "guild-1"},
 		Defer:   func(context.Context, any) error { return nil },
 		Edit: func(_ context.Context, value any) error {
-			ownerEdits = append(ownerEdits, value)
+			otherEdits = append(otherEdits, value)
 			return nil
 		},
 	}))
 	require.NoError(t, err)
-	require.Len(t, ownerEdits, 2)
-	require.Contains(t, fmt.Sprint(ownerEdits[0]), "Resolving your choice")
-	ownerEdit := fmt.Sprint(ownerEdits[1])
-	require.Contains(t, ownerEdit, "Mock Scene 1")
-	require.Contains(t, ownerEdit, "Turn 1")
+	require.Len(t, otherEdits, 2)
+	loading := fmt.Sprint(otherEdits[0])
+	require.Contains(t, loading, "Resolving your choice")
+	require.Contains(t, loading, "Mock Scene 0")
+	require.Contains(t, loading, "Continue")
+	require.Contains(t, loading, "Player Two")
+	advanced := fmt.Sprint(otherEdits[1])
+	require.Contains(t, advanced, "Mock Scene 1")
+	require.Contains(t, advanced, "Turn 1")
+
+	staleOwnerResult, err := handle.DispatchComponent(ctx, mergeDispatch(base, DispatchRequest{
+		Name:    "adv:choice:0",
+		User:    UserSnapshot{ID: "player-1", Username: "Player One"},
+		Message: &MessageSnapshot{Content: "Turn 0", ChannelID: "channel-1", GuildID: "guild-1"},
+	}))
+	require.NoError(t, err)
+	require.Contains(t, fmt.Sprint(staleOwnerResult), "stale")
 
 	stateResult, err := handle.DispatchCommand(ctx, mergeDispatch(base, DispatchRequest{
 		Name: "adventure-state",
@@ -134,7 +135,6 @@ func TestAdventureRejectsOtherPlayerWithoutBreakingOwnerSession(t *testing.T) {
 	require.Contains(t, stateText, "player-1")
 	require.Contains(t, stateText, "currentSceneId")
 	require.Contains(t, stateText, "mock-scene-1")
-	require.NotContains(t, stateText, "player-2")
 }
 
 func TestAdventureRejectsStaleOwnerButton(t *testing.T) {

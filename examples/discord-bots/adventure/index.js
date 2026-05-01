@@ -33,9 +33,9 @@ function requireOwnedSession(ctx, options) {
   ensureStore(ctx)
   const session = store.findActiveSessionInChannel(channelId(ctx))
   if (!session) return { ok: false, error: "No active adventure session in this channel. Use /adventure-start first." }
-  if (session.ownerUserId && session.ownerUserId !== userId(ctx)) {
-    return { ok: false, error: "This adventure belongs to another player." }
-  }
+  // Adventure sessions are channel-scoped collaborative games. The starter is
+  // recorded as owner for reset/debug provenance, but other channel members may
+  // choose actions and submit free-form moves.
   if (options && options.rejectStaleMessage) {
     const turn = messageTurn(ctx)
     if (turn !== null && turn !== Number(session.turn || 0)) {
@@ -52,7 +52,7 @@ async function startAdventure(ctx) {
   ensureStore(ctx)
   await ctx.defer({ ephemeral: false })
   const seedId = String((ctx.args && ctx.args.seed) || "haunted-gate").trim() || "haunted-gate"
-  const mode = String((ctx.args && ctx.args.mode) || "solo").trim() || "solo"
+  const mode = String((ctx.args && ctx.args.mode) || "party").trim() || "party"
   const seed = store.getSeed(seedId)
   if (!seed) {
     await ctx.edit(render.errorMessage(`Unknown adventure seed: ${seedId}`))
@@ -86,7 +86,8 @@ async function choose(ctx, index) {
     return render.errorMessage(loaded.error)
   }
   await ctx.defer({ ephemeral: false })
-  await ctx.edit(render.loadingMessage(loaded.session, "Resolving your choice..."))
+  const pendingChoice = loaded.scene && loaded.scene.choices ? loaded.scene.choices[index] : null
+  await ctx.edit(render.loadingMessage(loaded.session, "Resolving your choice...", { scene: loaded.scene, action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
   const applied = engine.applyChoice(store, loaded.session, loaded.scene, index)
   if (!applied.ok) {
     await ctx.edit(render.errorMessage(applied.error))
@@ -138,7 +139,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     description: "Start a new ASCII adventure session",
     options: {
       seed: { type: "string", description: "Adventure seed ID", required: false },
-      mode: { type: "string", description: "Play mode: solo", required: false },
+      mode: { type: "string", description: "Play mode: party", required: false },
     },
   }, startAdventure)
 
@@ -187,8 +188,8 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     const loaded = requireOwnedSession(ctx)
     if (!loaded.ok) return render.errorMessage(loaded.error)
     await ctx.defer({ ephemeral: false })
-    await ctx.edit(render.loadingMessage(loaded.session, "Trying something else..."))
     const text = String((ctx.values || {}).action || "").trim()
+    await ctx.edit(render.loadingMessage(loaded.session, "Trying something else...", { scene: loaded.scene, action: text || "free-form action", actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
     if (!text) {
       await ctx.edit(render.errorMessage("Free-form action cannot be empty."))
       return
