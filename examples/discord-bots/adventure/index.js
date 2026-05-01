@@ -3,6 +3,7 @@ const ui = require("ui")
 const { createStore } = require("./lib/store")
 const engine = require("./lib/engine")
 const render = require("./lib/render")
+const llm = require("./lib/llm")
 
 const store = createStore()
 
@@ -79,16 +80,40 @@ async function showHistory(ctx, direction) {
   return render.sceneMessage(loaded.session, scene, { history: targetTurn !== loaded.session.turn })
 }
 
-function themedSecondaryStat(prompt) {
+function knownSecondaryStat(prompt) {
   const text = String(prompt || "").toLowerCase()
   if (/disco|party|dance|club|funk|groove|music|dj/.test(text)) return "groove"
   if (/space|star|cosmic|alien|ship|planet|underwater|undersea|ocean|sea|deep|submarine|diving|dive|reef|aquatic/.test(text)) return "oxygen"
   if (/cozy|cat|bakery|tea|garden|wholesome/.test(text)) return "comfort"
   if (/detective|mystery|noir|case|clue/.test(text)) return "focus"
-  if (/pirate|sea|ship|island|treasure/.test(text)) return "swagger"
+  if (/pirate|ship|island|treasure/.test(text)) return "swagger"
   if (/wizard|magic|spell|arcane|fantasy/.test(text)) return "mana"
   if (/robot|cyber|neon|hacker|computer/.test(text)) return "signal"
-  return "spirit"
+  return ""
+}
+
+function cleanStatName(value) {
+  const cleaned = String(value || "").toLowerCase().replace(/[^a-z0-9_ -]/g, "").trim().replace(/[ -]+/g, "_").slice(0, 18)
+  if (!cleaned || cleaned === "hp" || cleaned === "health") return "resolve"
+  return cleaned
+}
+
+function themedSecondaryStat(prompt) {
+  const known = knownSecondaryStat(prompt)
+  if (known) return known
+  const completed = llm.completeJson({
+    purpose: "secondary_stat_name",
+    system: "Return only valid JSON. Choose one evocative non-HP resource/stat name for a lightweight adventure game.",
+    user: JSON.stringify({
+      task: "Name the secondary stat for this adventure premise. It should be one short word, coherent with the premise, and not HP/health.",
+      premise: String(prompt || "").slice(0, 1000),
+      schema: { stat: "one lowercase word, e.g. oxygen, mana, focus, groove" },
+    }),
+    metadata: { promptKind: "adventure-start" },
+  })
+  if (completed.ok && completed.value && completed.value.stat) return cleanStatName(completed.value.stat)
+  console.log("[adventure] secondary stat LLM fallback failed", JSON.stringify({ error: completed.error || "unknown" }))
+  return "resolve"
 }
 
 async function startAdventure(ctx) {
