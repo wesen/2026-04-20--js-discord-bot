@@ -82,7 +82,7 @@ async function showHistory(ctx, direction) {
 function themedSecondaryStat(prompt) {
   const text = String(prompt || "").toLowerCase()
   if (/disco|party|dance|club|funk|groove|music|dj/.test(text)) return "groove"
-  if (/space|star|cosmic|alien|ship|planet/.test(text)) return "oxygen"
+  if (/space|star|cosmic|alien|ship|planet|underwater|undersea|ocean|sea|deep|submarine|diving|dive|reef|aquatic/.test(text)) return "oxygen"
   if (/cozy|cat|bakery|tea|garden|wholesome/.test(text)) return "comfort"
   if (/detective|mystery|noir|case|clue/.test(text)) return "focus"
   if (/pirate|sea|ship|island|treasure/.test(text)) return "swagger"
