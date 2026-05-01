@@ -54,3 +54,13 @@ Added Slack backend setup and smoke-test playbook covering manifest generation, 
 
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/playbook/01-slack-backend-setup-and-smoke-test.md — New repeatable Slack setup and validation playbook
 
+
+## 2026-05-01
+
+Step 3: Omitted empty usage_hint fields from generated Slack manifests so Slack accepts commands without options (commit 8c426cd).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Manifest generation fix
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 3
+

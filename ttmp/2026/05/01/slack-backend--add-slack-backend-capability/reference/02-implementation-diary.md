@@ -239,3 +239,95 @@ Expected public slash-command response flow after this step:
 3. First `ctx.edit(...)` has no `messageTS`, so responder calls `chat.postMessage`.
 4. Slack returns `channel + ts`; responder stores them in SQLite and in memory.
 5. Later `ctx.edit(...)` calls `chat.update(channel, ts)`.
+
+## Step 3: Omit Empty Slack Manifest Usage Hints
+
+Slack rejected generated manifests when commands without options included `usage_hint: ""`. This step changes manifest generation so `usage_hint` is only present when there is a non-empty hint.
+
+The adventure manifest now emits `usage_hint` for `/adventure-start` because it has a prompt option, and omits the field entirely for commands like `/adventure-reset`, `/adventure-resume`, and `/adventure-state`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I get errors because usage_hint cannot be an empty string. We should exclude it from the manifest if it is empty"
+
+**Assistant interpretation:** Fix Slack manifest generation to avoid invalid empty `usage_hint` fields.
+
+**Inferred user intent:** The user is trying to install the generated Slack app manifest and needs it accepted by Slack.
+
+**Commit (code):** 8c426cd964b5b6f1e21a34f2a82a4fcb19677f04 — "Omit empty Slack usage hints"
+
+### What I did
+
+- Changed `SlackManifest` in `internal/jsdiscord/slack_backend.go` to build each command entry without `usage_hint` by default.
+- Added `usage_hint` only when `slackUsageHint(command)` returns a non-empty string.
+- Regenerated the adventure Slack manifest and verified commands without options omit the field.
+
+### Why
+
+- Slack app manifests reject `usage_hint` when it is an empty string.
+- Omitting optional empty fields is safer and produces cleaner manifests.
+
+### What worked
+
+Validation commands passed:
+
+```bash
+go test ./internal/jsdiscord -run TestSlackManifest -count=1
+go run ./cmd/discord-bot slack-manifest --bot-script ./examples/discord-bots/adventure/index.js --base-url https://bot.example >/tmp/slack-manifest.json
+python3 - <<'PY'
+import json
+m=json.load(open('/tmp/slack-manifest.json'))
+for c in m['features']['slash_commands']:
+    if c.get('usage_hint') == '':
+        raise SystemExit('empty usage_hint found')
+print([(c['command'], c.get('usage_hint')) for c in m['features']['slash_commands']])
+PY
+go test ./... -count=1
+```
+
+The manifest check printed:
+
+```text
+[('/adventure-reset', None), ('/adventure-resume', None), ('/adventure-start', 'prompt text'), ('/adventure-state', None)]
+```
+
+### What didn't work
+
+- Slack manifest import failed before this change because `usage_hint` was present with an empty string. The exact Slack UI/API error was reported by the user, not reproduced locally.
+
+### What I learned
+
+- Slack manifest optional string fields should be omitted instead of emitted as empty strings.
+
+### What was tricky to build
+
+- Minimal fix only; no tricky implementation beyond preserving existing non-empty hints.
+
+### What warrants a second pair of eyes
+
+- Other optional manifest string fields may need the same omit-if-empty treatment if Slack validates them strictly.
+
+### What should be done in the future
+
+- Add a manifest validation test that checks no optional Slack string fields are emitted as empty strings.
+
+### Code review instructions
+
+- Review `SlackManifest` in `internal/jsdiscord/slack_backend.go`.
+- Validate with:
+
+```bash
+go test ./internal/jsdiscord -run TestSlackManifest -count=1
+go run ./cmd/discord-bot slack-manifest --bot-script ./examples/discord-bots/adventure/index.js --base-url https://bot.example
+```
+
+### Technical details
+
+Manifest command entry construction now follows this pattern:
+
+```go
+entry := map[string]any{...}
+if usageHint := slackUsageHint(command); usageHint != "" {
+    entry["usage_hint"] = usageHint
+}
+```
