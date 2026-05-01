@@ -44,3 +44,14 @@ Step 2: Added repo-discovered JS adventure bot prototype with SQLite-defined sce
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Adventure bot entrypoint
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/store.js — SQLite persistence layer
 
+
+## 2026-05-01
+
+Improved adventure interaction flow: loading edits after clicks, modal submits now defer/update original message when possible, LLM can mark final scenes, final messages attach a session JSON export, and multiplayer ownership tests cover non-owner clicks (commit a0f3097).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Loading states and final-scene rendering flow
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/adventure_runtime_test.go — Multiplayer ownership and stale-click tests
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/host_responses.go — Modal submissions from component messages now defer/update the original message
+
