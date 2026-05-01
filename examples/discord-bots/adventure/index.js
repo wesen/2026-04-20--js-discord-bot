@@ -79,6 +79,18 @@ async function showHistory(ctx, direction) {
   return render.sceneMessage(loaded.session, scene, { history: targetTurn !== loaded.session.turn })
 }
 
+function themedSecondaryStat(prompt) {
+  const text = String(prompt || "").toLowerCase()
+  if (/disco|party|dance|club|funk|groove|music|dj/.test(text)) return "groove"
+  if (/space|star|cosmic|alien|ship|planet/.test(text)) return "oxygen"
+  if (/cozy|cat|bakery|tea|garden|wholesome/.test(text)) return "comfort"
+  if (/detective|mystery|noir|case|clue/.test(text)) return "focus"
+  if (/pirate|sea|ship|island|treasure/.test(text)) return "swagger"
+  if (/wizard|magic|spell|arcane|fantasy/.test(text)) return "mana"
+  if (/robot|cyber|neon|hacker|computer/.test(text)) return "signal"
+  return "spirit"
+}
+
 async function startAdventure(ctx) {
   console.log("[adventure] startAdventure", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), args: ctx.args || {} }))
   ensureStore(ctx)
@@ -90,6 +102,10 @@ async function startAdventure(ctx) {
   if (!seed) {
     await ctx.edit(render.errorMessage(`Unknown adventure seed: ${seedId}`))
     return
+  }
+  if (userSeed) {
+    seed.initialStats = Object.assign({}, seed.initialStats || {}, { [themedSecondaryStat(userSeed)]: Number((seed.initialStats && seed.initialStats.sanity) || 6) })
+    delete seed.initialStats.sanity
   }
   store.resetActive(userId(ctx), channelId(ctx))
   const session = store.createSession({ seed, ownerUserId: userId(ctx), guildId: guildId(ctx), channelId: channelId(ctx), mode })
