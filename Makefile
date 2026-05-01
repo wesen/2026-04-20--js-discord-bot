@@ -1,5 +1,5 @@
 .PHONY: all test build lint lintmax golangci-lint-install gosec govulncheck \
-        goreleaser tag-major tag-minor tag-patch release install
+        goreleaser tag-major tag-minor tag-patch release bump-glazed install
 
 all: test build
 
@@ -9,6 +9,7 @@ GORELEASER_TARGET ?= --single-target
 GOLANGCI_LINT_VERSION ?= $(shell cat .golangci-lint-version)
 GOLANGCI_LINT_BIN ?= $(CURDIR)/.bin/golangci-lint
 GOLANGCI_LINT_ARGS ?= --timeout=5m ./cmd/... ./pkg/... ./internal/...
+GO_GO_GOLEMS_MODULES ?= $(shell go list -m -f '{{if not .Main}}{{.Path}}{{end}}' all 2>/dev/null | grep '^github.com/go-go-golems/' | sort -u)
 
 golangci-lint-install:
 	mkdir -p $(dir $(GOLANGCI_LINT_BIN))
@@ -49,6 +50,14 @@ tag-patch:
 release:
 	git push origin --tags
 	GOPROXY=proxy.golang.org go list -m github.com/go-go-golems/discord-bot@$(shell svu current)
+
+bump-glazed:
+	@if [ -z "$(GO_GO_GOLEMS_MODULES)" ]; then \
+		echo "No github.com/go-go-golems modules found in go.mod/go.sum"; \
+		exit 1; \
+	fi
+	go get $(addsuffix @latest,$(GO_GO_GOLEMS_MODULES))
+	go mod tidy
 
 discord-bot_BINARY=$(shell which discord-bot)
 install:
