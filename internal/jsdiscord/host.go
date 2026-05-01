@@ -30,7 +30,7 @@ func NewHost(ctx context.Context, scriptPath string, opts ...HostOption) (*Host,
 	if err != nil {
 		return nil, err
 	}
-	runtimeRegistrars := []engine.RuntimeModuleRegistrar{NewRegistrar(Config{}), &UIRegistrar{}}
+	runtimeRegistrars := []engine.RuntimeModuleRegistrar{NewRegistrar(Config{}), &UIRegistrar{}, &OpenRouterRegistrar{}}
 	runtimeRegistrars = append(runtimeRegistrars, hostOpts.runtimeModuleRegistrars...)
 	factory, err := engine.NewBuilder(
 		engine.WithModuleRootsFromScript(absScript, engine.DefaultModuleRootsOptions()),
