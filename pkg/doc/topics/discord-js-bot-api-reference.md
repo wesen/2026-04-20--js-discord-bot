@@ -823,21 +823,93 @@ Use this for simulated search, background work, or tests that need a visible pau
 
 ### `require("database")`
 
-`require("database")` is the runtime module for durable data access from JavaScript bots. Use it when the state must survive restarts or when the bot owns real application data such as knowledge entries, reviews, or long-lived records.
+`require("database")` (or `require("db")`) is the runtime module for durable data access from JavaScript bots. Use it when state must survive restarts or when the bot owns real application data such as knowledge entries, reviews, or long-lived records.
 
-The knowledge-base bot is the best example in this repository. It initializes SQLite through the database module and then uses SQL queries from JavaScript to search, insert, update, and review entries.
+> ⚠️ **The database module is not pre-configured.** Your JS code must call `database.configure(...)` once before using `query(...)` or `exec(...)`.
 
-A minimal shape looks like this:
+### Methods
+
+| Method | Description |
+| --- | --- |
+| `database.configure(driver, dsn)` | Open a connection. `driver` is `"sqlite3"`; `dsn` is the file path or `:memory:` for an in-memory DB. Call this once at startup. |
+| `database.query(sql, ...args)` | Run a SELECT and return an array of row objects. |
+| `database.exec(sql, ...args)` | Run a statement (INSERT, UPDATE, CREATE TABLE, etc.) and return `{ success, rowsAffected, lastInsertId }`. |
+| `database.close()` | Close the connection. Usually not needed for SQLite. |
+
+### Minimal example
 
 ```js
 const database = require("database")
 
+// Set up once (in the ready event or at module load time):
 database.configure("sqlite3", "./data/bot.sqlite")
 database.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)`)
+
+// Then use from any handler:
 const rows = database.query(`SELECT id, body FROM notes ORDER BY id LIMIT 10`)
 ```
 
-Use `ctx.store` for ephemeral per-interaction or per-session screen state. Use `require("database")` for durable state that you want to query later.
+### Combining with runtime config
+
+Pair `require("database")` with `configure({ run: { fields: { "db-path": {...} } })` so the SQLite path is configurable from the CLI:
+
+```js
+const database = require("database")
+const DEFAULT_DB_PATH = "./data/bot.sqlite"
+
+module.exports = defineBot(({ event, command, configure }) => {
+  configure({
+    name: "my-bot",
+    run: {
+      fields: {
+        "db-path": {
+          type: "string",
+          help: "SQLite path for persistent storage",
+          default: DEFAULT_DB_PATH,
+        },
+      },
+    },
+  })
+
+  event("ready", async (ctx) => {
+    const dbPath = ctx.config && ctx.config.db_path || DEFAULT_DB_PATH
+    database.configure("sqlite3", dbPath)
+    database.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)`)
+    ctx.log.info("database initialized", { path: dbPath })
+  })
+
+  command("notes", {
+    description: "List recent notes",
+  }, async () => {
+    const rows = database.query(`SELECT id, body FROM notes ORDER BY id`)
+    return { content: `Found ${rows.length} notes`, ephemeral: true }
+  })
+})
+```
+
+Run with a custom path:
+
+```bash
+discord-bot bots my-bot run --db-path /var/lib/my-bot/storage.sqlite
+```
+
+### When to use `ctx.store` instead
+
+| | `ctx.store` | `require("database")` |
+| --- | --- | --- |
+| Persists restarts | ❌ | ✅ |
+| Survives process restart | ❌ | ✅ |
+| Queryable by arbitrary filters | ❌ | ✅ (SQL) |
+| Best for | per-session screen state, counters, caches | durable records, search indexes, user data |
+
+### Reference implementation
+
+The **knowledge-base bot** (`examples/discord-bots/knowledge-base/`) is the canonical reference for using `require("database")` with runtime config, schema migration, seed data, and SQL-based search. Key files:
+
+- `index.js` — bot definition with `__verb__("run", { fields: { "db-path": {...} } })`
+- `lib/store.js` — store factory that calls `database.configure(...)` and owns all SQL operations
+- `lib/search.js` — ranked search over SQLite rows
+- `lib/capture.js` — candidate extraction from messages and modal submissions
 
 ## Common mistakes and how to avoid them
 
@@ -855,7 +927,7 @@ Custom IDs must be unique across loaded bots. The host will reject duplicate com
 
 ### 4. Assuming `ctx.store` survives restarts
 
-It does not. If you need durability, store state in a real database or file on the host side.
+It does not. If you need durability, store state in a real database — see [section 7½ on `require("database")`](#require-database) for how to set that up.
 
 ### 5. Expecting `ctx.discord.channels.send(...)` to behave like an ephemeral interaction reply
 

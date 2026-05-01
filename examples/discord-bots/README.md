@@ -23,6 +23,7 @@ If you want the public embedding paths instead of the standalone repo-driven CLI
 ## Bots
 
 - `ping/` — Discord JS API showcase with buttons, modals, autocomplete, and outbound operations
+- `hater/` — playful hostile bot with `/hate`, `/roast`, `/compliment`, UI DSL-built buttons/modal, and `!hate`/`!roastme` message triggers
 - `knowledge-base/` — SQLite-backed knowledge steward with passive capture, teach/remember modals, search/article/review commands, and source-backed entries
 - `support/` — deferred/edit/follow-up interaction flow, embeds, buttons, guild event, and thread utility helpers
 - `moderation/` — embeds, components, ephemeral responses, message lifecycle, reaction, guild-member events, guild/role/member lookup helpers, message history helpers, member moderation host APIs, message moderation utilities, and channel utility helpers

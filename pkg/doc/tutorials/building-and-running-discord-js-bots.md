@@ -347,6 +347,117 @@ For example:
 - `index_path` becomes `--index-path`
 - `read_only` becomes `--read-only`
 
+## 7½. Add durable storage with `require("database")`
+
+Use `require("database")` (or `require("db")`) when your bot needs state that survives restarts — knowledge bases, user records, counters, search indexes. The module exposes a simple SQL interface backed by `go-sqlite3`.
+
+
+
+> ⚠️ **The database module is not pre-configured.** Your JS code must call `database.configure(...)` once before using `query(...)` or `exec(...)`.
+
+### Basic setup
+
+```js
+const database = require("database")
+// Call this once, typically in the "ready" event or at startup:
+database.configure("sqlite3", "./data/bot.sqlite")
+// Then use it from any handler:
+database.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)`)
+const rows = database.query(`SELECT id, body FROM notes ORDER BY id LIMIT 10`)
+```
+
+### Available methods
+
+| Method | What it does |
+| --- | --- |
+| `database.configure(driver, dsn)` | Open a connection. `driver` is `"sqlite3"`; `dsn` is the path or `:memory:` for a temporary in-memory DB. |
+| `database.query(sql, ...args)` | Run a SELECT and return an array of row objects. |
+| `database.exec(sql, ...args)` | Run a statement (INSERT, UPDATE, CREATE TABLE) and return `{ success, rowsAffected, lastInsertId }`. |
+| `database.close()` | Close the connection. Usually not needed for SQLite. |
+
+### Combining with runtime config
+
+The `db_path` runtime config field makes the SQLite path configurable from the CLI:
+
+```js
+configure({
+  name: "my-bot",
+  run: {
+    fields: {
+      "db-path": {
+        type: "string",
+        help: "SQLite path for persistent storage",
+        default: "./data/bot.sqlite",
+      },
+    },
+  },
+})
+```
+
+```js
+const database = require("database")
+const DEFAULT_DB_PATH = "./data/bot.sqlite"
+
+module.exports = defineBot(({ event, command, configure }) => {
+  event("ready", async (ctx) => {
+    const dbPath = ctx.config && ctx.config.db_path || DEFAULT_DB_PATH
+    database.configure("sqlite3", dbPath)
+    // Initialize schema on first run:
+    database.exec(`CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)`)
+    ctx.log.info("database initialized", { path: dbPath })
+  })
+
+
+  command("notes", {
+    description: "List recent notes",
+  }, async () => {
+    const rows = database.query(`SELECT id, body FROM notes ORDER BY id`)
+    return { content: `Found ${rows.length} notes`, ephemeral: true }
+  })
+})
+```
+
+Run with a custom path:
+```bash
+discord-bot bots my-bot run --db-path /var/lib/my-bot/storage.sqlite
+```
+
+### In-memory databases for testing
+
+Use `:memory:` when you want a fresh temporary DB per session:
+```js
+database.configure("sqlite3", ":memory:")
+database.exec(`CREATE TABLE ...`)
+```
+The DB is wiped when the process exits.
+
+
+### When to use `ctx.store` instead
+
+| | `ctx.store` | `require("database")` |
+|---|---|---|
+| Persists restarts | ❌ | ✅ |
+| Survives process restart | ❌ | ✅ |
+| Queryable by arbitrary filters | ❌ | ✅ (SQL) |
+| Best for | per-session screen state, counters, caches | durable records, search indexes, user data |
+
+### Reference implementation
+
+The **knowledge-base bot** (`examples/discord-bots/knowledge-base/`) is the canonical reference for using `require("database")` with runtime config, schema migration, seed data, and SQL-based search. The bot:
+
+- Exposes `--db-path` (defaulting to `./examples/discord-bots/knowledge-base/data/knowledge.sqlite`)
+- Initializes schema and seed data on first run
+- Uses `database.query(...)` to search entries and `database.exec(...)` to insert, update, and set status
+- Stores structured records with tags, aliases, source attribution, and review workflow
+
+
+Key files:
+- `index.js` — bot definition with `__verb__("run", { fields: { "db-path": {...} } })` and event/command registrations
+- `lib/store.js` — the store factory that calls `database.configure(...)` and owns all SQL operations
+- `lib/capture.js` — candidate extraction from messages and modal submissions
+- `lib/search.js` — ranked search over SQLite rows
+
+
 ## 8. Run the bot through the named-bot CLI path
 
 The normal workflow in this repository is:
@@ -455,7 +566,7 @@ The best starting points in this repository are:
 
 - `examples/discord-bots/ping/index.js` — richest API showcase
 - `examples/discord-bots/poker/index.js` — a complete command set with help and modals
-- `examples/discord-bots/knowledge-base/index.js` — runtime config and docs search
+- `examples/discord-bots/knowledge-base/index.js` — durable storage with SQLite, runtime config, and full search workflow
 
 Treat them as copyable templates, not just demos.
 
@@ -465,3 +576,4 @@ Treat them as copyable templates, not just demos.
 - `examples/discord-bots/README.md` — repository command examples and runtime notes
 - `examples/discord-bots/ping/index.js` — full JS showcase bot
 - `examples/discord-bots/poker/index.js` — help-oriented bot with game-state commands
+- `examples/discord-bots/knowledge-base/lib/store.js` — the canonical database store implementation
