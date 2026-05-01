@@ -80,11 +80,10 @@ function streamingScenePreview(jsonText) {
   const ascii = partialJsonString(jsonText, "ascii_art")
   const narration = partialJsonString(jsonText, "narration")
   const lines = []
-  if (title) lines.push(`Draft title: ${title}`)
-  if (ascii) lines.push("Draft art:\n" + ascii.split(/\r?\n/).slice(0, 8).join("\n"))
-  if (narration) lines.push("Draft narration:\n" + narration.slice(0, 700))
-  if (lines.length === 0) return ""
-  return "\nStreaming scene pieces:\n" + lines.join("\n\n")
+  if (title) lines.push(title)
+  if (ascii) lines.push(ascii.split(/\r?\n/).slice(0, 8).join("\n"))
+  if (narration) lines.push(narration.slice(0, 700))
+  return lines.join("\n\n")
 }
 
 function loadingMessage(session, text, details) {
