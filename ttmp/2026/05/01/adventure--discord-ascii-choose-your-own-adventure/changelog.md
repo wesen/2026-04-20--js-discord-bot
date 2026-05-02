@@ -99,3 +99,12 @@ Added Slack-specific backfill command to replace old final export messages with 
 - /Users/kball/git/go-go-golems/discord-bot/cmd/discord-bot/slack_adventure_coda.go — Backfill command for old Slack adventure export endings
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/adventure--discord-ascii-choose-your-own-adventure/reference/02-diary.md — Recorded Step 8
 
+
+## 2026-05-01
+
+Changed completed-session history navigation so the return button says Coda, making it clear users can jump back to the ending after scrolling backward (commit 09d0466).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — History return button label for completed adventures
+
