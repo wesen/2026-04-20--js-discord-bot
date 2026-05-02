@@ -63,6 +63,17 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
+func TestSlackBaseRequestUsesUserMentionAsUsername(t *testing.T) {
+	backend := &SlackBackend{host: &Host{scriptPath: "bot.js", runtimeConfig: map[string]any{}}}
+	req := backend.slackBaseRequest("T1", "C1", "U05MP5JKZTP")
+	if req.User.Username != "<@U05MP5JKZTP>" {
+		t.Fatalf("expected Slack mention username, got %q", req.User.Username)
+	}
+	if req.Member == nil || req.Member.User == nil || req.Member.User.Username != "<@U05MP5JKZTP>" {
+		t.Fatalf("expected member user mention, got %#v", req.Member)
+	}
+}
+
 func TestSlackMessagePayloadMapsButtonsAndInlineFiles(t *testing.T) {
 	payload := &normalizedResponse{
 		Content: "Choose",

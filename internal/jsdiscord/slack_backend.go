@@ -469,15 +469,27 @@ func (b *SlackBackend) dispatchEventPayload(ctx context.Context, payload map[str
 }
 
 func (b *SlackBackend) slackBaseRequest(teamID, channelID, userID string) DispatchRequest {
+	username := slackUserMention(userID)
 	return DispatchRequest{
 		Metadata: map[string]any{"scriptPath": b.host.scriptPath, "platform": "slack"},
 		Config:   cloneMap(b.host.runtimeConfig),
 		Guild:    map[string]any{"id": teamID},
 		Channel:  map[string]any{"id": channelID},
-		User:     UserSnapshot{ID: userID, Username: userID},
-		Member:   &MemberSnapshot{GuildID: teamID, ID: userID, User: &UserSnapshot{ID: userID, Username: userID}},
+		User:     UserSnapshot{ID: userID, Username: username},
+		Member:   &MemberSnapshot{GuildID: teamID, ID: userID, User: &UserSnapshot{ID: userID, Username: username}},
 		Me:       UserSnapshot{ID: "slack-bot", Username: "slack-bot", Bot: true},
 	}
+}
+
+func slackUserMention(userID string) string {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return ""
+	}
+	if strings.HasPrefix(userID, "<@") {
+		return userID
+	}
+	return "<@" + userID + ">"
 }
 
 func withSlackResponder(req DispatchRequest, r *slackResponder) DispatchRequest {
