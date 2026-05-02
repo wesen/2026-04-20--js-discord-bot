@@ -173,3 +173,14 @@ Final scenes now render the coda immediately and generate/post the storyboard af
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Supports skipping storyboard during final scene generation
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Exposes coda-only message renderer
 
+
+## 2026-05-01
+
+Storyboard follow-ups now update the coda with a note and, on Slack, post/upload the storyboard in the original coda message thread instead of starting a separate thread (commit 6d82aba).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Edits coda with storyboard-in-thread note before follow-up
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Coda renderer supports storyboard-in-reply note
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — File-bearing Slack follow-ups use original message thread_ts
+
