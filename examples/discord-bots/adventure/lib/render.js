@@ -49,7 +49,7 @@ function sceneMessage(session, scene, options) {
     const rows = []
     if (scene.turn > 0) rows.push(ui.button("adv:history:prev", "← Previous", "secondary"))
     if (scene.turn < session.turn) rows.push(ui.button("adv:history:next", "Next →", "secondary"))
-    if (scene.turn !== session.turn) rows.push(ui.button("adv:history:current", "Current", "primary"))
+    if (scene.turn !== session.turn) rows.push(ui.button("adv:history:current", session.status === "completed" ? "Coda" : "Current", "primary"))
     if (rows.length > 0) builder.row(...rows)
     return builder.build()
   }
