@@ -33,7 +33,7 @@ function sceneContent(session, scene) {
   ].filter((line) => line !== null).join("\n").slice(0, 1900)
 }
 
-function codaContent(session, scene, exported) {
+function codaContent(session, scene, exported, options) {
   const scenes = exported && Array.isArray(exported.scenes) ? exported.scenes : []
   const summary = scene && scene.ending && scene.ending.summary ? scene.ending.summary : "The adventure has ended."
   const lookback = scenes.length > 0
@@ -51,8 +51,9 @@ function codaContent(session, scene, exported) {
     "**Look back**",
     lookback.slice(0, 700),
     "",
+    options && options.storyboardInReply ? "Storyboard: posted in the replies/thread." : "",
     "Use the navigation buttons to scroll through previous scenes.",
-  ].join("\n").slice(0, 2000)
+  ].filter((line) => line !== "").join("\n").slice(0, 2000)
 }
 
 function sceneMessage(session, scene, options) {
@@ -68,7 +69,7 @@ function sceneMessage(session, scene, options) {
   }
   if (scene && scene.ending && scene.ending.isFinal) {
     const storyboard = options && options.storyboard
-    const content = codaContent(session, scene, options && options.exported) + (storyboard && storyboard.imageUrl ? `\n\nStoryboard: ${storyboard.imageUrl}` : storyboard && storyboard.file ? "\n\nStoryboard image generated." : "")
+    const content = codaContent(session, scene, options && options.exported, options) + (storyboard && storyboard.imageUrl ? `\n\nStoryboard: ${storyboard.imageUrl}` : storyboard && storyboard.file ? "\n\nStoryboard image generated." : "")
     const ret = { content }
     if (storyboard && storyboard.file) ret.files = [storyboard.file]
     if (scene.turn > 0) ret.components = [{ type: "row", components: [{ type: "button", customId: "adv:history:prev", label: "← Previous", style: "secondary" }] }]
@@ -164,8 +165,8 @@ function pendingActionMessage(session, scene, details) {
   return ui.message().content(content).build()
 }
 
-function codaMessage(session, scene, exported) {
-  return sceneMessage(session, scene, { exported })
+function codaMessage(session, scene, exported, options) {
+  return sceneMessage(session, scene, Object.assign({ exported }, options || {}))
 }
 
 function storyboardMessage(session, storyboard) {

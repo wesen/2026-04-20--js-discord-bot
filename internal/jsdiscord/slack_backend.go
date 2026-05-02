@@ -889,6 +889,9 @@ func (r *slackResponder) FollowUp(ctx context.Context, payload any) error {
 	// concrete channel+ts and file upload can thread reliably. response_url
 	// responses often only return {ok:true}.
 	if _, hasFiles := message["_files"]; hasFiles && r.channelID != "" {
+		if r.messageTS != "" {
+			message["thread_ts"] = r.messageTS
+		}
 		resp, err = r.client.PostMessage(ctx, message)
 	} else if r.responseURL != "" {
 		resp, err = r.client.ResponseURL(ctx, r.responseURL, message)
@@ -940,8 +943,9 @@ func (r *slackResponder) uploadFiles(ctx context.Context, message map[string]any
 	if len(files) == 0 || r == nil || r.client == nil || r.channelID == "" || r.messageTS == "" {
 		return
 	}
+	threadTS := firstNonEmpty(slackString(message["thread_ts"]), r.messageTS)
 	for _, file := range files {
-		if err := r.client.UploadFile(ctx, r.channelID, r.messageTS, file); err != nil {
+		if err := r.client.UploadFile(ctx, r.channelID, threadTS, file); err != nil {
 			log.Warn().Err(err).Str("channel", r.channelID).Str("ts", r.messageTS).Str("file", file.Name).Msg("failed to upload slack response file")
 		}
 	}

@@ -172,7 +172,10 @@ async function addStoryboardAfterCoda(ctx, session, scene, exported) {
   if (!exported) return
   await ctx.edit(render.codaMessage(session, scene, exported))
   const result = engine.regenerateStoryboard(store, session)
-  if (result.ok) await ctx.followUp(render.storyboardMessage(session, result.storyboard))
+  if (result.ok) {
+    await ctx.edit(render.codaMessage(session, scene, exported, { storyboardInReply: true }))
+    await ctx.followUp(render.storyboardMessage(session, result.storyboard))
+  }
 }
 
 async function choose(ctx, index) {
