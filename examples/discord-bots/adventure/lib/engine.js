@@ -98,7 +98,7 @@ function terminalForDepletedStats(store, session, input) {
   return { ok: true, scene, session: finalSession, exported: store.exportSession(finalSession) }
 }
 
-function generateStoryboard(exported) {
+function generateStoryboard(store, exported) {
   if (!exported || !Array.isArray(exported.scenes) || exported.scenes.length === 0) return null
   const scenes = exported.scenes.map((scene) => ({ turn: scene.turn, title: scene.title, narration: String(scene.narration || "").slice(0, 220) }))
   const prompt = [
@@ -107,12 +107,27 @@ function generateStoryboard(exported) {
     "No readable text, no captions, no UI, no speech bubbles. Evocative fantasy/adventure illustration style.",
     JSON.stringify({ scenes }, null, 2),
   ].join("\n")
-  const result = llm.generateImage({
+  const request = {
     purpose: "adventure_storyboard",
     system: "You generate a single image storyboard from a completed adventure story.",
     user: prompt,
     metadata: { sessionId: exported.session && exported.session.id, turn: exported.session && exported.session.turn },
-  })
+  }
+  console.log("[adventure] storyboard prompt", JSON.stringify({ sessionId: exported.session && exported.session.id, sceneCount: scenes.length, prompt: prompt.slice(0, 1200) }))
+  const result = llm.generateImage(request)
+  if (store && exported.session && exported.session.id) {
+    store.addAudit({
+      sessionId: exported.session.id,
+      turn: exported.session.turn,
+      kind: result.ok ? "storyboard_image" : "storyboard_image_error",
+      input: { scenes, prompt },
+      llmRequest: request,
+      llmResponseText: result.imageUrl || result.text || result.error || "",
+      parsed: result.raw || result,
+      validation: { ok: Boolean(result.ok), errors: result.ok ? [] : [result.error || "image generation failed"] },
+      appliedEffects: {},
+    })
+  }
   if (!result.ok) return { ok: false, error: result.error }
   return imageAttachmentFromURL(result.imageUrl)
 }
@@ -125,9 +140,9 @@ function imageAttachmentFromURL(imageUrl) {
   return { ok: true, file: { name: `adventure-storyboard.${ext}`, content: match[2], contentType: match[1], encoding: "base64" } }
 }
 
-function finishResultWithStoryboard(result) {
+function finishResultWithStoryboard(result, store) {
   if (!result || !result.exported) return result
-  const storyboard = generateStoryboard(result.exported)
+  const storyboard = generateStoryboard(store, result.exported)
   if (storyboard && storyboard.ok) result.storyboard = storyboard
   else if (storyboard && storyboard.error) result.storyboardError = storyboard.error
   return result
@@ -166,7 +181,7 @@ function generateScene({ store, seed, session, currentScene, input, onChunk }) {
   const scene = store.saveScene(session, validation.scene)
   const finalSession = scene.ending && scene.ending.isFinal ? store.finishSession(session) : session
   const exported = scene.ending && scene.ending.isFinal ? store.exportSession(finalSession) : null
-  return finishResultWithStoryboard({ ok: true, scene, session: finalSession, exported })
+  return finishResultWithStoryboard({ ok: true, scene, session: finalSession, exported }, store)
 }
 
 function applyChoice(store, session, scene, choiceIndex, actor) {
@@ -175,7 +190,7 @@ function applyChoice(store, session, scene, choiceIndex, actor) {
   const nextSession = store.advanceSession(session, choice.proposedEffects || {})
   const input = { kind: "choice", choice_id: choice.id, label: choice.label, actor: actor || "", effects: choice.proposedEffects || {}, next_hint: choice.nextHint || "" }
   const terminal = terminalForDepletedStats(store, nextSession, input)
-  if (terminal) return finishResultWithStoryboard(terminal)
+  if (terminal) return finishResultWithStoryboard(terminal, store)
   return { ok: true, session: nextSession, input }
 }
 
@@ -199,7 +214,7 @@ function interpretFreeform({ store, seed, session, currentScene, text, actor, on
   const nextSession = store.advanceSession(session, validation.action.proposedEffects || {})
   const input = { kind: "freeform", text, actor: actor || "", interpreted_action: validation.action, effects: validation.action.proposedEffects || {} }
   const terminal = terminalForDepletedStats(store, nextSession, input)
-  if (terminal) return Object.assign({ action: validation.action }, finishResultWithStoryboard(terminal))
+  if (terminal) return Object.assign({ action: validation.action }, finishResultWithStoryboard(terminal, store))
   return { ok: true, session: nextSession, action: validation.action, input }
 }
 
