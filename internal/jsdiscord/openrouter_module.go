@@ -268,7 +268,12 @@ func (c *openRouterClient) generateImage(ctx context.Context, input openRouterIn
 		imageURL = message.Images[0].ImageURL.URL
 	}
 	if strings.TrimSpace(imageURL) == "" {
-		return openRouterErrorResult("image response did not include an image", true)
+		imageURL = extractDataURL(message.Content)
+	}
+	if strings.TrimSpace(imageURL) == "" {
+		result := openRouterErrorResult("image response did not include an image", true)
+		result["text"] = truncateForLog(message.Content, 2000)
+		return result
 	}
 	return map[string]any{"ok": true, "provider": "openrouter", "model": decoded.Model, "imageUrl": imageURL, "text": message.Content}
 }
@@ -388,6 +393,28 @@ func (c *openRouterClient) stream(ctx context.Context, input openRouterInput, on
 		return openRouterErrorResult("LLM stream did not include message content", true)
 	}
 	return map[string]any{"ok": true, "text": accumulated, "provider": "openrouter", "streamed": true}
+}
+
+func extractDataURL(text string) string {
+	start := strings.Index(text, "data:image/")
+	if start < 0 {
+		return ""
+	}
+	end := len(text)
+	for i, ch := range text[start:] {
+		if ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' || ch == ')' || ch == ']' || ch == '}' || ch == '"' || ch == '\'' {
+			end = start + i
+			break
+		}
+	}
+	return strings.TrimSpace(text[start:end])
+}
+
+func truncateForLog(text string, max int) string {
+	if len(text) <= max {
+		return text
+	}
+	return text[:max] + "... truncated"
 }
 
 func openRouterErrorResult(message string, retryable bool) map[string]any {

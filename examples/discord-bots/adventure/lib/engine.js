@@ -102,7 +102,8 @@ function generateStoryboard(store, exported) {
   if (!exported || !Array.isArray(exported.scenes) || exported.scenes.length === 0) return null
   const scenes = exported.scenes.map((scene) => ({ turn: scene.turn, title: scene.title, narration: String(scene.narration || "").slice(0, 220) }))
   const prompt = [
-    "Create one cohesive illustrated storyboard image for this completed choose-your-own-adventure.",
+    "Generate an actual image now: one cohesive illustrated storyboard for this completed choose-your-own-adventure.",
+    "The API response must include image data. Do not answer with text-only commentary.",
     "Show 4-6 panels in a single wide image, with clear visual progression from beginning to ending.",
     "No readable text, no captions, no UI, no speech bubbles. Evocative fantasy/adventure illustration style.",
     JSON.stringify({ scenes }, null, 2),
