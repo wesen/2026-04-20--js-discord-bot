@@ -116,6 +116,21 @@ function themedSecondaryStat(prompt) {
   return "resolve"
 }
 
+async function regenerateStoryboard(ctx) {
+  console.log("[adventure] regenerateStoryboard", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx) }))
+  const loaded = requireOwnedSession(ctx, { allowCompleted: true })
+  if (!loaded.ok) return render.errorMessage(loaded.error)
+  if (loaded.session.status !== "completed") return render.errorMessage("The latest adventure in this channel has not reached a coda yet.")
+  await ctx.defer({ ephemeral: false })
+  await ctx.edit({ content: "Generating a storyboard from the completed adventure..." })
+  const result = engine.regenerateStoryboard(store, loaded.session)
+  if (!result.ok) {
+    await ctx.edit(render.errorMessage(`Could not generate storyboard: ${result.error}`))
+    return
+  }
+  await ctx.edit(render.storyboardMessage(loaded.session, result.storyboard))
+}
+
 async function startAdventure(ctx) {
   console.log("[adventure] startAdventure", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), args: ctx.args || {} }))
   ensureStore(ctx)
@@ -232,6 +247,10 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
     if (!loaded.ok) return render.errorMessage(loaded.error)
     return render.sceneMessage(loaded.session, loaded.scene || { title: "Adventure", narration: "No scene has been generated yet.", choices: [] })
   })
+
+  command("adventure-storyboard", {
+    description: "Regenerate a storyboard image for the latest completed adventure in this channel",
+  }, regenerateStoryboard)
 
   command("adventure-state", {
     description: "Show debug state for your active adventure session",

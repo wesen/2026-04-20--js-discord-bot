@@ -218,4 +218,12 @@ function interpretFreeform({ store, seed, session, currentScene, text, actor, on
   return { ok: true, session: nextSession, action: validation.action, input }
 }
 
-module.exports = { generateScene, applyChoice, interpretFreeform }
+function regenerateStoryboard(store, session) {
+  if (!store || !session) return { ok: false, error: "No session available" }
+  const exported = store.exportSession(session)
+  const storyboard = generateStoryboard(store, exported)
+  if (!storyboard || !storyboard.ok) return { ok: false, error: (storyboard && storyboard.error) || "Could not generate storyboard" }
+  return { ok: true, storyboard, exported }
+}
+
+module.exports = { generateScene, applyChoice, interpretFreeform, regenerateStoryboard }

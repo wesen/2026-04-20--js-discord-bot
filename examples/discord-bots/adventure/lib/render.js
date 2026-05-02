@@ -164,6 +164,15 @@ function pendingActionMessage(session, scene, details) {
   return ui.message().content(content).build()
 }
 
+function storyboardMessage(session, storyboard) {
+  const content = storyboard && storyboard.imageUrl
+    ? `Storyboard for adventure ${session.id}: ${storyboard.imageUrl}`
+    : `Storyboard for adventure ${session.id} generated.`
+  const ret = { content }
+  if (storyboard && storyboard.file) ret.files = [storyboard.file]
+  return ret
+}
+
 function errorMessage(message) {
   return ui.message().ephemeral().content(`⚠️ ${message}`).build()
 }
@@ -175,4 +184,4 @@ function stateMessage(session, scene) {
     .build()
 }
 
-module.exports = { sceneMessage, loadingMessage, pendingActionMessage, errorMessage, stateMessage }
+module.exports = { sceneMessage, loadingMessage, pendingActionMessage, storyboardMessage, errorMessage, stateMessage }
