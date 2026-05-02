@@ -83,6 +83,7 @@ function terminalForDepletedStats(store, session, input) {
   const narration = hpDeath
     ? `The cost of ${actorAction} lands with final force. Your HP falls to zero. The world narrows to a thin bright line, then goes quiet. Your adventure ends here.`
     : secondaryCollapseNarration(secondary, actorAction)
+  store.addAudit({ sessionId: session.id, turn: session.turn, kind: "scene_patch", input, llmRequest: {}, llmResponseText: "", parsed: {}, validation: { ok: true, terminal: true }, appliedEffects: input && input.effects ? input.effects : {} })
   const scene = store.saveScene(session, {
     id: `${session.id}_turn_${session.turn}_ending`,
     title,
@@ -168,17 +169,17 @@ function generateScene({ store, seed, session, currentScene, input, onChunk }) {
   return finishResultWithStoryboard({ ok: true, scene, session: finalSession, exported })
 }
 
-function applyChoice(store, session, scene, choiceIndex) {
+function applyChoice(store, session, scene, choiceIndex, actor) {
   const choice = scene && scene.choices ? scene.choices[choiceIndex] : null
   if (!choice) return { ok: false, error: "That choice is no longer available." }
   const nextSession = store.advanceSession(session, choice.proposedEffects || {})
-  const input = { kind: "choice", choice_id: choice.id, label: choice.label, effects: choice.proposedEffects || {}, next_hint: choice.nextHint || "" }
+  const input = { kind: "choice", choice_id: choice.id, label: choice.label, actor: actor || "", effects: choice.proposedEffects || {}, next_hint: choice.nextHint || "" }
   const terminal = terminalForDepletedStats(store, nextSession, input)
   if (terminal) return finishResultWithStoryboard(terminal)
   return { ok: true, session: nextSession, input }
 }
 
-function interpretFreeform({ store, seed, session, currentScene, text, onChunk }) {
+function interpretFreeform({ store, seed, session, currentScene, text, actor, onChunk }) {
   console.log("[adventure] interpretFreeform", JSON.stringify({ sessionId: session.id, turn: session.turn, textLength: String(text || "").length }))
   const request = {
     purpose: "interpret_action",
@@ -196,7 +197,7 @@ function interpretFreeform({ store, seed, session, currentScene, text, onChunk }
   store.addAudit({ sessionId: session.id, turn: session.turn, kind: "interpret_action", input: { text }, llmRequest: request, llmResponseText: completed.rawText, parsed: completed.value, validation, appliedEffects: validation.action ? validation.action.proposedEffects : {} })
   if (!validation.ok) return { ok: false, error: validation.errors.join("; ") }
   const nextSession = store.advanceSession(session, validation.action.proposedEffects || {})
-  const input = { kind: "freeform", text, interpreted_action: validation.action, effects: validation.action.proposedEffects || {} }
+  const input = { kind: "freeform", text, actor: actor || "", interpreted_action: validation.action, effects: validation.action.proposedEffects || {} }
   const terminal = terminalForDepletedStats(store, nextSession, input)
   if (terminal) return Object.assign({ action: validation.action }, finishResultWithStoryboard(terminal))
   return { ok: true, session: nextSession, action: validation.action, input }

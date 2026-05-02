@@ -141,7 +141,7 @@ async function startAdventure(ctx) {
     seed,
     session,
     currentScene: null,
-    input: { kind: "start", opening_prompt: userSeed || seed.openingPrompt, user_seed: userSeed, override_seed_tone: Boolean(userSeed) },
+    input: { kind: "start", opening_prompt: userSeed || seed.openingPrompt, user_seed: userSeed, override_seed_tone: Boolean(userSeed), actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) },
     onChunk: makeProgressEditor(ctx, session, "Opening the gate...", { actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }),
   })
   if (!generated.ok) {
@@ -163,7 +163,8 @@ async function choose(ctx, index) {
   await ctx.defer({ ephemeral: false })
   const pendingChoice = loaded.scene && loaded.scene.choices ? loaded.scene.choices[index] : null
   await ctx.edit(render.pendingActionMessage(loaded.session, loaded.scene, { action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
-  const applied = engine.applyChoice(store, loaded.session, loaded.scene, index)
+  const actor = (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx)
+  const applied = engine.applyChoice(store, loaded.session, loaded.scene, index, actor)
   if (!applied.ok) {
     await ctx.edit(render.errorMessage(applied.error))
     return
@@ -279,7 +280,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       return
     }
     const freeformDetails = { scene: loaded.scene, action: text || "free-form action", actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }
-    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text, onChunk: makeProgressEditor(ctx, loaded.session, "Interpreting your action...", freeformDetails) })
+    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx), onChunk: makeProgressEditor(ctx, loaded.session, "Interpreting your action...", freeformDetails) })
     if (!interpreted.ok) {
       await ctx.edit(render.errorMessage(`Could not interpret action: ${interpreted.error}`))
       return

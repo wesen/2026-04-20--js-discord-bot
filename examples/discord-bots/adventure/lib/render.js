@@ -7,27 +7,40 @@ function statLine(session) {
   return `${parts.join("  ")}\nInventory: ${inventory}`
 }
 
+function actionLine(scene) {
+  const action = scene && scene.action ? scene.action : null
+  if (!action || !action.label) return ""
+  const actor = action.actor ? `\nBy: ${action.actor}` : ""
+  return `Action: ${action.label}${actor}`
+}
+
 function sceneContent(session, scene) {
   const displayState = scene && scene.snapshot ? Object.assign({}, session || {}, scene.snapshot) : session
   const art = scene.asciiArt ? `${scene.asciiArt}\n\n` : ""
   const body = `${art}${scene.narration || ""}`.trim()
+  const action = actionLine(scene)
   return [
     "```",
     `╔═ ${scene.title || "Adventure"}`,
     `Turn ${scene && scene.turn !== undefined ? scene.turn : session.turn}`,
     "",
-    body.slice(0, 1600),
+    action,
+    action ? "" : null,
+    body.slice(0, action ? 1450 : 1600),
     "",
     statLine(displayState),
     "```",
-  ].join("\n").slice(0, 1900)
+  ].filter((line) => line !== null).join("\n").slice(0, 1900)
 }
 
 function codaContent(session, scene, exported) {
   const scenes = exported && Array.isArray(exported.scenes) ? exported.scenes : []
   const summary = scene && scene.ending && scene.ending.summary ? scene.ending.summary : "The adventure has ended."
   const lookback = scenes.length > 0
-    ? scenes.map((item) => `Turn ${item.turn}: ${item.title || "Untitled"}`).join("\n")
+    ? scenes.map((item) => {
+        const action = item.action && item.action.label ? ` — ${item.action.label}${item.action.actor ? ` (${item.action.actor})` : ""}` : ""
+        return `Turn ${item.turn}: ${item.title || "Untitled"}${action}`
+      }).join("\n")
     : "Use ← Previous to look back through the adventure."
   return [
     sceneContent(session, scene),

@@ -213,6 +213,14 @@ function createStore() {
     return getScene(sceneId)
   }
 
+  function sceneAction(sessionId, turn) {
+    const row = one(`SELECT input_json FROM adventure_audit WHERE session_id = ? AND turn = ? AND kind = 'scene_patch' ORDER BY created_at DESC LIMIT 1`, [sessionId, Number(turn || 0)])
+    const input = safeJsonParse(row.input_json, {})
+    if (!input || !input.kind) return null
+    const label = input.label || input.text || input.opening_prompt || "Adventure begins"
+    return { kind: input.kind, label, actor: input.actor || "" }
+  }
+
   function getScene(id) {
     const row = one(`SELECT * FROM adventure_scenes WHERE id = ? LIMIT 1`, [id])
     if (!row.id) return null
@@ -239,6 +247,7 @@ function createStore() {
         inventory: safeJsonParse(row.inventory_json, []),
         flags: safeJsonParse(row.flags_json, {}),
       },
+      action: sceneAction(row.session_id, Number(row.turn || 0)),
       rawPatch,
       choices,
     }
@@ -297,6 +306,7 @@ function createStore() {
         inventory: safeJsonParse(scene.inventory_json, []),
         flags: safeJsonParse(scene.flags_json, {}),
       },
+      action: sceneAction(scene.session_id, Number(scene.turn || 0)),
       rawPatch: safeJsonParse(scene.raw_patch_json, {}),
       choices: many(`SELECT choice_id, label, proposed_effects_json FROM adventure_choices WHERE scene_id = ? ORDER BY sort_order ASC`, [scene.id]).map((choice) => ({
         id: choice.choice_id,
