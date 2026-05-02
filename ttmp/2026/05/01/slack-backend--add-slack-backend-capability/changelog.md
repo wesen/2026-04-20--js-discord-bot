@@ -106,3 +106,12 @@ Added files:write to generated Slack manifests so storyboard/image uploads have 
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Manifest scope list includes files:write
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression assertion for files:write scope
 
+
+## 2026-05-01
+
+Replaced deprecated Slack files.upload usage with external upload flow: files.getUploadURLExternal, upload bytes, files.completeUploadExternal (commit 32a99dd).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Slack file upload now uses external upload flow
+
