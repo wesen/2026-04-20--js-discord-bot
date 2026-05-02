@@ -399,3 +399,86 @@ Generated bot scopes now include:
 ```json
 ["commands", "chat:write", "app_mentions:read"]
 ```
+
+## Step 5: Create Slack State Directory Automatically
+
+The Slack backend failed on startup when the configured SQLite path pointed into a missing directory such as `./var/slack-adventure.sqlite`. This step makes the backend create the parent directory before opening SQLite.
+
+This improves the setup flow: users can pass `--slack-state-db ./var/slack-adventure.sqlite` directly without first running `mkdir -p ./var`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "~/git/go-go-golems/discord-bot
+▷    go run ./cmd/discord-bot slack-serve \
+     --bot-script ./examples/discord-bots/adventure/index.js \
+     --listen-addr :8080 \
+     --slack-state-db ./var/slack-adventure.sqlite
+
+unable to open database file: no such file or directory
+exit status 1"
+
+**Assistant interpretation:** The Slack backend should not fail when the SQLite parent directory is missing; fix startup ergonomics.
+
+**Inferred user intent:** The user is trying to run the Slack backend live and hit a local setup failure that should be handled by the code.
+
+**Commit (code):** 5eba553f405d7f966fa94b562141de97b0150767 — "Create Slack state directory"
+
+### What I did
+
+- Updated `OpenSlackStore` to call `os.MkdirAll(filepath.Dir(path), 0o755)` before opening SQLite.
+- Left paths in the current directory untouched.
+- Ran focused and full test suites.
+
+### Why
+
+- The CLI accepts a SQLite path, so it should create the parent directory when possible.
+- This avoids a surprising setup footgun during live Slack testing.
+
+### What worked
+
+Validation passed:
+
+```bash
+go test ./internal/jsdiscord -run TestSlackStorePersistsMessage -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+- Before this change, running with `--slack-state-db ./var/slack-adventure.sqlite` failed if `./var` did not exist:
+
+```text
+unable to open database file: no such file or directory
+exit status 1
+```
+
+### What I learned
+
+- SQLite does not create missing parent directories; the adapter must do that explicitly.
+
+### What was tricky to build
+
+- Minimal fix; ensure only parent directories are created and normal SQLite errors still surface.
+
+### What warrants a second pair of eyes
+
+- Confirm `0755` permissions are acceptable for local state directories in this project.
+
+### What should be done in the future
+
+- Consider a shared helper for creating parent directories for all SQLite-backed runtime state.
+
+### Code review instructions
+
+- Review `OpenSlackStore` in `internal/jsdiscord/slack_backend.go`.
+- Validate by deleting `./var` and running `slack-serve` with `--slack-state-db ./var/slack-adventure.sqlite`.
+
+### Technical details
+
+The relevant code path now creates the parent directory before `sql.Open`:
+
+```go
+if dir := filepath.Dir(path); dir != "." && dir != "" {
+    if err := os.MkdirAll(dir, 0o755); err != nil { ... }
+}
+```

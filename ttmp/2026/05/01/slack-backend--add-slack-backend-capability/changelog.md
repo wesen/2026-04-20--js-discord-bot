@@ -75,3 +75,13 @@ Step 4: Added app_mentions:read to generated Slack manifests because app_mention
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression assertion for app_mentions:read
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 4
 
+
+## 2026-05-01
+
+Step 5: Slack backend now creates the SQLite state parent directory before opening the database (commit 5eba553).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — OpenSlackStore now creates missing parent directories
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 5
+
