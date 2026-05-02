@@ -150,7 +150,7 @@ func SlackManifest(desc *BotDescriptor, baseURL string) map[string]any {
 			"bot_user":       map[string]any{"display_name": name, "always_online": false},
 			"slash_commands": commands,
 		},
-		"oauth_config": map[string]any{"scopes": map[string]any{"bot": []string{"commands", "chat:write"}}},
+		"oauth_config": map[string]any{"scopes": map[string]any{"bot": []string{"commands", "chat:write", "app_mentions:read"}}},
 		"settings": map[string]any{
 			"interactivity":       map[string]any{"is_enabled": true, "request_url": base + "/slack/interactivity"},
 			"event_subscriptions": map[string]any{"request_url": base + "/slack/events", "bot_events": []string{"app_mention"}},

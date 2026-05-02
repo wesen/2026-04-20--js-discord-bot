@@ -48,6 +48,19 @@ func TestSlackManifestUsesCommands(t *testing.T) {
 	if commands[0]["usage_hint"] != "prompt text" {
 		t.Fatalf("unexpected usage hint: %#v", commands[0])
 	}
+	scopes := manifest["oauth_config"].(map[string]any)["scopes"].(map[string]any)["bot"].([]string)
+	if !containsString(scopes, "app_mentions:read") {
+		t.Fatalf("expected app_mentions:read scope, got %#v", scopes)
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func TestSlackMessagePayloadMapsButtonsAndInlineFiles(t *testing.T) {
