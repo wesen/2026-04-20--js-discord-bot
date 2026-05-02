@@ -538,7 +538,7 @@ func (c *SlackClient) UploadFile(ctx context.Context, channelID, threadTS string
 		return err
 	}
 	filename := firstNonEmpty(file.Name, "upload.bin")
-	start, err := c.api(ctx, "files.getUploadURLExternal", map[string]any{"filename": filename, "length": len(data)})
+	start, err := c.apiForm(ctx, "files.getUploadURLExternal", url.Values{"filename": {filename}, "length": {fmt.Sprint(len(data))}})
 	if err != nil {
 		return err
 	}
@@ -550,14 +550,12 @@ func (c *SlackClient) UploadFile(ctx context.Context, channelID, threadTS string
 	if err := c.uploadFileBytes(ctx, uploadURL, filename, file.ContentType, data); err != nil {
 		return err
 	}
-	completePayload := map[string]any{
-		"channel_id": channelID,
-		"files":      []map[string]any{{"id": fileID, "title": filename}},
-	}
+	filesJSON, _ := json.Marshal([]map[string]any{{"id": fileID, "title": filename}})
+	completePayload := url.Values{"channel_id": {channelID}, "files": {string(filesJSON)}}
 	if threadTS != "" {
-		completePayload["thread_ts"] = threadTS
+		completePayload.Set("thread_ts", threadTS)
 	}
-	_, err = c.api(ctx, "files.completeUploadExternal", completePayload)
+	_, err = c.apiForm(ctx, "files.completeUploadExternal", completePayload)
 	return err
 }
 
@@ -633,6 +631,23 @@ func (c *SlackClient) ResponseURL(ctx context.Context, responseURL string, paylo
 	return map[string]any{"ok": true}, nil
 }
 
+func (c *SlackClient) apiForm(ctx context.Context, method string, values url.Values) (map[string]any, error) {
+	if strings.TrimSpace(c.BotToken) == "" {
+		return nil, fmt.Errorf("slack bot token is required for %s", method)
+	}
+	baseURL := strings.TrimRight(c.APIBaseURL, "/")
+	if baseURL == "" {
+		baseURL = "https://slack.com/api"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/"+method, strings.NewReader(values.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.BotToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return c.doAPI(req, method)
+}
+
 func (c *SlackClient) api(ctx context.Context, method string, payload map[string]any) (map[string]any, error) {
 	if strings.TrimSpace(c.BotToken) == "" {
 		return nil, fmt.Errorf("slack bot token is required for %s", method)
@@ -648,6 +663,10 @@ func (c *SlackClient) api(ctx context.Context, method string, payload map[string
 	}
 	req.Header.Set("Authorization", "Bearer "+c.BotToken)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	return c.doAPI(req, method)
+}
+
+func (c *SlackClient) doAPI(req *http.Request, method string) (map[string]any, error) {
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
 		return nil, err
@@ -665,7 +684,7 @@ func (c *SlackClient) api(ctx context.Context, method string, payload map[string
 		return nil, err
 	}
 	if ok, _ := out["ok"].(bool); !ok {
-		return out, fmt.Errorf("slack api %s failed: %s", method, out["error"])
+		return out, fmt.Errorf("slack api %s failed: %s (%s)", method, out["error"], strings.TrimSpace(string(data)))
 	}
 	return out, nil
 }
