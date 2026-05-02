@@ -115,3 +115,12 @@ Replaced deprecated Slack files.upload usage with external upload flow: files.ge
 
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Slack file upload now uses external upload flow
 
+
+## 2026-05-01
+
+Updated Slack external upload methods to use form-encoded Web API calls and include raw Slack error bodies for invalid_arguments debugging (commit fb3a6d5).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — External upload now uses apiForm for getUploadURLExternal and completeUploadExternal
+
