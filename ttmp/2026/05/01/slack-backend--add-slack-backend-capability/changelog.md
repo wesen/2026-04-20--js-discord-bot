@@ -124,3 +124,13 @@ Updated Slack external upload methods to use form-encoded Web API calls and incl
 
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — External upload now uses apiForm for getUploadURLExternal and completeUploadExternal
 
+
+## 2026-05-01
+
+Fixed Slack file follow-up upload path so response_url {ok:true} responses no longer overwrite channel/ts with <nil>, and file-bearing follow-ups prefer chat.postMessage for concrete thread identity (commit b600653).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Preserves Slack message identity and routes file follow-ups via chat.postMessage
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression test for nil response fields
+
