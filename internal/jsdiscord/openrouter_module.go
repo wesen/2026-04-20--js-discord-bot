@@ -239,6 +239,13 @@ func (c *openRouterClient) generateImage(ctx context.Context, input openRouterIn
 	if strings.TrimSpace(c.APIKey) == "" {
 		return openRouterErrorResult("OPENROUTER_API_KEY is not configured", false)
 	}
+	return c.generateImageAttempt(ctx, input, false)
+}
+
+func (c *openRouterClient) generateImageAttempt(ctx context.Context, input openRouterInput, retry bool) map[string]any {
+	if retry {
+		input.User = strings.TrimSpace(input.User) + "\n\nIMPORTANT: Return an actual generated image in the response. Do not return Markdown, a code fence, a text description, or a placeholder."
+	}
 	req, err := c.buildImageRequest(ctx, input)
 	if err != nil {
 		return openRouterErrorResult(err.Error(), false)
@@ -271,8 +278,12 @@ func (c *openRouterClient) generateImage(ctx context.Context, input openRouterIn
 		imageURL = extractDataURL(message.Content)
 	}
 	if strings.TrimSpace(imageURL) == "" {
+		if !retry {
+			return c.generateImageAttempt(ctx, input, true)
+		}
 		result := openRouterErrorResult("image response did not include an image", true)
 		result["text"] = truncateForLog(message.Content, 2000)
+		result["rawResponse"] = truncateForLog(string(responseBody), 4000)
 		return result
 	}
 	return map[string]any{"ok": true, "provider": "openrouter", "model": decoded.Model, "imageUrl": imageURL, "text": message.Content}
