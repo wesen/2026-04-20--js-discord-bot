@@ -96,3 +96,13 @@ Step 6: Slack request normalization now exposes ctx.user.username as <@USERID> s
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression test for Slack mention username
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 6
 
+
+## 2026-05-01
+
+Added files:write to generated Slack manifests so storyboard/image uploads have the required scope (commit 6b12ec8).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Manifest scope list includes files:write
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression assertion for files:write scope
+
