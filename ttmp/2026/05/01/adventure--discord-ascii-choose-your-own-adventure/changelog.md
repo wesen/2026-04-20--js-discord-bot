@@ -143,3 +143,13 @@ Added /adventure-storyboard command to regenerate a storyboard image for the lat
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Exports storyboard regeneration helper
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Renders standalone storyboard response
 
+
+## 2026-05-01
+
+Hardened coda storyboard generation by explicitly requiring image output and extracting data:image URLs from text-only image responses; errors now retain response text for debugging (commit 6a89358).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Storyboard prompt now explicitly requires actual image data
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — Image response parsing now falls back to data URL extraction and includes text on no-image errors
+
