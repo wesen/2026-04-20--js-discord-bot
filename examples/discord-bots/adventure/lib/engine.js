@@ -141,15 +141,16 @@ function imageAttachmentFromURL(imageUrl) {
   return { ok: true, file: { name: `adventure-storyboard.${ext}`, content: match[2], contentType: match[1], encoding: "base64" } }
 }
 
-function finishResultWithStoryboard(result, store) {
+function finishResultWithStoryboard(result, store, options) {
   if (!result || !result.exported) return result
+  if (options && options.skipStoryboard) return result
   const storyboard = generateStoryboard(store, result.exported)
   if (storyboard && storyboard.ok) result.storyboard = storyboard
   else if (storyboard && storyboard.error) result.storyboardError = storyboard.error
   return result
 }
 
-function generateScene({ store, seed, session, currentScene, input, onChunk }) {
+function generateScene({ store, seed, session, currentScene, input, onChunk, skipStoryboard }) {
   console.log("[adventure] generateScene", JSON.stringify({ sessionId: session.id, turn: session.turn, inputKind: input && input.kind }))
   const request = {
     purpose: "scene_patch",
@@ -182,20 +183,20 @@ function generateScene({ store, seed, session, currentScene, input, onChunk }) {
   const scene = store.saveScene(session, validation.scene)
   const finalSession = scene.ending && scene.ending.isFinal ? store.finishSession(session) : session
   const exported = scene.ending && scene.ending.isFinal ? store.exportSession(finalSession) : null
-  return finishResultWithStoryboard({ ok: true, scene, session: finalSession, exported }, store)
+  return finishResultWithStoryboard({ ok: true, scene, session: finalSession, exported }, store, { skipStoryboard })
 }
 
-function applyChoice(store, session, scene, choiceIndex, actor) {
+function applyChoice(store, session, scene, choiceIndex, actor, options) {
   const choice = scene && scene.choices ? scene.choices[choiceIndex] : null
   if (!choice) return { ok: false, error: "That choice is no longer available." }
   const nextSession = store.advanceSession(session, choice.proposedEffects || {})
   const input = { kind: "choice", choice_id: choice.id, label: choice.label, actor: actor || "", effects: choice.proposedEffects || {}, next_hint: choice.nextHint || "" }
   const terminal = terminalForDepletedStats(store, nextSession, input)
-  if (terminal) return finishResultWithStoryboard(terminal, store)
+  if (terminal) return finishResultWithStoryboard(terminal, store, options)
   return { ok: true, session: nextSession, input }
 }
 
-function interpretFreeform({ store, seed, session, currentScene, text, actor, onChunk }) {
+function interpretFreeform({ store, seed, session, currentScene, text, actor, skipStoryboard, onChunk }) {
   console.log("[adventure] interpretFreeform", JSON.stringify({ sessionId: session.id, turn: session.turn, textLength: String(text || "").length }))
   const request = {
     purpose: "interpret_action",
@@ -215,7 +216,7 @@ function interpretFreeform({ store, seed, session, currentScene, text, actor, on
   const nextSession = store.advanceSession(session, validation.action.proposedEffects || {})
   const input = { kind: "freeform", text, actor: actor || "", interpreted_action: validation.action, effects: validation.action.proposedEffects || {} }
   const terminal = terminalForDepletedStats(store, nextSession, input)
-  if (terminal) return Object.assign({ action: validation.action }, finishResultWithStoryboard(terminal, store))
+  if (terminal) return Object.assign({ action: validation.action }, finishResultWithStoryboard(terminal, store, { skipStoryboard }))
   return { ok: true, session: nextSession, action: validation.action, input }
 }
 

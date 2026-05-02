@@ -168,6 +168,13 @@ async function startAdventure(ctx) {
   await ctx.edit(render.sceneMessage(generated.session || session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
 }
 
+async function addStoryboardAfterCoda(ctx, session, scene, exported) {
+  if (!exported) return
+  await ctx.edit(render.codaMessage(session, scene, exported))
+  const result = engine.regenerateStoryboard(store, session)
+  if (result.ok) await ctx.followUp(render.storyboardMessage(session, result.storyboard))
+}
+
 async function choose(ctx, index) {
   console.log("[adventure] choose", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), index }))
   const loaded = requireOwnedSession(ctx, { rejectStaleMessage: true })
@@ -179,13 +186,13 @@ async function choose(ctx, index) {
   const pendingChoice = loaded.scene && loaded.scene.choices ? loaded.scene.choices[index] : null
   await ctx.edit(render.pendingActionMessage(loaded.session, loaded.scene, { action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }))
   const actor = (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx)
-  const applied = engine.applyChoice(store, loaded.session, loaded.scene, index, actor)
+  const applied = engine.applyChoice(store, loaded.session, loaded.scene, index, actor, { skipStoryboard: true })
   if (!applied.ok) {
     await ctx.edit(render.errorMessage(applied.error))
     return
   }
   if (applied.scene) {
-    await ctx.edit(render.sceneMessage(applied.session, applied.scene, { exported: applied.exported, storyboard: applied.storyboard }))
+    await addStoryboardAfterCoda(ctx, applied.session, applied.scene, applied.exported)
     return
   }
   const generated = engine.generateScene({
@@ -194,13 +201,15 @@ async function choose(ctx, index) {
     session: applied.session,
     currentScene: loaded.scene,
     input: applied.input,
+    skipStoryboard: true,
     onChunk: makeProgressEditor(ctx, applied.session, "Resolving your choice...", { scene: loaded.scene, action: pendingChoice && pendingChoice.label, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }),
   })
   if (!generated.ok) {
     await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
     return
   }
-  await ctx.edit(render.sceneMessage(generated.session || applied.session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
+  if (generated.exported) await addStoryboardAfterCoda(ctx, generated.session || applied.session, generated.scene, generated.exported)
+  else await ctx.edit(render.sceneMessage(generated.session || applied.session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
 }
 
 module.exports = defineBot(({ command, component, modal, event, configure }) => {
@@ -299,13 +308,13 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       return
     }
     const freeformDetails = { scene: loaded.scene, action: text || "free-form action", actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx) }
-    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx), onChunk: makeProgressEditor(ctx, loaded.session, "Interpreting your action...", freeformDetails) })
+    const interpreted = engine.interpretFreeform({ store, seed: loaded.seed, session: loaded.session, currentScene: loaded.scene, text, actor: (ctx.user && (ctx.user.username || ctx.user.id)) || userId(ctx), skipStoryboard: true, onChunk: makeProgressEditor(ctx, loaded.session, "Interpreting your action...", freeformDetails) })
     if (!interpreted.ok) {
       await ctx.edit(render.errorMessage(`Could not interpret action: ${interpreted.error}`))
       return
     }
     if (interpreted.scene) {
-      await ctx.edit(render.sceneMessage(interpreted.session, interpreted.scene, { exported: interpreted.exported, storyboard: interpreted.storyboard }))
+      await addStoryboardAfterCoda(ctx, interpreted.session, interpreted.scene, interpreted.exported)
       return
     }
     const generated = engine.generateScene({
@@ -314,12 +323,14 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       session: interpreted.session,
       currentScene: loaded.scene,
       input: interpreted.input,
+      skipStoryboard: true,
       onChunk: makeProgressEditor(ctx, interpreted.session, "Trying something else...", freeformDetails),
     })
     if (!generated.ok) {
       await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
       return
     }
-    await ctx.edit(render.sceneMessage(generated.session || interpreted.session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
+    if (generated.exported) await addStoryboardAfterCoda(ctx, generated.session || interpreted.session, generated.scene, generated.exported)
+    else await ctx.edit(render.sceneMessage(generated.session || interpreted.session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
   })
 })

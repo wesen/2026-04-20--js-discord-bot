@@ -164,6 +164,10 @@ function pendingActionMessage(session, scene, details) {
   return ui.message().content(content).build()
 }
 
+function codaMessage(session, scene, exported) {
+  return sceneMessage(session, scene, { exported })
+}
+
 function storyboardMessage(session, storyboard) {
   const content = storyboard && storyboard.imageUrl
     ? `Storyboard for adventure ${session.id}: ${storyboard.imageUrl}`
@@ -184,4 +188,4 @@ function stateMessage(session, scene) {
     .build()
 }
 
-module.exports = { sceneMessage, loadingMessage, pendingActionMessage, storyboardMessage, errorMessage, stateMessage }
+module.exports = { sceneMessage, codaMessage, loadingMessage, pendingActionMessage, storyboardMessage, errorMessage, stateMessage }
