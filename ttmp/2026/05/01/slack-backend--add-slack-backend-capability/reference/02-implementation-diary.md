@@ -331,3 +331,71 @@ if usageHint := slackUsageHint(command); usageHint != "" {
     entry["usage_hint"] = usageHint
 }
 ```
+
+## Step 4: Add Slack App Mention Scope
+
+Slack rejected the generated manifest because it subscribed to the `app_mention` bot event without requesting the required `app_mentions:read` OAuth scope. This step adds that scope to generated manifests and locks it with a test.
+
+The backend already maps Slack `app_mention` events into the existing JS `messageCreate` event path, so the manifest needs the matching permission whenever it declares that event subscription.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I get 'app_mention' is missing scope app_mentions:read"
+
+**Assistant interpretation:** Fix generated Slack manifests so the declared `app_mention` event subscription has its required OAuth scope.
+
+**Inferred user intent:** The user is trying to install or validate the Slack manifest and needs the OAuth scopes to match the event subscriptions.
+
+**Commit (code):** 4d4a2a25c637f358b035dcc8f04978ca1a7bd4e7 — "Add Slack app mention scope"
+
+### What I did
+
+- Added `app_mentions:read` to generated Slack bot scopes in `SlackManifest`.
+- Updated `TestSlackManifestUsesCommands` to assert the scope is present.
+
+### Why
+
+- Slack requires `app_mentions:read` for apps that subscribe to the `app_mention` event.
+- The manifest already includes `app_mention` under `settings.event_subscriptions.bot_events`, so the scope must be present.
+
+### What worked
+
+Validation passed:
+
+```bash
+go test ./internal/jsdiscord -run TestSlackManifest -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+- Slack manifest validation/install failed before this change with an error indicating `app_mention` was missing `app_mentions:read`.
+
+### What I learned
+
+- Slack validates consistency between event subscriptions and OAuth scopes during manifest install/update.
+
+### What was tricky to build
+
+- Minimal fix; the important part was adding a regression assertion so the scope does not disappear later.
+
+### What warrants a second pair of eyes
+
+- If future manifest generation makes app mention events optional, scope generation should become conditional too.
+
+### What should be done in the future
+
+- Consider generating scopes from requested features/events instead of maintaining a static list.
+
+### Code review instructions
+
+- Review `SlackManifest` in `internal/jsdiscord/slack_backend.go`.
+- Review scope assertion in `internal/jsdiscord/slack_backend_test.go`.
+
+### Technical details
+
+Generated bot scopes now include:
+
+```json
+["commands", "chat:write", "app_mentions:read"]
+```

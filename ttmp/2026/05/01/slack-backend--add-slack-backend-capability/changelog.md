@@ -64,3 +64,14 @@ Step 3: Omitted empty usage_hint fields from generated Slack manifests so Slack 
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Manifest generation fix
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 3
 
+
+## 2026-05-01
+
+Step 4: Added app_mentions:read to generated Slack manifests because app_mention events require that scope (commit 4d4a2a).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Manifest scope fix
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression assertion for app_mentions:read
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 4
+
