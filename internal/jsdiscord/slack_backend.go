@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -604,6 +605,11 @@ type SlackInteraction struct {
 }
 
 func OpenSlackStore(path string) (*SlackStore, error) {
+	if dir := filepath.Dir(path); dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("create slack state directory: %w", err)
+		}
+	}
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
