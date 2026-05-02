@@ -29,7 +29,7 @@ func defaultRuntimeFactory(cfg commandOptions) RuntimeFactory {
 			absScript = strings.TrimSpace(verb.File.AbsPath)
 		}
 
-		runtimeRegistrars := []engine.RuntimeModuleRegistrar{jsdiscord.NewRegistrar(jsdiscord.Config{})}
+		runtimeRegistrars := []engine.RuntimeModuleRegistrar{jsdiscord.NewRegistrar(jsdiscord.Config{}), &jsdiscord.OpenRouterRegistrar{}}
 		runtimeRegistrars = append(runtimeRegistrars, cfg.runtimeModuleRegistrars...)
 
 		builder := engine.NewBuilder().

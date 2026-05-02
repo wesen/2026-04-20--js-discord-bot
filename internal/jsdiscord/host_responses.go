@@ -51,7 +51,7 @@ func (r *interactionResponder) responseType(payload any) discordgo.InteractionRe
 	if nr, ok := payload.(*normalizedResponse); ok && nr.FollowUp {
 		return discordgo.InteractionResponseChannelMessageWithSource
 	}
-	if r.interaction.Type == discordgo.InteractionMessageComponent {
+	if r.interaction.Type == discordgo.InteractionMessageComponent || (r.interaction.Type == discordgo.InteractionModalSubmit && r.interaction.Message != nil) {
 		return discordgo.InteractionResponseUpdateMessage
 	}
 	return discordgo.InteractionResponseChannelMessageWithSource
@@ -85,10 +85,13 @@ func (r *interactionResponder) Defer(ctx context.Context, payload any) error {
 	if err != nil {
 		return err
 	}
-	// Component interactions use DEFERRED_UPDATE_MESSAGE (type 6) — no loading state shown.
-	// Others use DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE (type 5) — shows "thinking...".
+	// Component interactions use DEFERRED_UPDATE_MESSAGE (type 6), allowing
+	// later edits to replace the original message. Modal submissions opened
+	// from a component also carry the original message and should behave the
+	// same way so free-form flows do not create a second channel message.
+	// Other interactions use DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE (type 5).
 	deferType := discordgo.InteractionResponseDeferredChannelMessageWithSource
-	if r.interaction.Type == discordgo.InteractionMessageComponent {
+	if r.interaction.Type == discordgo.InteractionMessageComponent || (r.interaction.Type == discordgo.InteractionModalSubmit && r.interaction.Message != nil) {
 		deferType = discordgo.InteractionResponseDeferredMessageUpdate
 	}
 	err = r.session.InteractionRespond(r.interaction.Interaction, &discordgo.InteractionResponse{

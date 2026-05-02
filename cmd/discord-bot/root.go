@@ -61,7 +61,7 @@ func newRootCommand(rawArgs ...string) (*cobra.Command, error) {
 		return nil, err
 	}
 
-	rootCmd.AddCommand(runCobraCmd, validateCobraCmd, syncCobraCmd)
+	rootCmd.AddCommand(runCobraCmd, validateCobraCmd, syncCobraCmd, newSlackManifestCommand(), newSlackServeCommand(), newSlackAdventureCodaBackfillCommand())
 
 	bootstrap, err := publicbotcli.BuildBootstrap(rawArgs)
 	if err != nil {
