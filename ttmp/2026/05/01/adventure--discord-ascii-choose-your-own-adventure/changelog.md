@@ -108,3 +108,15 @@ Changed completed-session history navigation so the return button says Coda, mak
 
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — History return button label for completed adventures
 
+
+## 2026-05-01
+
+Added coda storyboard image generation from the full adventure using Go-owned OpenRouter image generation with Gemini Flash Image (commits da9c47f, 0402dba).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Generates full-story storyboard at coda time
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Attaches storyboard output to coda
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — Added adventure_llm.generateImage and image response parsing
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Uploads generated image files to Slack thread
+
