@@ -12,6 +12,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -530,54 +531,73 @@ func (c *SlackClient) UploadFile(ctx context.Context, channelID, threadTS string
 		return nil
 	}
 	if strings.TrimSpace(c.BotToken) == "" {
-		return fmt.Errorf("slack bot token is required for files.upload")
+		return fmt.Errorf("slack bot token is required for file upload")
 	}
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("channels", channelID)
-	if threadTS != "" {
-		_ = writer.WriteField("thread_ts", threadTS)
-	}
-	_ = writer.WriteField("filename", file.Name)
-	if file.ContentType != "" {
-		_ = writer.WriteField("filetype", strings.TrimPrefix(file.ContentType, "image/"))
-	}
-	part, err := writer.CreateFormFile("file", file.Name)
+	data, err := io.ReadAll(file.Reader)
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(part, file.Reader); err != nil {
+	filename := firstNonEmpty(file.Name, "upload.bin")
+	start, err := c.api(ctx, "files.getUploadURLExternal", map[string]any{"filename": filename, "length": len(data)})
+	if err != nil {
+		return err
+	}
+	uploadURL := strings.TrimSpace(fmt.Sprint(start["upload_url"]))
+	fileID := strings.TrimSpace(fmt.Sprint(start["file_id"]))
+	if uploadURL == "" || fileID == "" {
+		return fmt.Errorf("slack files.getUploadURLExternal response missing upload_url/file_id")
+	}
+	if err := c.uploadFileBytes(ctx, uploadURL, filename, file.ContentType, data); err != nil {
+		return err
+	}
+	completePayload := map[string]any{
+		"channel_id": channelID,
+		"files":      []map[string]any{{"id": fileID, "title": filename}},
+	}
+	if threadTS != "" {
+		completePayload["thread_ts"] = threadTS
+	}
+	_, err = c.api(ctx, "files.completeUploadExternal", completePayload)
+	return err
+}
+
+func (c *SlackClient) uploadFileBytes(ctx context.Context, uploadURL, filename, contentType string, data []byte) error {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	partHeader := make(textproto.MIMEHeader)
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, escapeQuotes(filename)))
+	if contentType != "" {
+		partHeader.Set("Content-Type", contentType)
+	}
+	part, err := writer.CreatePart(partHeader)
+	if err != nil {
+		return err
+	}
+	if _, err := part.Write(data); err != nil {
 		return err
 	}
 	if err := writer.Close(); err != nil {
 		return err
 	}
-	baseURL := strings.TrimRight(c.APIBaseURL, "/")
-	if baseURL == "" {
-		baseURL = "https://slack.com/api"
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/files.upload", &body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, &body)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.BotToken)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("slack files.upload status %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
-	}
-	var out map[string]any
-	if err := json.Unmarshal(data, &out); err == nil {
-		if ok, _ := out["ok"].(bool); !ok {
-			return fmt.Errorf("slack files.upload failed: %s", out["error"])
-		}
+	responseBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("slack external file upload status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
 	}
 	return nil
+}
+
+func escapeQuotes(value string) string {
+	return strings.ReplaceAll(value, `"`, `\"`)
 }
 
 func cleanSlackPayload(payload map[string]any) map[string]any {
