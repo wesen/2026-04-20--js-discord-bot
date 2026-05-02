@@ -132,3 +132,14 @@ History scenes and coda lookback now show the action that led to each scene and 
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Renders action/actor in history scenes and coda lookback
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/store.js — Loads scene action metadata from audit records
 
+
+## 2026-05-01
+
+Added /adventure-storyboard command to regenerate a storyboard image for the latest completed adventure in the channel, useful for retrying recent Slack codas (commit 3d64e70).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Registers adventure-storyboard command
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Exports storyboard regeneration helper
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Renders standalone storyboard response
+
