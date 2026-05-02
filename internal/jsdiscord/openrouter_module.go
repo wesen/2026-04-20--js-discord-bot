@@ -204,7 +204,7 @@ func (c *openRouterClient) buildRequest(ctx context.Context, input openRouterInp
 func (c *openRouterClient) buildImageRequest(ctx context.Context, input openRouterInput) (*http.Request, error) {
 	model := strings.TrimSpace(c.ImageModel)
 	if model == "" {
-		model = "google/gemini-2.5-flash-image-preview"
+		model = "google/gemini-2.5-flash-image"
 	}
 	messages := []openRouterChatMessage{}
 	if input.System != "" {
