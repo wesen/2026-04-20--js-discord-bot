@@ -153,3 +153,12 @@ Hardened coda storyboard generation by explicitly requiring image output and ext
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Storyboard prompt now explicitly requires actual image data
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — Image response parsing now falls back to data URL extraction and includes text on no-image errors
 
+
+## 2026-05-01
+
+Added a second stricter image-generation attempt when Gemini/OpenRouter returns text without image data, and audit errors now include truncated raw image response body for debugging (commit 8c7ef07).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — Retries image generation and records raw response on no-image errors
+
