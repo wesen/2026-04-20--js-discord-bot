@@ -162,3 +162,14 @@ Added a second stricter image-generation attempt when Gemini/OpenRouter returns 
 
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — Retries image generation and records raw response on no-image errors
 
+
+## 2026-05-01
+
+Final scenes now render the coda immediately and generate/post the storyboard afterward as a follow-up, so users do not wait on image generation before seeing the ending (commit cf29943).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Posts coda first then follows up with storyboard
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Supports skipping storyboard during final scene generation
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Exposes coda-only message renderer
+
