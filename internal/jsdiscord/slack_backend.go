@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -524,11 +525,77 @@ func (c *SlackClient) OpenView(ctx context.Context, payload map[string]any) (map
 	return c.api(ctx, "views.open", payload)
 }
 
+func (c *SlackClient) UploadFile(ctx context.Context, channelID, threadTS string, file *discordgo.File) error {
+	if file == nil || file.Reader == nil || strings.TrimSpace(channelID) == "" {
+		return nil
+	}
+	if strings.TrimSpace(c.BotToken) == "" {
+		return fmt.Errorf("slack bot token is required for files.upload")
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("channels", channelID)
+	if threadTS != "" {
+		_ = writer.WriteField("thread_ts", threadTS)
+	}
+	_ = writer.WriteField("filename", file.Name)
+	if file.ContentType != "" {
+		_ = writer.WriteField("filetype", strings.TrimPrefix(file.ContentType, "image/"))
+	}
+	part, err := writer.CreateFormFile("file", file.Name)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(part, file.Reader); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	baseURL := strings.TrimRight(c.APIBaseURL, "/")
+	if baseURL == "" {
+		baseURL = "https://slack.com/api"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/files.upload", &body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.BotToken)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("slack files.upload status %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err == nil {
+		if ok, _ := out["ok"].(bool); !ok {
+			return fmt.Errorf("slack files.upload failed: %s", out["error"])
+		}
+	}
+	return nil
+}
+
+func cleanSlackPayload(payload map[string]any) map[string]any {
+	ret := make(map[string]any, len(payload))
+	for key, value := range payload {
+		if strings.HasPrefix(key, "_") {
+			continue
+		}
+		ret[key] = value
+	}
+	return ret
+}
+
 func (c *SlackClient) ResponseURL(ctx context.Context, responseURL string, payload map[string]any) (map[string]any, error) {
 	if strings.TrimSpace(responseURL) == "" {
 		return nil, fmt.Errorf("slack response_url is empty")
 	}
-	body, _ := json.Marshal(payload)
+	body, _ := json.Marshal(cleanSlackPayload(payload))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, responseURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -550,7 +617,7 @@ func (c *SlackClient) api(ctx context.Context, method string, payload map[string
 	if strings.TrimSpace(c.BotToken) == "" {
 		return nil, fmt.Errorf("slack bot token is required for %s", method)
 	}
-	body, _ := json.Marshal(payload)
+	body, _ := json.Marshal(cleanSlackPayload(payload))
 	baseURL := strings.TrimRight(c.APIBaseURL, "/")
 	if baseURL == "" {
 		baseURL = "https://slack.com/api"
@@ -764,6 +831,7 @@ func (r *slackResponder) Reply(ctx context.Context, payload any) error {
 		return err
 	}
 	r.recordMessage(message, resp)
+	r.uploadFiles(ctx, message)
 	return nil
 }
 
@@ -786,6 +854,7 @@ func (r *slackResponder) FollowUp(ctx context.Context, payload any) error {
 		return err
 	}
 	r.recordMessage(message, resp)
+	r.uploadFiles(ctx, message)
 	return nil
 }
 
@@ -804,6 +873,7 @@ func (r *slackResponder) Edit(ctx context.Context, payload any) error {
 		return err
 	}
 	r.recordMessage(message, resp)
+	r.uploadFiles(ctx, message)
 	return nil
 }
 
@@ -818,6 +888,18 @@ func (r *slackResponder) ShowModal(ctx context.Context, payload any) error {
 		r.markAcked()
 	}
 	return err
+}
+
+func (r *slackResponder) uploadFiles(ctx context.Context, message map[string]any) {
+	files, _ := message["_files"].([]*discordgo.File)
+	if len(files) == 0 || r == nil || r.client == nil || r.channelID == "" || r.messageTS == "" {
+		return
+	}
+	for _, file := range files {
+		if err := r.client.UploadFile(ctx, r.channelID, r.messageTS, file); err != nil {
+			log.Warn().Err(err).Str("channel", r.channelID).Str("ts", r.messageTS).Str("file", file.Name).Msg("failed to upload slack response file")
+		}
+	}
 }
 
 func (r *slackResponder) recordMessage(message map[string]any, resp map[string]any) {
@@ -866,6 +948,9 @@ func slackMessagePayload(payload any) (map[string]any, error) {
 		ret["response_type"] = "ephemeral"
 	} else {
 		ret["response_type"] = "in_channel"
+	}
+	if len(normalized.Files) > 0 {
+		ret["_files"] = normalized.Files
 	}
 	if len(blocks) > 0 {
 		ret["blocks"] = blocks
@@ -931,6 +1016,10 @@ func inlineFiles(content string, files []*discordgo.File) string {
 	parts := []string{content}
 	for _, file := range files {
 		if file == nil {
+			continue
+		}
+		if strings.HasPrefix(file.ContentType, "image/") {
+			parts = append(parts, fmt.Sprintf("Image: %s will be uploaded in this message thread.", file.Name))
 			continue
 		}
 		var body string

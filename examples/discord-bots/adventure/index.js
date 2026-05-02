@@ -150,7 +150,7 @@ async function startAdventure(ctx) {
     return
   }
   console.log("[adventure] opening scene generated", JSON.stringify({ sessionId: session.id, sceneId: generated.scene && generated.scene.id }))
-  await ctx.edit(render.sceneMessage(generated.session || session, generated.scene, { exported: generated.exported }))
+  await ctx.edit(render.sceneMessage(generated.session || session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
 }
 
 async function choose(ctx, index) {
@@ -169,7 +169,7 @@ async function choose(ctx, index) {
     return
   }
   if (applied.scene) {
-    await ctx.edit(render.sceneMessage(applied.session, applied.scene, { exported: applied.exported }))
+    await ctx.edit(render.sceneMessage(applied.session, applied.scene, { exported: applied.exported, storyboard: applied.storyboard }))
     return
   }
   const generated = engine.generateScene({
@@ -184,7 +184,7 @@ async function choose(ctx, index) {
     await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
     return
   }
-  await ctx.edit(render.sceneMessage(generated.session || applied.session, generated.scene, { exported: generated.exported }))
+  await ctx.edit(render.sceneMessage(generated.session || applied.session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
 }
 
 module.exports = defineBot(({ command, component, modal, event, configure }) => {
@@ -285,7 +285,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       return
     }
     if (interpreted.scene) {
-      await ctx.edit(render.sceneMessage(interpreted.session, interpreted.scene, { exported: interpreted.exported }))
+      await ctx.edit(render.sceneMessage(interpreted.session, interpreted.scene, { exported: interpreted.exported, storyboard: interpreted.storyboard }))
       return
     }
     const generated = engine.generateScene({
@@ -300,6 +300,6 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
       await ctx.edit(render.errorMessage(`Could not generate next scene: ${generated.error}`))
       return
     }
-    await ctx.edit(render.sceneMessage(generated.session || interpreted.session, generated.scene, { exported: generated.exported }))
+    await ctx.edit(render.sceneMessage(generated.session || interpreted.session, generated.scene, { exported: generated.exported, storyboard: generated.storyboard }))
   })
 })

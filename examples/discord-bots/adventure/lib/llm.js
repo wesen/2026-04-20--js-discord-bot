@@ -1,6 +1,15 @@
 const llm = require("adventure_llm")
 const { parseLLMJson } = require("./schema")
 
+function generateImage(request) {
+  console.log("[adventure] llm.generateImage request", JSON.stringify({ purpose: request && request.purpose, metadata: request && request.metadata }))
+  if (!llm.generateImage) return { ok: false, error: "Image generation is not available" }
+  const result = llm.generateImage(request)
+  console.log("[adventure] llm.generateImage result", JSON.stringify({ ok: result && result.ok, provider: result && result.provider, error: result && result.error, statusCode: result && result.statusCode, model: result && result.model }))
+  if (!result || result.ok !== true) return { ok: false, error: (result && result.error) || "Image generation failed", raw: result || null }
+  return { ok: true, imageUrl: result.imageUrl, text: result.text || "", raw: result }
+}
+
 function completeJson(request, onChunk) {
   console.log("[adventure] llm.completeJson request", JSON.stringify({ purpose: request && request.purpose, metadata: request && request.metadata, streaming: Boolean(onChunk && llm.streamJson) }))
   let result = onChunk && llm.streamJson ? llm.streamJson(request, onChunk) : llm.completeJson(request)
@@ -25,4 +34,4 @@ function completeJson(request, onChunk) {
   return { ok: true, value: parsed.value, rawText: result.text, raw: result, parsed }
 }
 
-module.exports = { completeJson }
+module.exports = { completeJson, generateImage }

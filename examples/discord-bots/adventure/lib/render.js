@@ -54,9 +54,12 @@ function sceneMessage(session, scene, options) {
     return builder.build()
   }
   if (scene && scene.ending && scene.ending.isFinal) {
-    const finalBuilder = ui.message().content(codaContent(session, scene, options && options.exported))
-    if (scene.turn > 0) finalBuilder.row(ui.button("adv:history:prev", "← Previous", "secondary"))
-    return finalBuilder.build()
+    const storyboard = options && options.storyboard
+    const content = codaContent(session, scene, options && options.exported) + (storyboard && storyboard.imageUrl ? `\n\nStoryboard: ${storyboard.imageUrl}` : storyboard && storyboard.file ? "\n\nStoryboard image generated." : "")
+    const ret = { content }
+    if (storyboard && storyboard.file) ret.files = [storyboard.file]
+    if (scene.turn > 0) ret.components = [{ type: "row", components: [{ type: "button", customId: "adv:history:prev", label: "← Previous", style: "secondary" }] }]
+    return ret
   }
   const nav = []
   if (scene && scene.turn > 0) nav.push(ui.button("adv:history:prev", "← Previous", "secondary"))

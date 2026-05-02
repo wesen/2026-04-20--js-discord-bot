@@ -97,6 +97,41 @@ function terminalForDepletedStats(store, session, input) {
   return { ok: true, scene, session: finalSession, exported: store.exportSession(finalSession) }
 }
 
+function generateStoryboard(exported) {
+  if (!exported || !Array.isArray(exported.scenes) || exported.scenes.length === 0) return null
+  const scenes = exported.scenes.map((scene) => ({ turn: scene.turn, title: scene.title, narration: String(scene.narration || "").slice(0, 220) }))
+  const prompt = [
+    "Create one cohesive illustrated storyboard image for this completed choose-your-own-adventure.",
+    "Show 4-6 panels in a single wide image, with clear visual progression from beginning to ending.",
+    "No readable text, no captions, no UI, no speech bubbles. Evocative fantasy/adventure illustration style.",
+    JSON.stringify({ scenes }, null, 2),
+  ].join("\n")
+  const result = llm.generateImage({
+    purpose: "adventure_storyboard",
+    system: "You generate a single image storyboard from a completed adventure story.",
+    user: prompt,
+    metadata: { sessionId: exported.session && exported.session.id, turn: exported.session && exported.session.turn },
+  })
+  if (!result.ok) return { ok: false, error: result.error }
+  return imageAttachmentFromURL(result.imageUrl)
+}
+
+function imageAttachmentFromURL(imageUrl) {
+  const text = String(imageUrl || "")
+  const match = text.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+  if (!match) return { ok: true, imageUrl: text }
+  const ext = match[1].includes("jpeg") || match[1].includes("jpg") ? "jpg" : match[1].includes("webp") ? "webp" : "png"
+  return { ok: true, file: { name: `adventure-storyboard.${ext}`, content: match[2], contentType: match[1], encoding: "base64" } }
+}
+
+function finishResultWithStoryboard(result) {
+  if (!result || !result.exported) return result
+  const storyboard = generateStoryboard(result.exported)
+  if (storyboard && storyboard.ok) result.storyboard = storyboard
+  else if (storyboard && storyboard.error) result.storyboardError = storyboard.error
+  return result
+}
+
 function generateScene({ store, seed, session, currentScene, input, onChunk }) {
   console.log("[adventure] generateScene", JSON.stringify({ sessionId: session.id, turn: session.turn, inputKind: input && input.kind }))
   const request = {
@@ -130,7 +165,7 @@ function generateScene({ store, seed, session, currentScene, input, onChunk }) {
   const scene = store.saveScene(session, validation.scene)
   const finalSession = scene.ending && scene.ending.isFinal ? store.finishSession(session) : session
   const exported = scene.ending && scene.ending.isFinal ? store.exportSession(finalSession) : null
-  return { ok: true, scene, session: finalSession, exported }
+  return finishResultWithStoryboard({ ok: true, scene, session: finalSession, exported })
 }
 
 function applyChoice(store, session, scene, choiceIndex) {
@@ -139,7 +174,7 @@ function applyChoice(store, session, scene, choiceIndex) {
   const nextSession = store.advanceSession(session, choice.proposedEffects || {})
   const input = { kind: "choice", choice_id: choice.id, label: choice.label, effects: choice.proposedEffects || {}, next_hint: choice.nextHint || "" }
   const terminal = terminalForDepletedStats(store, nextSession, input)
-  if (terminal) return terminal
+  if (terminal) return finishResultWithStoryboard(terminal)
   return { ok: true, session: nextSession, input }
 }
 
@@ -163,7 +198,7 @@ function interpretFreeform({ store, seed, session, currentScene, text, onChunk }
   const nextSession = store.advanceSession(session, validation.action.proposedEffects || {})
   const input = { kind: "freeform", text, interpreted_action: validation.action, effects: validation.action.proposedEffects || {} }
   const terminal = terminalForDepletedStats(store, nextSession, input)
-  if (terminal) return Object.assign({ action: validation.action }, terminal)
+  if (terminal) return Object.assign({ action: validation.action }, finishResultWithStoryboard(terminal))
   return { ok: true, session: nextSession, action: validation.action, input }
 }
 
