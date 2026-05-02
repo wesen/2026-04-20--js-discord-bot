@@ -52,6 +52,9 @@ func TestSlackManifestUsesCommands(t *testing.T) {
 	if !containsString(scopes, "app_mentions:read") {
 		t.Fatalf("expected app_mentions:read scope, got %#v", scopes)
 	}
+	if !containsString(scopes, "files:write") {
+		t.Fatalf("expected files:write scope, got %#v", scopes)
+	}
 }
 
 func containsString(values []string, target string) bool {
