@@ -77,3 +77,14 @@ Added Goja callback streaming for OpenRouter: adventure_llm.streamJson reads SSE
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/llm.js — Uses streamJson when an onChunk callback is provided
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — OpenRouter SSE streaming and JS callback bridge
 
+
+## 2026-05-01
+
+Replaced final downloadable JSON export with an in-message coda and history navigation that works on both Discord and Slack (commit 28ee3c2).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — History/resume can load completed sessions
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Final scene now renders coda/lookback instead of files
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/store.js — Added latest active/completed session lookup for final history navigation
+

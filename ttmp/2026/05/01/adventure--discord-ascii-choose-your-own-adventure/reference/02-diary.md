@@ -290,3 +290,84 @@ Primary files:
 - `examples/discord-bots/adventure/lib/engine.js`
 - `examples/discord-bots/adventure/lib/schema.js`
 - `examples/discord-bots/adventure/lib/render.js`
+
+## Step 7: Replace Download Export with Coda and Lookback
+
+This step changed the ending experience so the bot no longer attaches a downloadable JSON export when an adventure ends. Instead, the final message now includes an in-message coda and a concise turn-by-turn lookback, with navigation buttons to scroll through prior scenes.
+
+The change is transport-friendly: Discord and Slack both render normal message content and buttons, while Slack did not need file-upload support. Completed sessions can now still serve history navigation because history/resume lookup includes completed sessions, not only active ones.
+
+### Prompt Context
+
+**User prompt (verbatim):** "For both slack and discord, instead of a json file that can be downloadable, create a coda and a scrollable look back through the adventure."
+
+**Assistant interpretation:** Replace final JSON file export with a message-native ending summary and history navigation that works across Discord and Slack.
+
+**Inferred user intent:** Make the ending UX readable and interactive in both transports without relying on attachments/downloads.
+
+**Commit (code):** 28ee3c210358d4fd329c157fa71dd3aca840e970 — "Replace adventure export with coda"
+
+### What I did
+
+- Updated final scene rendering in `examples/discord-bots/adventure/lib/render.js`:
+  - removed `files: [{ adventure-...json }]`,
+  - added a `Coda` section from the ending summary,
+  - added a `Look back` section listing scene turns/titles,
+  - added a `← Previous` button on final scenes.
+- Updated `examples/discord-bots/adventure/lib/store.js` with `findLatestSessionInChannel`, including active and completed sessions.
+- Updated `examples/discord-bots/adventure/index.js` so history navigation and `/adventure-resume` can load completed sessions.
+
+### Why
+
+- Slack file upload was intentionally deferred, and inline/downloadable JSON is not a great end-user coda.
+- The adventure already stores scenes and snapshots, so a scrollable history is more useful than a raw export.
+- Completed adventures previously stopped being discoverable by history handlers because `finishSession` changes status to `completed`.
+
+### What worked
+
+Validation passed:
+
+```bash
+go test ./internal/jsdiscord -run TestAdventure -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+- No command failures in this step. The main issue was behavioral: final sessions became `completed`, so history buttons needed completed-session lookup to remain useful.
+
+### What I learned
+
+- Ending UX should use the same primitive set as normal gameplay—message content and buttons—so it works across Slack and Discord.
+- Final-session history requires lookup semantics distinct from gameplay actions: choices should require active sessions, but history can read completed sessions.
+
+### What was tricky to build
+
+- Avoiding accidental action availability on completed sessions. Only resume/history were changed to allow completed sessions; choice/freeform flows still require active sessions.
+- Keeping the final coda short enough for Discord/Slack message limits while still useful.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `/adventure-resume` should show completed sessions when no active session exists, or whether there should be a distinct `/adventure-history` command later.
+- Review final coda truncation lengths for Slack Block Kit section limits and Discord message limits.
+
+### What should be done in the future
+
+- Add a focused test for final scene rendering without files and with history navigation.
+- Consider richer lookback pages, e.g. a dedicated summary screen separate from scene-by-scene history.
+
+### Code review instructions
+
+- Review `sceneMessage` and `codaContent` in `examples/discord-bots/adventure/lib/render.js`.
+- Review `findLatestSessionInChannel` in `examples/discord-bots/adventure/lib/store.js`.
+- Review `showHistory` and `/adventure-resume` lookup changes in `examples/discord-bots/adventure/index.js`.
+- Validate with:
+
+```bash
+go test ./internal/jsdiscord -run TestAdventure -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+Final scene responses now return a normal UI message rather than a plain object with `files`, so both transports render the same coda/history affordance.
