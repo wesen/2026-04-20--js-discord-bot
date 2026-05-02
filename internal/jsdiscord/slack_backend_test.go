@@ -103,6 +103,26 @@ func TestSlackMessagePayloadMapsButtonsAndInlineFiles(t *testing.T) {
 	}
 }
 
+func TestSlackRecordMessageIgnoresNilSlackResponseFields(t *testing.T) {
+	store, err := OpenSlackStore(t.TempDir() + "/slack.sqlite")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer store.Close()
+	responder := newSlackResponder(&SlackClient{}, store, "T1", "", "C1", "100.1", "", "script.js")
+	responder.recordMessage(map[string]any{"text": "hello"}, map[string]any{"ok": true})
+	if responder.channelID != "C1" || responder.messageTS != "100.1" {
+		t.Fatalf("recordMessage overwrote identity with nil fields: channel=%q ts=%q", responder.channelID, responder.messageTS)
+	}
+	msg, err := store.GetMessage("T1", "C1", "100.1")
+	if err != nil {
+		t.Fatalf("get stored message: %v", err)
+	}
+	if msg.Content != "hello" {
+		t.Fatalf("unexpected stored content: %#v", msg)
+	}
+}
+
 func TestSlackResponderPublicCommandReplyCreatesEditableMessage(t *testing.T) {
 	calls := []string{}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

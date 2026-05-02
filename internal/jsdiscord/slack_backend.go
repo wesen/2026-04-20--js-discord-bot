@@ -193,8 +193,9 @@ func commandOptionNames(spec map[string]any) []string {
 
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" && trimmed != "<nil>" {
+			return trimmed
 		}
 	}
 	return ""
@@ -884,7 +885,12 @@ func (r *slackResponder) FollowUp(ctx context.Context, payload any) error {
 	}
 	delete(message, "replace_original")
 	var resp map[string]any
-	if r.responseURL != "" {
+	// Prefer chat.postMessage for file-bearing follow-ups so Slack returns a
+	// concrete channel+ts and file upload can thread reliably. response_url
+	// responses often only return {ok:true}.
+	if _, hasFiles := message["_files"]; hasFiles && r.channelID != "" {
+		resp, err = r.client.PostMessage(ctx, message)
+	} else if r.responseURL != "" {
 		resp, err = r.client.ResponseURL(ctx, r.responseURL, message)
 	} else {
 		resp, err = r.client.PostMessage(ctx, message)
@@ -945,14 +951,21 @@ func (r *slackResponder) recordMessage(message map[string]any, resp map[string]a
 	if r == nil || r.store == nil {
 		return
 	}
-	channel := firstNonEmpty(fmt.Sprint(resp["channel"]), fmt.Sprint(message["channel"]), r.channelID)
-	ts := firstNonEmpty(fmt.Sprint(resp["ts"]), r.messageTS)
+	channel := firstNonEmpty(slackString(resp["channel"]), slackString(message["channel"]), r.channelID)
+	ts := firstNonEmpty(slackString(resp["ts"]), r.messageTS)
 	if channel == "" || ts == "" {
 		return
 	}
 	r.channelID = channel
 	r.messageTS = ts
-	_ = r.store.UpsertMessage(SlackMessage{TeamID: r.teamID, ChannelID: channel, TS: ts, Content: fmt.Sprint(message["text"])}, resp)
+	_ = r.store.UpsertMessage(SlackMessage{TeamID: r.teamID, ChannelID: channel, TS: ts, Content: slackString(message["text"])}, resp)
+}
+
+func slackString(value any) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
 }
 
 func slackMessageID(teamID, channelID, ts string) string {
