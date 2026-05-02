@@ -120,3 +120,15 @@ Added coda storyboard image generation from the full adventure using Go-owned Op
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/openrouter_module.go — Added adventure_llm.generateImage and image response parsing
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Uploads generated image files to Slack thread
 
+
+## 2026-05-01
+
+History scenes and coda lookback now show the action that led to each scene and who took it (commit 02ca618).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/index.js — Passes actor into engine inputs
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/engine.js — Carries actor through choice/freeform and terminal endings
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Renders action/actor in history scenes and coda lookback
+- /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/store.js — Loads scene action metadata from audit records
+
