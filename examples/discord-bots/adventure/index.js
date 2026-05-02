@@ -49,8 +49,8 @@ function makeProgressEditor(ctx, session, title, details) {
 
 function requireOwnedSession(ctx, options) {
   ensureStore(ctx)
-  const session = store.findActiveSessionInChannel(channelId(ctx))
-  if (!session) return { ok: false, error: "No active adventure session in this channel. Use /adventure-start first." }
+  const session = options && options.allowCompleted ? store.findLatestSessionInChannel(channelId(ctx)) : store.findActiveSessionInChannel(channelId(ctx))
+  if (!session) return { ok: false, error: "No adventure session in this channel. Use /adventure-start first." }
   // Adventure sessions are channel-scoped collaborative games. The starter is
   // recorded as owner for reset/debug provenance, but other channel members may
   // choose actions and submit free-form moves.
@@ -67,7 +67,7 @@ function requireOwnedSession(ctx, options) {
 
 async function showHistory(ctx, direction) {
   console.log("[adventure] history", JSON.stringify({ userId: userId(ctx), channelId: channelId(ctx), direction }))
-  const loaded = requireOwnedSession(ctx)
+  const loaded = requireOwnedSession(ctx, { allowCompleted: true })
   if (!loaded.ok) return render.errorMessage(loaded.error)
   const currentTurn = messageTurn(ctx)
   let targetTurn = loaded.session.turn
@@ -227,7 +227,7 @@ module.exports = defineBot(({ command, component, modal, event, configure }) => 
   command("adventure-resume", {
     description: "Resume the current adventure session in this channel",
   }, async (ctx) => {
-    const loaded = requireOwnedSession(ctx)
+    const loaded = requireOwnedSession(ctx, { allowCompleted: true })
     if (!loaded.ok) return render.errorMessage(loaded.error)
     return render.sceneMessage(loaded.session, loaded.scene || { title: "Adventure", narration: "No scene has been generated yet.", choices: [] })
   })

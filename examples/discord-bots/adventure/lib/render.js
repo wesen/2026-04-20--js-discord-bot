@@ -23,6 +23,25 @@ function sceneContent(session, scene) {
   ].join("\n").slice(0, 1900)
 }
 
+function codaContent(session, scene, exported) {
+  const scenes = exported && Array.isArray(exported.scenes) ? exported.scenes : []
+  const summary = scene && scene.ending && scene.ending.summary ? scene.ending.summary : "The adventure has ended."
+  const lookback = scenes.length > 0
+    ? scenes.map((item) => `Turn ${item.turn}: ${item.title || "Untitled"}`).join("\n")
+    : "Use ← Previous to look back through the adventure."
+  return [
+    sceneContent(session, scene),
+    "",
+    "**Coda**",
+    summary.slice(0, 500),
+    "",
+    "**Look back**",
+    lookback.slice(0, 700),
+    "",
+    "Use the navigation buttons to scroll through previous scenes.",
+  ].join("\n").slice(0, 2000)
+}
+
 function sceneMessage(session, scene, options) {
   const builder = ui.message().content(sceneContent(session, scene))
   const viewingHistory = Boolean(options && options.history)
@@ -35,15 +54,9 @@ function sceneMessage(session, scene, options) {
     return builder.build()
   }
   if (scene && scene.ending && scene.ending.isFinal) {
-    const exported = options && options.exported ? options.exported : { session, scene }
-    return {
-      content: sceneContent(session, scene),
-      files: [{
-        name: `adventure-${session.id}.json`,
-        content: JSON.stringify(exported, null, 2),
-        contentType: "application/json",
-      }],
-    }
+    const finalBuilder = ui.message().content(codaContent(session, scene, options && options.exported))
+    if (scene.turn > 0) finalBuilder.row(ui.button("adv:history:prev", "← Previous", "secondary"))
+    return finalBuilder.build()
   }
   const nav = []
   if (scene && scene.turn > 0) nav.push(ui.button("adv:history:prev", "← Previous", "secondary"))
