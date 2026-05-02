@@ -88,3 +88,14 @@ Replaced final downloadable JSON export with an in-message coda and history navi
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/render.js — Final scene now renders coda/lookback instead of files
 - /Users/kball/git/go-go-golems/discord-bot/examples/discord-bots/adventure/lib/store.js — Added latest active/completed session lookup for final history navigation
 
+
+## 2026-05-01
+
+Added Slack-specific backfill command to replace old final export messages with coda/lookback Slack messages (commit be743fa).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/cmd/discord-bot/root.go — Registers slack-adventure-coda-backfill command
+- /Users/kball/git/go-go-golems/discord-bot/cmd/discord-bot/slack_adventure_coda.go — Backfill command for old Slack adventure export endings
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/adventure--discord-ascii-choose-your-own-adventure/reference/02-diary.md — Recorded Step 8
+

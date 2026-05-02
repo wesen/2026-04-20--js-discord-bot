@@ -371,3 +371,103 @@ go test ./... -count=1
 ### Technical details
 
 Final scene responses now return a normal UI message rather than a plain object with `files`, so both transports render the same coda/history affordance.
+
+## Step 8: Slack Backfill for Old Export Endings
+
+This step added a focused maintenance command to update old Slack adventure ending messages that still contain the previous JSON export representation. The command reads completed sessions from the adventure SQLite database, finds matching Slack messages in the Slack adapter SQLite database, and rewrites those messages with the new coda/lookback format.
+
+The command is dry-run by default. Applying changes requires `--apply`, which calls Slack `chat.update` and then updates the stored Slack message content so future history button clicks still have the right message text context.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Can we do a thing where we modify old adventure threads that have the export and change them to the code? In slack in particular"
+
+**Assistant interpretation:** Add a Slack-specific backfill tool to replace old final adventure export messages with the new coda/lookback ending.
+
+**Inferred user intent:** The user has existing Slack adventure messages with the old export UX and wants to migrate them in place instead of leaving stale endings around.
+
+**Commit (code):** be743fa7514d36823548e138c378eac907479a51 — "Add Slack adventure coda backfill"
+
+### What I did
+
+- Added top-level command `slack-adventure-coda-backfill`.
+- The command accepts:
+  - `--adventure-db`
+  - `--slack-state-db`
+  - `--slack-bot-token`
+  - `--apply`
+- It scans completed adventure sessions and final scenes.
+- It finds Slack messages whose stored content appears to contain the old export/session ID.
+- It renders a coda plus lookback and a `← Previous` Block Kit button.
+- In dry-run mode it prints matched messages without changing Slack.
+- In apply mode it calls Slack `chat.update` and updates local `slack_messages.content`.
+
+### Why
+
+- The new final coda UX only affects new endings; existing Slack messages are already posted.
+- Slack message updates require `channel + ts`, which the Slack adapter stores in SQLite.
+- A dry-run-first command is safer than automatically mutating old messages.
+
+### What worked
+
+Validation passed:
+
+```bash
+go test ./cmd/discord-bot -count=1
+go test ./... -count=1
+go run ./cmd/discord-bot slack-adventure-coda-backfill --help
+```
+
+### What didn't work
+
+- No command failures after adding the local helper for first-non-empty strings. Initial compile failed because the command tried to use a helper that existed in another package, not `cmd/discord-bot`:
+
+```text
+cmd/discord-bot/slack_adventure_coda.go:178:54: undefined: firstNonEmpty
+cmd/discord-bot/slack_adventure_coda.go:192:15: undefined: firstNonEmpty
+```
+
+### What I learned
+
+- The Slack adapter's message store makes post-hoc migration possible as long as the old message content includes enough session identity to match.
+- Because old export messages included `adventure-<session>.json` or the session ID in JSON, matching can be done conservatively from stored content.
+
+### What was tricky to build
+
+- The command must not update arbitrary adventure messages; it searches for session/export identity in the stored Slack message content.
+- The rendered message has to include `Turn N` and a history button so existing history navigation can continue from the migrated final message.
+
+### What warrants a second pair of eyes
+
+- Matching logic is intentionally heuristic: it looks for `adventure-<session>.json`, JSON session ID, or the raw session ID in stored Slack content. Review before running `--apply` broadly.
+- The Go coda renderer duplicates some JS rendering logic; if the JS coda evolves, this command may need updates.
+
+### What should be done in the future
+
+- Add a dedicated migration marker/metadata field to Slack message state for easier future backfills.
+- Consider a JS-owned coda renderer exposed through a maintenance command so Go does not duplicate adventure presentation logic.
+
+### Code review instructions
+
+- Review `cmd/discord-bot/slack_adventure_coda.go`.
+- Review root command wiring in `cmd/discord-bot/root.go`.
+- Validate dry-run first:
+
+```bash
+go run ./cmd/discord-bot slack-adventure-coda-backfill \
+  --adventure-db ./examples/discord-bots/adventure/data/adventure.sqlite \
+  --slack-state-db ./var/slack-adventure.sqlite
+```
+
+- Apply only after reviewing dry-run output:
+
+```bash
+go run ./cmd/discord-bot slack-adventure-coda-backfill \
+  --adventure-db ./examples/discord-bots/adventure/data/adventure.sqlite \
+  --slack-state-db ./var/slack-adventure.sqlite \
+  --apply
+```
+
+### Technical details
+
+The command requires `SLACK_BOT_TOKEN` or `--slack-bot-token` when `--apply` is used. Dry-run does not call Slack.
