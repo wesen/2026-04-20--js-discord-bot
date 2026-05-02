@@ -482,3 +482,79 @@ if dir := filepath.Dir(path); dir != "." && dir != "" {
     if err := os.MkdirAll(dir, 0o755); err != nil { ... }
 }
 ```
+
+## Step 6: Render Slack Users as Mentions
+
+Slack interactions were exposing the raw user ID as `ctx.user.username`, so bot scripts that displayed the actor rendered strings like `U05MP5JKZTP` instead of a clickable Slack mention. This step changes Slack request normalization so the JS-facing username is Slack mrkdwn mention syntax.
+
+The JavaScript layer remains unchanged. Existing code that uses `ctx.user.username || ctx.user.id` now gets `<@U...>` on Slack, which Slack renders as a proper user reference in message text.
+
+### Prompt Context
+
+**User prompt (verbatim):** "The slack references to user aren't working properly... it shows the raw userid  U05MP5JKZTP instead of a reference"
+
+**Assistant interpretation:** Fix Slack user rendering so JS-visible user display values become Slack mentions rather than raw IDs.
+
+**Inferred user intent:** The user wants actor/user references in Slack messages to be readable and clickable without changing bot scripts.
+
+**Commit (code):** 885ae042f7fe41fd3116ce228a7b665e2efe8b35 — "Render Slack users as mentions"
+
+### What I did
+
+- Added `slackUserMention(userID)` to format Slack IDs as `<@USERID>`.
+- Updated `slackBaseRequest` so `ctx.user.username` and `ctx.member.user.username` are Slack mentions.
+- Added a regression test verifying `U05MP5JKZTP` becomes `<@U05MP5JKZTP>` in the JS-facing request.
+
+### Why
+
+- Slack renders `<@U123>` as a user mention, but raw `U123` remains plain text.
+- Adventure bot action attribution uses `ctx.user.username || ctx.user.id`; changing the adapter preserves JS compatibility.
+
+### What worked
+
+Validation passed:
+
+```bash
+go test ./internal/jsdiscord -run TestSlack -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+- Before this change, actor text in Slack displayed raw IDs like:
+
+```text
+U05MP5JKZTP
+```
+
+instead of clickable mentions.
+
+### What I learned
+
+- For Slack, the best JS-compatible display-name value is often mrkdwn mention syntax rather than the raw user ID.
+
+### What was tricky to build
+
+- The fix needed to preserve the canonical raw Slack ID in `ctx.user.id` while making `ctx.user.username` display-friendly.
+
+### What warrants a second pair of eyes
+
+- Confirm whether other display fields should also use Slack mention syntax, such as command target users once user-command support exists.
+
+### What should be done in the future
+
+- Consider resolving Slack profile display names through `users.info` only where plain names are needed; keep mentions for message rendering.
+
+### Code review instructions
+
+- Review `slackBaseRequest` and `slackUserMention` in `internal/jsdiscord/slack_backend.go`.
+- Review `TestSlackBaseRequestUsesUserMentionAsUsername` in `internal/jsdiscord/slack_backend_test.go`.
+
+### Technical details
+
+Slack user mapping now follows:
+
+```text
+ctx.user.id       = "U05MP5JKZTP"
+ctx.user.username = "<@U05MP5JKZTP>"
+```

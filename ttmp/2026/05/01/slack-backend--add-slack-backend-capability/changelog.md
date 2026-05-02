@@ -85,3 +85,14 @@ Step 5: Slack backend now creates the SQLite state parent directory before openi
 - /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — OpenSlackStore now creates missing parent directories
 - /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 5
 
+
+## 2026-05-01
+
+Step 6: Slack request normalization now exposes ctx.user.username as <@USERID> so unchanged JS renders clickable Slack user mentions (commit 885ae04).
+
+### Related Files
+
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend.go — Slack user mention normalization
+- /Users/kball/git/go-go-golems/discord-bot/internal/jsdiscord/slack_backend_test.go — Regression test for Slack mention username
+- /Users/kball/git/go-go-golems/discord-bot/ttmp/2026/05/01/slack-backend--add-slack-backend-capability/reference/02-implementation-diary.md — Recorded Step 6
+
